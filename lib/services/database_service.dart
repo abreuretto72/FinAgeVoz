@@ -1,0 +1,1021 @@
+import 'package:flutter/foundation.dart' hide Category;
+import 'package:hive_flutter/hive_flutter.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:path_provider/path_provider.dart';
+import 'package:archive/archive.dart';
+import 'package:archive/archive_io.dart';
+import 'package:path/path.dart' as p;
+import '../models/transaction_model.dart';
+import '../models/event_model.dart';
+import '../models/category_model.dart';
+import '../models/operation_history.dart';
+import '../utils/constants.dart';
+
+class DatabaseService {
+  static final DatabaseService _instance = DatabaseService._internal();
+  factory DatabaseService() => _instance;
+  DatabaseService._internal();
+
+  late Box<Transaction> _transactionBox;
+  late Box<Event> _eventBox;
+  late Box _settingsBox;
+  late Box<Category> _categoryBox;
+  late Box<OperationHistory> _historyBox;
+
+  final ValueNotifier<String> languageNotifier = ValueNotifier('pt_BR');
+
+  // Initialize all Hive boxes and seed default categories
+  Future<void> init() async {
+    print("DEBUG: Opening Hive boxes...");
+    _transactionBox = await Hive.openBox<Transaction>('transactions');
+    _eventBox = await Hive.openBox<Event>('events');
+    _settingsBox = await Hive.openBox('settings');
+    _categoryBox = await Hive.openBox<Category>('categories');
+    _historyBox = await Hive.openBox<OperationHistory>('operation_history');
+    print("DEBUG: Hive boxes opened. Category box empty? ${_categoryBox.isEmpty}");
+    
+    // Seed default categories if none exist
+    if (_categoryBox.isEmpty) {
+      print("DEBUG: Seeding categories...");
+      await _seedCategories();
+      print("DEBUG: Categories seeded.");
+    }
+    
+    // Initialize language notifier
+    languageNotifier.value = getLanguage();
+
+    if (_categoryBox.isNotEmpty) {
+      // Check if we need to reset categories for translation compatibility
+      // This is a one-time migration to ensure all strings match AppConstants
+      // Check if we need to reset categories for translation compatibility
+      // This is a one-time migration to ensure all strings match AppConstants
+      final needsMigrationV2 = _settingsBox.get('categories_migrated_v2', defaultValue: false) == false;
+      final needsMigrationV3 = _settingsBox.get('categories_migrated_v3', defaultValue: false) == false;
+      final needsMigrationV4 = _settingsBox.get('categories_migrated_v4', defaultValue: false) == false;
+      
+      if (needsMigrationV2 || needsMigrationV3 || needsMigrationV4) {
+        print("DEBUG: Running category migration (v4)...");
+        await resetDefaultCategories();
+        await _settingsBox.put('categories_migrated_v2', true);
+        await _settingsBox.put('categories_migrated_v3', true);
+        await _settingsBox.put('categories_migrated_v4', true);
+        print("DEBUG: Category migration completed.");
+      }
+      
+      // Fix for incorrect reversals (where "Estorno" was classified as Expense)
+      // await _fixIncorrectReversals(); // Disabled as it conflicts with new logic
+      
+      // Normalize reversals to ensure they work with the new calculation logic
+      await _normalizeReversals();
+
+      // Migrate reversals to negative values (User request: Estorno * -1)
+      // DEPRECATED by v2 logic
+      // final reversalsNegated = _settingsBox.get('reversals_negated_v1', defaultValue: false);
+      // if (!reversalsNegated) {
+      //   await _migrateReversalsToNegative();
+      //   await _settingsBox.put('reversals_negated_v1', true);
+      // }
+      
+      // Migrate to Algebraic Sign Logic (v2)
+      // Expense -> Negative
+      // Income -> Positive
+      // Reversal (Exp) -> Positive
+      // Reversal (Inc) -> Negative
+      final algebraicMigrated = _settingsBox.get('algebraic_sign_v2', defaultValue: false);
+      if (!algebraicMigrated) {
+        await _migrateToAlgebraicSignV2();
+        await _settingsBox.put('algebraic_sign_v2', true);
+      }
+      
+      // Fix for phantom transaction (User reported error: 3150 vs 2350 -> 800 difference)
+      // await _removePhantomHealthTransaction(); // Disabled after fix confirmed
+    }
+  }
+  
+  Future<void> _normalizeReversals() async {
+    print("DEBUG: Normalizing reversals...");
+    final transactions = _transactionBox.values.toList();
+    // Create a map for fast lookup of original transactions
+    final transactionMap = {for (var t in transactions) t.id: t};
+    bool changed = false;
+    
+    for (int i = 0; i < transactions.length; i++) {
+      final t = transactions[i];
+      
+      // Case 1: Reversals should match the type of the original transaction
+      if (t.isReversal && t.originalTransactionId != null) {
+        final original = transactionMap[t.originalTransactionId];
+        if (original != null) {
+          if (t.isExpense != original.isExpense) {
+             print("DEBUG: Fixing reversal type mismatch for ${t.description}. Changing isExpense to ${original.isExpense}");
+             final updatedT = Transaction(
+              id: t.id,
+              description: t.description,
+              amount: t.amount,
+              isExpense: original.isExpense, // Match original type
+              date: t.date,
+              category: t.category,
+              subcategory: t.subcategory,
+              isReversal: true,
+              originalTransactionId: t.originalTransactionId,
+              installmentId: t.installmentId,
+              installmentNumber: t.installmentNumber,
+              totalInstallments: t.totalInstallments,
+              attachments: t.attachments,
+            );
+            await _transactionBox.putAt(i, updatedT);
+            changed = true;
+          }
+        }
+      }
+      
+      // Case 2: "Estorno" transactions that are NOT marked as isReversal
+      if (!t.isReversal && t.isExpense) {
+        final desc = t.description.toLowerCase();
+        if (desc.contains('estorno de') || (desc.contains('estorno') && t.amount > 0)) {
+           print("DEBUG: Marking transaction ${t.description} as Reversal.");
+           final updatedT = Transaction(
+            id: t.id,
+            description: t.description,
+            amount: t.amount,
+            isExpense: true,
+            date: t.date,
+            category: t.category,
+            subcategory: t.subcategory,
+            isReversal: true, // Mark as reversal
+            originalTransactionId: t.originalTransactionId,
+            installmentId: t.installmentId,
+            installmentNumber: t.installmentNumber,
+            totalInstallments: t.totalInstallments,
+            attachments: t.attachments,
+          );
+          await _transactionBox.putAt(i, updatedT);
+          changed = true;
+        }
+      }
+    }
+    
+    if (changed) {
+      print("DEBUG: Reversals normalized.");
+    } else {
+      print("DEBUG: No reversals needed normalization.");
+    }
+  }
+
+  Future<void> _migrateReversalsToNegative() async {
+    // Deprecated by V2
+  }
+
+  Future<void> _migrateToAlgebraicSignV2() async {
+    print("DEBUG: Migrating to Algebraic Sign Logic (v2)...");
+    final transactions = _transactionBox.values.toList();
+    bool changed = false;
+
+    for (int i = 0; i < transactions.length; i++) {
+      final t = transactions[i];
+      double newAmount = t.amount;
+      
+      // Determine correct sign
+      // Expense (Normal) -> Negative
+      // Income (Normal) -> Positive
+      // Expense (Reversal) -> Positive
+      // Income (Reversal) -> Negative
+      
+      if (t.isExpense) {
+        if (t.isReversal) {
+          // Reversal of Expense -> Should be Positive
+          newAmount = t.amount.abs();
+        } else {
+          // Normal Expense -> Should be Negative
+          newAmount = -t.amount.abs();
+        }
+      } else {
+        if (t.isReversal) {
+          // Reversal of Income -> Should be Negative
+          newAmount = -t.amount.abs();
+        } else {
+          // Normal Income -> Should be Positive
+          newAmount = t.amount.abs();
+        }
+      }
+
+      if (newAmount != t.amount) {
+        print("DEBUG: Updating sign for ${t.description}: ${t.amount} -> $newAmount");
+        final updatedT = Transaction(
+          id: t.id,
+          description: t.description,
+          amount: newAmount,
+          isExpense: t.isExpense,
+          date: t.date,
+          category: t.category,
+          subcategory: t.subcategory,
+          isReversal: t.isReversal,
+          originalTransactionId: t.originalTransactionId,
+          installmentId: t.installmentId,
+          installmentNumber: t.installmentNumber,
+          totalInstallments: t.totalInstallments,
+          attachments: t.attachments,
+        );
+        await _transactionBox.putAt(i, updatedT);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      print("DEBUG: Algebraic migration completed.");
+    } else {
+      print("DEBUG: No transactions needed algebraic migration.");
+    }
+  }
+
+  // Deprecated
+  Future<void> _fixIncorrectReversals() async {
+    // ... implementation removed/disabled ...
+  }
+
+  Future<void> _seedCategories() async {
+    // Seed Expense Categories
+    for (var name in AppConstants.expenseCategories) {
+      final description = AppConstants.categoryDescriptions[name] ?? '';
+      final subcategories = AppConstants.expenseSubcategories[name] ?? [];
+      await _categoryBox.add(Category(
+        name: name, 
+        description: description,
+        subcategories: subcategories,
+        type: 'expense',
+      ));
+    }
+
+    // Seed Income Categories
+    for (var name in AppConstants.incomeCategories) {
+      final description = AppConstants.categoryDescriptions[name] ?? '';
+      final subcategories = AppConstants.incomeSubcategories[name] ?? [];
+      await _categoryBox.add(Category(
+        name: name, 
+        description: description,
+        subcategories: subcategories,
+        type: 'income',
+      ));
+    }
+  }
+
+  /// Resets all default categories to match AppConstants exactly.
+  /// This ensures category and subcategory strings match the translation keys.
+  /// User-created categories are preserved.
+  Future<void> resetDefaultCategories() async {
+    // Get all default category names from AppConstants
+    final defaultExpenseNames = AppConstants.expenseCategories.toSet();
+    final defaultIncomeNames = AppConstants.incomeCategories.toSet();
+    
+    // Remove all default categories (but keep user-created ones)
+    final categoriesToRemove = <int>[];
+    for (int i = 0; i < _categoryBox.length; i++) {
+      final cat = _categoryBox.getAt(i);
+      if (cat != null && (defaultExpenseNames.contains(cat.name) || defaultIncomeNames.contains(cat.name))) {
+        categoriesToRemove.add(i);
+      }
+    }
+    
+    // Delete in reverse order to maintain indices
+    for (int i in categoriesToRemove.reversed) {
+      await _categoryBox.deleteAt(i);
+    }
+    
+    // Re-seed default categories with correct strings
+    await _seedCategories();
+    
+    print("DEBUG: Default categories reset. Total categories: ${_categoryBox.length}");
+  }
+
+  // Settings (Wake Word)
+  Future<void> setWakeWord(String word) async {
+    await _settingsBox.put('wake_word', word);
+  }
+
+  String? getWakeWord() {
+    return _settingsBox.get('wake_word');
+  }
+
+  String? getGroqApiKey() {
+    return _settingsBox.get('groq_api_key');
+  }
+
+  Future<void> setGroqApiKey(String key) async {
+    await _settingsBox.put('groq_api_key', key);
+  }
+
+  String getGroqModel() {
+    return _settingsBox.get('groq_model', defaultValue: 'llama-3.3-70b-versatile');
+  }
+
+  Future<void> setGroqModel(String model) async {
+    await _settingsBox.put('groq_model', model);
+  }
+
+
+  String getLanguage() {
+    String defaultLang = 'en';
+    try {
+      final systemLocale = Platform.localeName; // e.g., en_US, pt_BR
+      if (systemLocale.startsWith('pt_PT')) {
+        defaultLang = 'pt_PT';
+      } else if (systemLocale.startsWith('pt')) {
+        defaultLang = 'pt_BR';
+      } else if (systemLocale.startsWith('es')) {
+        defaultLang = 'es';
+      } else if (systemLocale.startsWith('de')) {
+        defaultLang = 'de';
+      } else if (systemLocale.startsWith('it')) {
+        defaultLang = 'it';
+      } else if (systemLocale.startsWith('fr')) {
+        defaultLang = 'fr';
+      } else if (systemLocale.startsWith('ja')) {
+        defaultLang = 'ja';
+      } else if (systemLocale.startsWith('hi')) {
+        defaultLang = 'hi';
+      } else if (systemLocale.startsWith('zh')) {
+        defaultLang = 'zh';
+      } else if (systemLocale.startsWith('ar')) {
+        defaultLang = 'ar';
+      } else if (systemLocale.startsWith('bn')) {
+        defaultLang = 'bn';
+      } else if (systemLocale.startsWith('ru')) {
+        defaultLang = 'ru';
+      } else if (systemLocale.startsWith('id')) {
+        defaultLang = 'id';
+      }
+    } catch (e) {
+      print("Error getting system locale: $e");
+    }
+    return _settingsBox.get('language', defaultValue: defaultLang);
+  }
+
+  Future<void> setLanguage(String langCode) async {
+    await _settingsBox.put('language', langCode);
+    languageNotifier.value = langCode;
+  }
+
+  bool get isFirstRunVoice => _settingsBox.get('first_run_voice', defaultValue: true);
+
+  Future<void> setFirstRunVoice(bool value) async {
+    await _settingsBox.put('first_run_voice', value);
+  }
+
+  // Transactions
+  Future<void> addTransaction(Transaction transaction) async {
+    // Enforce algebraic sign logic on add
+    double amount = transaction.amount;
+    if (transaction.isExpense) {
+      if (transaction.isReversal) {
+        amount = amount.abs(); // Reversal of Expense -> Positive
+      } else {
+        amount = -amount.abs(); // Normal Expense -> Negative
+      }
+    } else {
+      if (transaction.isReversal) {
+        amount = -amount.abs(); // Reversal of Income -> Negative
+      } else {
+        amount = amount.abs(); // Normal Income -> Positive
+      }
+    }
+    
+    // Create new object with correct amount if needed
+    final tToAdd = (amount != transaction.amount) 
+        ? Transaction(
+            id: transaction.id,
+            description: transaction.description,
+            amount: amount,
+            isExpense: transaction.isExpense,
+            date: transaction.date,
+            category: transaction.category,
+            subcategory: transaction.subcategory,
+            isReversal: transaction.isReversal,
+            originalTransactionId: transaction.originalTransactionId,
+            installmentId: transaction.installmentId,
+            installmentNumber: transaction.installmentNumber,
+            totalInstallments: transaction.totalInstallments,
+            attachments: transaction.attachments,
+          )
+        : transaction;
+
+    await _transactionBox.add(tToAdd);
+  }
+
+  List<Transaction> getTransactions() {
+    return _transactionBox.values.toList().reversed.toList();
+  }
+
+  double getBalance() {
+    // Pure summation logic
+    return _transactionBox.values.fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  // Events
+  Future<void> addEvent(Event event) async {
+    await _eventBox.add(event);
+  }
+
+  List<Event> getEvents() {
+    return _eventBox.values.toList();
+  }
+
+  Future<void> updateEvent(int index, Event event) async {
+    await _eventBox.putAt(index, event);
+  }
+
+  Future<void> deleteEvent(int index) async {
+    await _eventBox.deleteAt(index);
+  }
+
+  // Transaction update
+  Future<void> updateTransaction(int index, Transaction transaction) async {
+    await _transactionBox.putAt(index, transaction);
+  }
+
+  Future<void> deleteTransaction(int index) async {
+    await _transactionBox.deleteAt(index);
+  }
+
+  Future<void> deleteTransactionSeries(String installmentId) async {
+    final keysToDelete = <dynamic>[];
+    for (var i = 0; i < _transactionBox.length; i++) {
+      final t = _transactionBox.getAt(i);
+      if (t != null && t.installmentId == installmentId) {
+        keysToDelete.add(_transactionBox.keyAt(i));
+      }
+    }
+    
+    for (var key in keysToDelete) {
+      await _transactionBox.delete(key);
+    }
+  }
+
+  // Category management
+  Future<void> addCategory(Category category) async {
+    await _categoryBox.add(category);
+  }
+
+  List<Category> getCategories({String? type}) {
+    if (type == null) {
+      return _categoryBox.values.toList();
+    }
+    return _categoryBox.values.where((c) => c.type == type).toList();
+  }
+
+  /// Deletes a category only if no transaction references it.
+  /// Returns true if deletion succeeded, false otherwise.
+  Future<bool> deleteCategory(int index) async {
+    final category = _categoryBox.getAt(index);
+    if (category == null) return false;
+    final used = _transactionBox.values.any((t) => t.category == category.name);
+    if (used) {
+      return false; // cannot delete because there are transactions using it
+    }
+    await _categoryBox.deleteAt(index);
+    return true;
+  }
+
+  Future<void> updateCategory(int index, Category category) async {
+    await _categoryBox.putAt(index, category);
+  }
+
+  // Migration: Update transactions from 2024 to 2025
+  Future<void> migrateTransactionsTo2025() async {
+    final transactions = _transactionBox.values.toList();
+    for (int i = 0; i < transactions.length; i++) {
+      final transaction = transactions[i];
+      if (transaction.date.year == 2024) {
+        final updatedTransaction = Transaction(
+          id: transaction.id,
+          description: transaction.description,
+          amount: transaction.amount,
+          isExpense: transaction.isExpense,
+          date: DateTime(2025, transaction.date.month, transaction.date.day,
+              transaction.date.hour, transaction.date.minute),
+          category: transaction.category,
+          subcategory: transaction.subcategory,
+          isReversal: transaction.isReversal,
+          originalTransactionId: transaction.originalTransactionId,
+        );
+        await _transactionBox.putAt(i, updatedTransaction);
+      }
+    }
+  }
+
+  // Migration: Update events from 2024 to 2025
+  Future<void> migrateEventsTo2025() async {
+    final events = _eventBox.values.toList();
+    for (int i = 0; i < events.length; i++) {
+      final event = events[i];
+      if (event.date.year == 2024) {
+        final updatedEvent = Event(
+          id: event.id,
+          title: event.title,
+          date: DateTime(2025, event.date.month, event.date.day,
+              event.date.hour, event.date.minute),
+          description: event.description,
+        );
+        await _eventBox.putAt(i, updatedEvent);
+      }
+    }
+  }
+
+  // Data Management Methods
+  
+  Map<String, dynamic> getDataStats() {
+    final transactions = _transactionBox.values.toList();
+    final events = _eventBox.values.toList();
+    
+    DateTime? oldestTransaction;
+    DateTime? newestTransaction;
+    
+    if (transactions.isNotEmpty) {
+      oldestTransaction = transactions.map((t) => t.date).reduce((a, b) => a.isBefore(b) ? a : b);
+      newestTransaction = transactions.map((t) => t.date).reduce((a, b) => a.isAfter(b) ? a : b);
+    }
+    
+    
+    return {
+      'transactionCount': transactions.length,
+      'eventCount': events.length,
+      'categoryCount': _categoryBox.length,
+      'oldestTransaction': oldestTransaction,
+      'newestTransaction': newestTransaction,
+    };
+  }
+
+  Future<int> getDatabaseSize() async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      int totalSize = 0;
+      
+      // Calculate size of all Hive box files
+      final boxNames = ['transactions', 'events', 'categories', 'settings'];
+      for (var boxName in boxNames) {
+        final file = File('${appDir.path}/$boxName.hive');
+        if (await file.exists()) {
+          totalSize += await file.length();
+        }
+        // Also check for lock files
+        final lockFile = File('${appDir.path}/$boxName.lock');
+        if (await lockFile.exists()) {
+          totalSize += await lockFile.length();
+        }
+      }
+      
+      return totalSize;
+    } catch (e) {
+      print('Error calculating database size: $e');
+      return 0;
+    }
+  }
+
+  String exportDataToJson({DateTime? startDate, DateTime? endDate}) {
+    final transactions = _transactionBox.values.where((t) {
+      if (startDate != null && t.date.isBefore(startDate)) return false;
+      if (endDate != null && t.date.isAfter(endDate)) return false;
+      return true;
+    }).toList();
+
+    final events = _eventBox.values.where((e) {
+      if (startDate != null && e.date.isBefore(startDate)) return false;
+      if (endDate != null && e.date.isAfter(endDate)) return false;
+      return true;
+    }).toList();
+
+    final data = {
+      'exportDate': DateTime.now().toIso8601String(),
+      'startDate': startDate?.toIso8601String(),
+      'endDate': endDate?.toIso8601String(),
+      'transactions': transactions.map((t) => {
+        'id': t.id,
+        'description': t.description,
+        'amount': t.amount,
+        'isExpense': t.isExpense,
+        'date': t.date.toIso8601String(),
+        'isReversal': t.isReversal,
+        'originalTransactionId': t.originalTransactionId,
+        'category': t.category,
+        'subcategory': t.subcategory,
+      }).toList(),
+      'events': events.map((e) => {
+        'id': e.id,
+        'title': e.title,
+        'date': e.date.toIso8601String(),
+        'description': e.description,
+        'isCancelled': e.isCancelled,
+      }).toList(),
+    };
+
+    return jsonEncode(data);
+  }
+
+  Future<Map<String, int>> importDataFromJson(String jsonData) async {
+    final data = jsonDecode(jsonData) as Map<String, dynamic>;
+    
+    int transactionsImported = 0;
+    int eventsImported = 0;
+
+    // Import transactions
+    final transactions = data['transactions'] as List;
+    for (var tData in transactions) {
+      final transaction = Transaction(
+        id: tData['id'],
+        description: tData['description'],
+        amount: (tData['amount'] as num).toDouble(),
+        isExpense: tData['isExpense'],
+        date: DateTime.parse(tData['date']),
+        isReversal: tData['isReversal'] ?? false,
+        originalTransactionId: tData['originalTransactionId'],
+        category: tData['category'] ?? 'Outras Despesas',
+        subcategory: tData['subcategory'],
+      );
+      await _transactionBox.add(transaction);
+      transactionsImported++;
+    }
+
+    // Import events
+    final events = data['events'] as List;
+    for (var eData in events) {
+      final event = Event(
+        id: eData['id'],
+        title: eData['title'],
+        date: DateTime.parse(eData['date']),
+        description: eData['description'],
+        isCancelled: eData['isCancelled'] ?? false,
+      );
+      await _eventBox.add(event);
+      eventsImported++;
+    }
+
+    return {
+      'transactions': transactionsImported,
+      'events': eventsImported,
+    };
+  }
+
+  Future<Map<String, int>> deleteOldData(DateTime cutoffDate) async {
+    int transactionsDeleted = 0;
+    int eventsDeleted = 0;
+
+    // Delete old transactions
+    final transactionsToDelete = <int>[];
+    for (var i = 0; i < _transactionBox.length; i++) {
+      final transaction = _transactionBox.getAt(i);
+      if (transaction != null && transaction.date.isBefore(cutoffDate)) {
+        transactionsToDelete.add(i);
+      }
+    }
+    
+    // Delete in reverse order to maintain indices
+    for (var i in transactionsToDelete.reversed) {
+      await _transactionBox.deleteAt(i);
+      transactionsDeleted++;
+    }
+
+    // Delete old events
+    final eventsToDelete = <int>[];
+    for (var i = 0; i < _eventBox.length; i++) {
+      final event = _eventBox.getAt(i);
+      if (event != null && event.date.isBefore(cutoffDate)) {
+        eventsToDelete.add(i);
+      }
+    }
+    
+    // Delete in reverse order to maintain indices
+    for (var i in eventsToDelete.reversed) {
+      await _eventBox.deleteAt(i);
+      eventsDeleted++;
+    }
+
+    return {
+      'transactions': transactionsDeleted,
+      'events': eventsDeleted,
+    };
+  }
+
+  Future<Uint8List> exportBackupBytes({DateTime? startDate, DateTime? endDate}) async {
+    final archive = Archive();
+    
+    // 1. Filter data
+    final transactions = _transactionBox.values.where((t) {
+      if (startDate != null && t.date.isBefore(startDate)) return false;
+      if (endDate != null && t.date.isAfter(endDate)) return false;
+      return true;
+    }).toList();
+
+    final events = _eventBox.values.where((e) {
+      if (startDate != null && e.date.isBefore(startDate)) return false;
+      if (endDate != null && e.date.isAfter(endDate)) return false;
+      return true;
+    }).toList();
+
+    // 2. Process attachments and create modified data for JSON
+    final modifiedTransactions = <Map<String, dynamic>>[];
+    final modifiedEvents = <Map<String, dynamic>>[];
+    
+    // Helper to process attachments
+    Future<List<String>?> processAttachments(List<String>? attachments) async {
+      if (attachments == null || attachments.isEmpty) return null;
+      final newPaths = <String>[];
+      for (var path in attachments) {
+        final file = File(path);
+        if (await file.exists()) {
+          final filename = p.basename(path);
+          final zipPath = 'attachments/$filename';
+          
+          // Add file to archive if not already added
+          if (archive.findFile(zipPath) == null) {
+             final bytes = await file.readAsBytes();
+             archive.addFile(ArchiveFile(zipPath, bytes.length, bytes));
+          }
+          
+          newPaths.add(zipPath);
+        } else {
+          newPaths.add(path); 
+        }
+      }
+      return newPaths;
+    }
+
+    for (var t in transactions) {
+      final newAttachments = await processAttachments(t.attachments);
+      modifiedTransactions.add({
+        'id': t.id,
+        'description': t.description,
+        'amount': t.amount,
+        'isExpense': t.isExpense,
+        'date': t.date.toIso8601String(),
+        'isReversal': t.isReversal,
+        'originalTransactionId': t.originalTransactionId,
+        'category': t.category,
+        'subcategory': t.subcategory,
+        'installmentId': t.installmentId,
+        'installmentNumber': t.installmentNumber,
+        'totalInstallments': t.totalInstallments,
+        'attachments': newAttachments,
+      });
+    }
+
+    for (var e in events) {
+      final newAttachments = await processAttachments(e.attachments);
+      modifiedEvents.add({
+        'id': e.id,
+        'title': e.title,
+        'date': e.date.toIso8601String(),
+        'description': e.description,
+        'isCancelled': e.isCancelled,
+        'recurrence': e.recurrence,
+        'lastNotifiedDate': e.lastNotifiedDate?.toIso8601String(),
+        'attachments': newAttachments,
+      });
+    }
+
+    final data = {
+      'exportDate': DateTime.now().toIso8601String(),
+      'startDate': startDate?.toIso8601String(),
+      'endDate': endDate?.toIso8601String(),
+      'transactions': modifiedTransactions,
+      'events': modifiedEvents,
+    };
+
+    // 3. Add JSON to archive
+    final jsonBytes = utf8.encode(jsonEncode(data));
+    archive.addFile(ArchiveFile('data.json', jsonBytes.length, jsonBytes));
+
+    // 4. Encode archive to Zip
+    final encoder = ZipEncoder();
+    final zipBytes = encoder.encode(archive);
+    
+    return Uint8List.fromList(zipBytes!);
+  }
+
+  Future<Map<String, int>> importBackupBytes(Uint8List zipBytes) async {
+    // Check if it's a ZIP file (PK signature)
+    bool isZip = zipBytes.length > 4 && 
+                 zipBytes[0] == 0x50 && 
+                 zipBytes[1] == 0x4B && 
+                 zipBytes[2] == 0x03 && 
+                 zipBytes[3] == 0x04;
+
+    if (!isZip) {
+      // Try to parse as JSON directly (legacy backup)
+      try {
+        final jsonString = utf8.decode(zipBytes);
+        return await importDataFromJson(jsonString);
+      } catch (e) {
+        throw Exception('Invalid backup format: Not a ZIP or JSON file');
+      }
+    }
+
+    final archive = ZipDecoder().decodeBytes(zipBytes);
+    
+    // 1. Extract attachments
+    final appDir = await getApplicationDocumentsDirectory();
+    final attachmentsDir = Directory('${appDir.path}/attachments');
+    if (!await attachmentsDir.exists()) {
+      await attachmentsDir.create(recursive: true);
+    }
+
+    for (var file in archive) {
+      if (file.isFile && file.name.startsWith('attachments/')) {
+        final filename = p.basename(file.name);
+        final outFile = File('${attachmentsDir.path}/$filename');
+        await outFile.writeAsBytes(file.content as List<int>);
+      }
+    }
+
+    // 2. Read JSON
+    final jsonFile = archive.findFile('data.json');
+    if (jsonFile == null) {
+      throw Exception('Invalid backup: data.json not found');
+    }
+    final jsonData = utf8.decode(jsonFile.content as List<int>);
+    final data = jsonDecode(jsonData) as Map<String, dynamic>;
+
+    int transactionsImported = 0;
+    int eventsImported = 0;
+
+    // Helper to restore attachment paths
+    List<String>? restoreAttachments(List<dynamic>? attachments) {
+      if (attachments == null) return null;
+      return attachments.map((path) {
+        if (path.toString().startsWith('attachments/')) {
+          final filename = p.basename(path);
+          return '${attachmentsDir.path}/$filename';
+        }
+        return path.toString();
+      }).toList().cast<String>();
+    }
+
+    // Import transactions
+    final transactions = data['transactions'] as List;
+    for (var tData in transactions) {
+      final transaction = Transaction(
+        id: tData['id'],
+        description: tData['description'],
+        amount: (tData['amount'] as num).toDouble(),
+        isExpense: tData['isExpense'],
+        date: DateTime.parse(tData['date']),
+        isReversal: tData['isReversal'] ?? false,
+        originalTransactionId: tData['originalTransactionId'],
+        category: tData['category'] ?? 'Outras Despesas',
+        subcategory: tData['subcategory'],
+        installmentId: tData['installmentId'],
+        installmentNumber: tData['installmentNumber'],
+        totalInstallments: tData['totalInstallments'],
+        attachments: restoreAttachments(tData['attachments']),
+      );
+      await _transactionBox.add(transaction);
+      transactionsImported++;
+    }
+
+    // Import events
+    final events = data['events'] as List;
+    for (var eData in events) {
+      final event = Event(
+        id: eData['id'],
+        title: eData['title'],
+        date: DateTime.parse(eData['date']),
+        description: eData['description'],
+        isCancelled: eData['isCancelled'] ?? false,
+        recurrence: eData['recurrence'],
+        lastNotifiedDate: eData['lastNotifiedDate'] != null 
+            ? DateTime.parse(eData['lastNotifiedDate']) 
+            : null,
+        attachments: restoreAttachments(eData['attachments']),
+      );
+      await _eventBox.add(event);
+      eventsImported++;
+    }
+
+    return {
+      'transactions': transactionsImported,
+      'events': eventsImported,
+    };
+  }
+
+  // Operation History Methods
+
+  /// Adds an operation to history, keeping only the last 5
+  Future<void> addOperationToHistory(OperationHistory operation) async {
+    await _historyBox.add(operation);
+    
+    // Keep only last 5 operations
+    if (_historyBox.length > 5) {
+      await _historyBox.deleteAt(0);
+    }
+  }
+
+  /// Gets the last N operations (most recent first)
+  List<OperationHistory> getLastOperations([int count = 5]) {
+    final operations = _historyBox.values.toList();
+    if (operations.isEmpty) return [];
+    
+    // Sort by timestamp descending
+    operations.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    
+    return operations.take(count).toList();
+  }
+
+  /// Undoes the last operation
+  /// Returns the description of what was undone, or null if nothing to undo
+  Future<String?> undoLastOperation() async {
+    if (_historyBox.isEmpty) return null;
+
+    final lastOp = _historyBox.getAt(_historyBox.length - 1)!;
+    
+    if (lastOp.isEvent) {
+      // Handle event operations
+      if (lastOp.type == 'event') {
+        // Undo event creation - delete the event
+        if (lastOp.eventId != null) {
+          final eventKey = _eventBox.keys.firstWhere(
+            (k) => _eventBox.get(k)?.id == lastOp.eventId,
+            orElse: () => null,
+          );
+          
+          if (eventKey != null) {
+            await _eventBox.delete(eventKey);
+          }
+        }
+      } else if (lastOp.type == 'event_edit') {
+        // Undo event edit - restore previous state
+        if (lastOp.eventId != null && lastOp.eventSnapshot != null) {
+          final eventKey = _eventBox.keys.firstWhere(
+            (k) => _eventBox.get(k)?.id == lastOp.eventId,
+            orElse: () => null,
+          );
+          
+          if (eventKey != null) {
+            // Restore from snapshot
+            final snapshot = lastOp.eventSnapshot!;
+            final restoredEvent = Event(
+              id: snapshot['id'] as String,
+              title: snapshot['title'] as String,
+              date: DateTime.parse(snapshot['date'] as String),
+              description: snapshot['description'] as String,
+              isCancelled: snapshot['isCancelled'] as bool,
+              recurrence: snapshot['recurrence'] as String?,
+              lastNotifiedDate: snapshot['lastNotifiedDate'] != null 
+                  ? DateTime.parse(snapshot['lastNotifiedDate'] as String)
+                  : null,
+            );
+            await _eventBox.put(eventKey, restoredEvent);
+          }
+        }
+      }
+    } else {
+      // Handle transaction operations (existing code)
+      for (final txId in lastOp.transactionIds) {
+        final txKey = _transactionBox.keys.firstWhere(
+          (k) => _transactionBox.get(k)?.id == txId,
+          orElse: () => null,
+        );
+        
+        if (txKey != null) {
+          await _transactionBox.delete(txKey);
+        }
+      }
+    }
+
+    // Remove from history
+    await _historyBox.deleteAt(_historyBox.length - 1);
+
+    return lastOp.displayText;
+  }
+
+  /// Helper to convert Event to Map for snapshot
+  Map<String, dynamic> _eventToMap(Event event) {
+    return {
+      'id': event.id,
+      'title': event.title,
+      'date': event.date.toIso8601String(),
+      'description': event.description,
+      'isCancelled': event.isCancelled,
+      'recurrence': event.recurrence,
+      'lastNotifiedDate': event.lastNotifiedDate?.toIso8601String(),
+    };
+  }
+
+
+  // Settings: Always announce events
+  bool getAlwaysAnnounceEvents() {
+    return _settingsBox.get('always_announce_events', defaultValue: true);
+  }
+
+  Future<void> setAlwaysAnnounceEvents(bool value) async {
+    await _settingsBox.put('always_announce_events', value);
+  }
+
+  // Settings: Voice commands enabled
+  bool getVoiceCommandsEnabled() {
+    return _settingsBox.get('voice_commands_enabled', defaultValue: true);
+  }
+
+  Future<void> setVoiceCommandsEnabled(bool value) async {
+    await _settingsBox.put('voice_commands_enabled', value);
+  }
+}

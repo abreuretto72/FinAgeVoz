@@ -1,0 +1,226 @@
+# 🎤 FinAgeVoz
+
+**FinAgeVoz** é um aplicativo Flutter multiplataforma que combina **gestão financeira** e **agenda de eventos** com controle por **comandos de voz** e **inteligência artificial**.
+
+![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
+![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
+![AI](https://img.shields.io/badge/AI-Groq_Llama-FF6B6B?style=for-the-badge)
+
+## ✨ Principais Funcionalidades
+
+### 🎤 Controle por Voz
+- **Comandos de voz em linguagem natural** usando IA (Groq/Llama)
+- **14 idiomas suportados** com reconhecimento e síntese de voz
+- **Palavra de ativação personalizável**
+- Exemplos de comandos:
+  - "Comprei um café de 5 reais"
+  - "Criar evento reunião amanhã às 14h"
+  - "Quanto gastei este mês?"
+  - "Desfazer última operação"
+
+### 💰 Gestão Financeira
+- ✅ Adicionar transações por voz ou manualmente
+- ✅ Categorias e subcategorias personalizáveis
+- ✅ **Parcelamento inteligente** (compras divididas em múltiplas parcelas)
+- ✅ Filtros avançados (período, categoria, tipo, valor)
+- ✅ Cálculo automático de saldo
+- ✅ Relatórios com gráficos e exportação em PDF
+- ✅ Anexos (imagens, documentos)
+
+### 📅 Agenda de Eventos
+- ✅ Criar eventos por voz ou manualmente
+- ✅ **Eventos recorrentes** (diário, semanal, mensal, anual)
+- ✅ **Notificações diárias** com anúncio por voz
+- ✅ Filtros por período e status
+- ✅ Anexos e notas
+- ✅ Integração com calendário (importação/exportação .ics)
+
+### 🔄 Sistema de "Arrependimento"
+- ✅ Desfazer criação de transações e eventos
+- ✅ Restaurar edições anteriores com snapshots
+- ✅ Histórico das últimas 5 operações
+- ✅ Comandos: "Desfazer", "Me arrependi", "Cancelar última operação"
+
+### 🤖 Inteligência Artificial
+- ✅ Processamento de linguagem natural com **Groq (Llama 3.3)**
+- ✅ Respostas inteligentes a perguntas financeiras
+- ✅ Extração automática de dados (valores, datas, categorias)
+- ✅ Suporte a múltiplos idiomas
+
+### 📊 Relatórios e Análises
+- ✅ Gráficos de pizza por categoria
+- ✅ Resumo financeiro (receitas, despesas, saldo)
+- ✅ Relatório dedicado de parcelamentos
+- ✅ Filtros avançados personalizáveis
+- ✅ Exportação em PDF
+- ✅ Compartilhamento via WhatsApp
+
+### 💾 Backup e Sincronização
+- ✅ Backup local em JSON
+- ✅ Backup no Google Drive
+- ✅ Importação/Exportação de dados
+- ✅ Limpeza automática de dados antigos
+
+### 🌍 Multilíngue
+Suporte completo a **14 idiomas**:
+- 🇧🇷 Português (Brasil/Portugal)
+- 🇺🇸 English
+- 🇪🇸 Español
+- 🇩🇪 Deutsch
+- 🇮🇹 Italiano
+- 🇫🇷 Français
+- 🇯🇵 日本語
+- 🇨🇳 中文
+- 🇮🇳 हिन्दी
+- 🇸🇦 العربية
+- 🇮🇩 Bahasa Indonesia
+- 🇷🇺 Русский
+- 🇧🇩 বাংলা
+
+## 🚀 Como Usar
+
+### Pré-requisitos
+- Flutter SDK (versão 3.0+)
+- Dart SDK
+- Android Studio / Xcode (para builds mobile)
+- Chave API do Groq (gratuita em [console.groq.com](https://console.groq.com))
+
+### Instalação
+
+1. **Clone o repositório**
+```bash
+git clone https://github.com/abreuretto72/FinAgeVoz.git
+cd FinAgeVoz
+```
+
+2. **Instale as dependências**
+```bash
+flutter pub get
+```
+
+3. **Configure a API Key (opcional para desenvolvimento)**
+Crie um arquivo `.env` na raiz do projeto:
+```env
+GEMINI_API_KEY=sua_chave_gemini_aqui
+```
+> **Nota**: Em produção, configure a chave Groq diretamente no app (Menu → Configurações → Chave Groq API)
+
+4. **Execute o app**
+```bash
+flutter run
+```
+
+### Build para Produção
+
+**Android (APK):**
+```bash
+flutter build apk --release
+```
+ou use o script:
+```bash
+./build_apk.sh  # Linux/Mac
+./build_apk.ps1 # Windows
+```
+
+**iOS:**
+```bash
+flutter build ios --release
+```
+
+## 📖 Documentação
+
+- **[FUNCIONALIDADES.md](FUNCIONALIDADES.md)** - Documentação completa de todas as funcionalidades
+- **[BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md)** - Instruções detalhadas de build
+- **[TRANSLATION_GUIDE.md](TRANSLATION_GUIDE.md)** - Guia para adicionar traduções
+- **[walkthrough.md](walkthrough.md)** - Histórico de desenvolvimento
+
+## 🛠️ Tecnologias Utilizadas
+
+- **[Flutter](https://flutter.dev/)** - Framework multiplataforma
+- **[Hive](https://pub.dev/packages/hive)** - Banco de dados NoSQL local
+- **[Groq API](https://groq.com/)** - Inteligência artificial (Llama 3.3)
+- **[Speech-to-Text](https://pub.dev/packages/speech_to_text)** - Reconhecimento de voz
+- **[Flutter TTS](https://pub.dev/packages/flutter_tts)** - Síntese de voz
+- **[FL Chart](https://pub.dev/packages/fl_chart)** - Gráficos
+- **[PDF](https://pub.dev/packages/pdf)** - Geração de relatórios
+
+## 📱 Screenshots
+
+<p align="center">
+  <img src="flutter_01.png" alt="FinAgeVoz Screenshot" width="300"/>
+</p>
+
+## 🎯 Casos de Uso
+
+### Exemplo 1: Adicionar Transação por Voz
+```
+👤 Usuário: "Comprei um café de 5 reais"
+🤖 App: "Transação adicionada: Café, R$ 5,00 em Alimentação"
+```
+
+### Exemplo 2: Criar Evento Recorrente
+```
+👤 Usuário: "Criar evento reunião toda segunda às 14h"
+🤖 App: "Evento criado: Reunião (Semanal)"
+```
+
+### Exemplo 3: Consulta Financeira
+```
+👤 Usuário: "Quanto gastei em alimentação este mês?"
+🤖 App: "Você gastou R$ 450,00 em Alimentação este mês"
+```
+
+### Exemplo 4: Desfazer Operação
+```
+👤 Usuário: "Me arrependi"
+🤖 App: "Operação desfeita: Café, R$ 5,00"
+```
+
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Sinta-se à vontade para:
+- Reportar bugs
+- Sugerir novas funcionalidades
+- Enviar pull requests
+- Melhorar a documentação
+- Adicionar traduções
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+## 👨‍💻 Autor
+
+**Abreu Retto**
+- GitHub: [@abreuretto72](https://github.com/abreuretto72)
+
+## 🙏 Agradecimentos
+
+- [Flutter Team](https://flutter.dev/) pelo framework incrível
+- [Groq](https://groq.com/) pela API de IA gratuita
+- Comunidade Flutter pelo suporte
+
+## 📊 Estatísticas do Projeto
+
+- **Linhas de código**: ~15.000+
+- **Telas**: 10
+- **Serviços**: 9
+- **Idiomas**: 14
+- **Comandos de voz**: 20+
+- **Categorias padrão**: 18
+
+## 🔮 Roadmap
+
+- [ ] Modo offline completo para IA
+- [ ] Widget para tela inicial do Android
+- [ ] Sincronização entre dispositivos
+- [ ] Análise preditiva de gastos
+- [ ] Metas financeiras
+- [ ] Lembretes de pagamentos
+- [ ] Integração com bancos (Open Banking)
+
+---
+
+**Desenvolvido com Flutter 💙**
+
+Se este projeto foi útil para você, considere dar uma ⭐!
