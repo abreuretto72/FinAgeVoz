@@ -119,6 +119,22 @@ App: "Esses são todos os eventos de hoje."
 - ✅ **Anuncia um por um com pausa** (NOVO!)
 - ✅ **Informa nome e hora de cada evento** (NOVO!)
 
+### 5. Chamadas via WhatsApp por Voz (NOVO!)
+
+Agora você pode pedir para o app ligar para alguém usando comandos de voz.
+
+#### Como Funciona:
+1. **Comando**: "Ligar para [Nome]" ou "Chamar [Nome] no WhatsApp"
+2. **Busca**: O app procura o nome na sua lista de contatos
+3. **Ação**: Abre o chat do WhatsApp com o número encontrado
+
+#### Exemplos:
+- "Ligar para João"
+- "Chamar Maria no WhatsApp"
+- "Ligar para o Pedro"
+
+**Nota**: Requer permissão de acesso aos contatos. O app abrirá o chat do WhatsApp, onde você pode iniciar a chamada de voz ou vídeo. A tentativa de chamada ficará registrada no seu histórico de operações.
+
 ---
 
 ## 📋 Arquivos Modificados Nesta Sessão
@@ -135,9 +151,10 @@ App: "Esses são todos os eventos de hoje."
 
 ### Serviços:
 - **`lib/services/database_service.dart`**:
-  - Método `undoLastOperation` expandido para eventos
+  - Método `undoLastOperation` expandido para eventos e chamadas
   - Suporte para desfazer criação de eventos
   - Suporte para restaurar estado anterior em edições
+  - Tratamento para tipo `call` (apenas remove do histórico)
   - Helper `_eventToMap` para criar snapshots
   - Incluído `lastNotifiedDate` em snapshots
 
@@ -175,6 +192,14 @@ App: "Esses são todos os eventos de hoje."
   - Adicionado método helper `t()` faltante para tradução
 - **`lib/screens/finance_screen.dart`**:
   - Importado `AddTransactionDialog` para corrigir erro de compilação
+
+### Chamadas via WhatsApp:
+- **`pubspec.yaml`**: Adicionado `flutter_contacts`
+- **`android/app/src/main/AndroidManifest.xml`**: Permissão `READ_CONTACTS` e query `whatsapp`
+- **`ios/Runner/Info.plist`**: Permissões de contatos e scheme
+- **`lib/services/contact_service.dart`** (NOVO): Serviço de busca e chamada
+- **`lib/services/ai_service.dart`**: Nova intenção `CALL_CONTACT`
+- **`lib/screens/home_screen.dart`**: Processamento do comando de ligar
 
 ---
 

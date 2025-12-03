@@ -51,6 +51,8 @@ class OperationHistory extends HiveObject {
       return 'Evento: $description';
     } else if (type == 'event_edit') {
       return 'Edição de evento: $description';
+    } else if (type == 'call') {
+      return 'Ligação: $description';
     }
     return description;
   }

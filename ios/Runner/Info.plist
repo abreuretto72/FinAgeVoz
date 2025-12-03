@@ -43,6 +43,14 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSContactsUsageDescription</key>
+	<string>Precisamos acessar seus contatos para que você possa fazer chamadas via WhatsApp por comando de voz.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Precisamos usar o Face ID para proteger o acesso aos seus dados financeiros.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 </dict>

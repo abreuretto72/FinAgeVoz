@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/database_service.dart';
+import '../services/auth_service.dart';
 import '../utils/localization.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -11,6 +12,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final DatabaseService _dbService = DatabaseService();
+  final AuthService _authService = AuthService();
   
   String get _currentLanguage => Localizations.localeOf(context).toString();
 
@@ -75,9 +77,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: Text(t('settings_title'), style: const TextStyle(color: Colors.white)),
         centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 80), // Padding extra no final
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Text(
             t('settings_general'),
             style: TextStyle(
@@ -143,6 +149,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       );
                     }
+                  },
+                  activeColor: Colors.blue,
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.lock, color: Colors.white),
+                  title: const Text('Bloqueio por Biometria', style: TextStyle(color: Colors.white)),
+                  subtitle: const Text('Exigir autenticação ao abrir o app', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  value: _dbService.getAppLockEnabled(),
+                  onChanged: (bool value) async {
+                    if (value) {
+                      // Verificar se biometria está disponível antes de ativar
+                      final available = await _authService.isBiometricAvailable();
+                      if (!available) {
+                         if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Biometria não disponível neste dispositivo.')),
+                          );
+                        }
+                        return;
+                      }
+                    }
+                    await _dbService.setAppLockEnabled(value);
+                    setState(() {});
                   },
                   activeColor: Colors.blue,
                 ),
@@ -275,6 +304,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ],
       ),
+    ),
+    ),
     );
   }
 

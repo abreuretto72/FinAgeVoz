@@ -316,7 +316,7 @@ class AIService {
 
     Output JSON format:
     {
-      "intent": "ADD_TRANSACTION" | "ADD_EVENT" | "NAVIGATE" | "QUERY" | "UNKNOWN",
+      "intent": "ADD_TRANSACTION" | "ADD_EVENT" | "NAVIGATE" | "QUERY" | "UNDO" | "CALL_CONTACT" | "UNKNOWN",
       "transaction": {
         "description": "string. REQUIRED.",
         "amount": "number. REQUIRED. If not found, return null.",
@@ -336,6 +336,9 @@ class AIService {
       },
       "navigation": {
         "target": "FINANCE" | "AGENDA" | "HOME" | "CLOSE" | "REPORTS" | "CATEGORIES"
+      },
+      "contact": {
+        "name": "string. The name of the person to call."
       }
     }
     
@@ -361,6 +364,11 @@ class AIService {
     "Ver categorias" -> {"intent": "NAVIGATE", "navigation": {"target": "CATEGORIES"}}
     "Mostrar os eventos" -> {"intent": "NAVIGATE", "navigation": {"target": "AGENDA"}}
     "Fechar app" -> {"intent": "NAVIGATE", "navigation": {"target": "CLOSE"}}
+
+    Call Examples:
+    "Ligar para João" -> {"intent": "CALL_CONTACT", "contact": {"name": "João"}}
+    "Chamar Maria no WhatsApp" -> {"intent": "CALL_CONTACT", "contact": {"name": "Maria"}}
+    "Ligar para o Pedro" -> {"intent": "CALL_CONTACT", "contact": {"name": "Pedro"}}
 
     Query Examples:
     "Quanto gastei com gasolina?" -> {"intent": "QUERY"}

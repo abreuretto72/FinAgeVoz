@@ -8,6 +8,7 @@ import 'models/category_model.dart';
 import 'models/operation_history.dart';
 import 'services/database_service.dart';
 import 'screens/home_screen.dart';
+import 'screens/auth_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
@@ -91,7 +92,9 @@ class FinAgeVozApp extends StatelessWidget {
             scaffoldBackgroundColor: const Color(0xFF121212),
             fontFamily: 'Roboto',
           ),
-          home: const HomeScreen(),
+          home: DatabaseService().getAppLockEnabled() 
+              ? const AuthScreen() 
+              : const HomeScreen(),
         );
       },
     );

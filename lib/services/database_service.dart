@@ -903,8 +903,8 @@ class DatabaseService {
   Future<void> addOperationToHistory(OperationHistory operation) async {
     await _historyBox.add(operation);
     
-    // Keep only last 5 operations
-    if (_historyBox.length > 5) {
+    // Keep only last 50 operations (increased for activity log)
+    if (_historyBox.length > 50) {
       await _historyBox.deleteAt(0);
     }
   }
@@ -967,6 +967,9 @@ class DatabaseService {
           }
         }
       }
+    } else if (lastOp.type == 'call') {
+      // Cannot undo a call, just remove from history
+      // No action needed on database
     } else {
       // Handle transaction operations (existing code)
       for (final txId in lastOp.transactionIds) {
@@ -1017,5 +1020,14 @@ class DatabaseService {
 
   Future<void> setVoiceCommandsEnabled(bool value) async {
     await _settingsBox.put('voice_commands_enabled', value);
+  }
+
+  // Settings: App Lock (Biometrics)
+  bool getAppLockEnabled() {
+    return _settingsBox.get('app_lock_enabled', defaultValue: false);
+  }
+
+  Future<void> setAppLockEnabled(bool value) async {
+    await _settingsBox.put('app_lock_enabled', value);
   }
 }

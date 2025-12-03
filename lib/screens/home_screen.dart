@@ -14,6 +14,7 @@ import '../services/ai_service.dart';
 import '../services/database_service.dart';
 import '../services/event_notification_service.dart';
 import '../services/import_service.dart';
+import '../services/contact_service.dart';
 
 import '../models/transaction_model.dart';
 import '../models/event_model.dart';
@@ -29,6 +30,7 @@ import 'category_screen.dart';
 import 'onboarding_screen.dart';
 import 'data_management_screen.dart';
 import 'settings_screen.dart';
+import 'activity_log_screen.dart';
 import '../services/query_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -635,6 +637,14 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('Histórico de Atividades'),
+              onTap: () {
+                Navigator.pop(context);
+                _navigate(const ActivityLogScreen());
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.file_upload),
               title: Text(t('menu_import_transactions')),
               onTap: () {
@@ -752,7 +762,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             // Top Card
             Padding(
-              padding: const EdgeInsets.only(top: 20.0),
+              padding: EdgeInsets.only(top: 20.0),
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.all(20),
@@ -1135,6 +1145,32 @@ class _HomeScreenState extends State<HomeScreen> {
         _navigate(const CategoryScreen());
       } else if (target == 'CLOSE') {
         await _voiceService.speak('Até logo.');
+      }
+    } else if (intent == 'CALL_CONTACT') {
+      final name = result['contact']?['name'];
+      if (name != null) {
+        await _voiceService.speak('Buscando contato $name...');
+        final phoneNumber = await ContactService().findContactPhoneNumber(name);
+        
+        if (phoneNumber != null) {
+          await _voiceService.speak('Abrindo WhatsApp para $name.');
+          final success = await ContactService().callOnWhatsApp(phoneNumber);
+          if (success) {
+             await _dbService.addOperationToHistory(OperationHistory(
+              id: const Uuid().v4(),
+              type: 'call',
+              description: "Ligação para $name",
+              timestamp: DateTime.now(),
+              transactionIds: [],
+            ));
+          } else {
+            await _voiceService.speak('Não foi possível abrir o WhatsApp.');
+          }
+        } else {
+          await _voiceService.speak('Não encontrei o contato $name na sua agenda.');
+        }
+      } else {
+        await _voiceService.speak('Não entendi qual contato você quer chamar.');
       }
     } else if (intent == 'QUERY') {
       // Handle financial/event questions
