@@ -101,7 +101,8 @@ class _InstallmentsReportScreenState extends State<InstallmentsReportScreen> {
   Widget build(BuildContext context) {
     // Locale setup for formatting
     String locale = _currentLanguage;
-    if (locale == 'pt_BR' || locale == 'pt_PT') locale = 'pt_BR';
+    if (locale == 'pt_BR') locale = 'pt_BR';
+    else if (locale == 'pt_PT') locale = 'pt_PT';
     else if (locale == 'en') locale = 'en_US';
     
     final currencyFormat = NumberFormat.simpleCurrency(locale: locale);

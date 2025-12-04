@@ -3,6 +3,8 @@ import '../services/database_service.dart';
 import '../services/auth_service.dart';
 import '../utils/localization.dart';
 
+import 'sync_settings_screen.dart';
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -174,6 +176,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     setState(() {});
                   },
                   activeColor: Colors.blue,
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 30),
+          Text(
+            'Nuvem & Sincronização',
+            style: TextStyle(
+              color: Colors.blue,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E1E),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.cloud_sync, color: Colors.blue),
+                  title: const Text('Sincronização na Nuvem', style: TextStyle(color: Colors.white)),
+                  subtitle: const Text('Backup e sincronização entre dispositivos', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SyncSettingsScreen()),
+                    );
+                  },
                 ),
               ],
             ),

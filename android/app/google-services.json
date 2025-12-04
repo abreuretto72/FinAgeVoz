@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "375878744754",
+    "project_id": "finagevoz",
+    "storage_bucket": "finagevoz.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:375878744754:android:1e222f571df4fe61dc67ab",
+        "android_client_info": {
+          "package_name": "com.antigravity.finagevoz.fin_age_voz"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMULfIqTRFY_tv38_odAWtIky68K87HxI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -42,6 +42,10 @@ dependencies:
   archive: ^4.0.7
   flutter_contacts: ^1.1.9+2
   local_auth: ^3.0.0
+  firebase_core: ^4.2.1
+  cloud_firestore: ^6.1.0
+  firebase_auth: ^6.1.2
+  connectivity_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:

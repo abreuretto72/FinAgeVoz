@@ -44,6 +44,15 @@ class Transaction extends HiveObject {
   @HiveField(12)
   final List<String>? attachments;
 
+  @HiveField(13)
+  final DateTime? updatedAt;
+
+  @HiveField(14)
+  final bool isDeleted;
+
+  @HiveField(15)
+  final bool isSynced;
+
   Transaction({
     required this.id,
     required this.description,
@@ -58,7 +67,51 @@ class Transaction extends HiveObject {
     this.installmentNumber,
     this.totalInstallments,
     this.attachments,
-  });
+    DateTime? updatedAt,
+    this.isDeleted = false,
+    this.isSynced = false,
+  }) : updatedAt = updatedAt ?? DateTime.now();
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'description': description,
+      'amount': amount,
+      'isExpense': isExpense,
+      'date': date.toIso8601String(),
+      'isReversal': isReversal,
+      'originalTransactionId': originalTransactionId,
+      'category': category,
+      'subcategory': subcategory,
+      'installmentId': installmentId,
+      'installmentNumber': installmentNumber,
+      'totalInstallments': totalInstallments,
+      'attachments': attachments,
+      'updatedAt': updatedAt?.toIso8601String(),
+      'isDeleted': isDeleted,
+    };
+  }
+
+  factory Transaction.fromMap(Map<String, dynamic> map) {
+    return Transaction(
+      id: map['id'],
+      description: map['description'],
+      amount: (map['amount'] as num).toDouble(),
+      isExpense: map['isExpense'],
+      date: DateTime.parse(map['date']),
+      isReversal: map['isReversal'] ?? false,
+      originalTransactionId: map['originalTransactionId'],
+      category: map['category'] ?? 'Outras Despesas',
+      subcategory: map['subcategory'],
+      installmentId: map['installmentId'],
+      installmentNumber: map['installmentNumber'],
+      totalInstallments: map['totalInstallments'],
+      attachments: map['attachments'] != null ? List<String>.from(map['attachments']) : null,
+      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
+      isDeleted: map['isDeleted'] ?? false,
+      isSynced: true, // When coming from cloud, it is synced
+    );
+  }
 
   // Helper to check if this is an installment transaction
   bool get isInstallment => installmentId != null && installmentNumber != null && totalInstallments != null;

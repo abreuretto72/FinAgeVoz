@@ -32,6 +32,8 @@ import 'data_management_screen.dart';
 import 'settings_screen.dart';
 import 'activity_log_screen.dart';
 import '../services/query_service.dart';
+import '../services/sync/cloud_sync_service.dart';
+import 'sync_settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -584,6 +586,38 @@ class _HomeScreenState extends State<HomeScreen> {
     };
     _verifyGroqModel();
     _checkTodayEvents();
+    _checkCloudRestore();
+  }
+
+  Future<void> _checkCloudRestore() async {
+    // Check if we should prompt for restore
+    final hasCloudData = await CloudSyncService().hasCloudDataToRestore();
+    if (hasCloudData && mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Restaurar Dados?'),
+          content: const Text('Detectamos dados na nuvem. Deseja restaurá-los neste aparelho?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(t('cancel')),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                // Navigate to Sync Settings to handle the sync
+                _navigate(const SyncSettingsScreen());
+                // Or trigger sync directly:
+                // await CloudSyncService().sync();
+              },
+              child: const Text('Restaurar'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
 

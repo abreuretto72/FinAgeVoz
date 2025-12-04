@@ -85,7 +85,7 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
           const SizedBox(height: 16),
           ListTile(
             title: Text(t('date')),
-            subtitle: Text(DateFormat('dd/MM/yyyy HH:mm').format(_selectedDate)),
+            subtitle: Text(DateFormat('dd/MM/yyyy HH:mm', widget.currentLanguage).format(_selectedDate)),
             trailing: const Icon(Icons.calendar_today),
             onTap: () async {
               final date = await showDatePicker(

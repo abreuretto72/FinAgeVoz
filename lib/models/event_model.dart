@@ -28,6 +28,15 @@ class Event extends HiveObject {
   @HiveField(7)
   final List<String>? attachments;
 
+  @HiveField(8)
+  final DateTime? updatedAt;
+
+  @HiveField(9)
+  final bool isDeleted;
+
+  @HiveField(10)
+  final bool isSynced;
+
   Event({
     required this.id,
     required this.title,
@@ -37,5 +46,39 @@ class Event extends HiveObject {
     this.recurrence,
     this.lastNotifiedDate,
     this.attachments,
-  });
+    DateTime? updatedAt,
+    this.isDeleted = false,
+    this.isSynced = false,
+  }) : updatedAt = updatedAt ?? DateTime.now();
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'date': date.toIso8601String(),
+      'description': description,
+      'isCancelled': isCancelled,
+      'recurrence': recurrence,
+      'lastNotifiedDate': lastNotifiedDate?.toIso8601String(),
+      'attachments': attachments,
+      'updatedAt': updatedAt?.toIso8601String(),
+      'isDeleted': isDeleted,
+    };
+  }
+
+  factory Event.fromMap(Map<String, dynamic> map) {
+    return Event(
+      id: map['id'],
+      title: map['title'],
+      date: DateTime.parse(map['date']),
+      description: map['description'],
+      isCancelled: map['isCancelled'] ?? false,
+      recurrence: map['recurrence'],
+      lastNotifiedDate: map['lastNotifiedDate'] != null ? DateTime.parse(map['lastNotifiedDate']) : null,
+      attachments: map['attachments'] != null ? List<String>.from(map['attachments']) : null,
+      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
+      isDeleted: map['isDeleted'] ?? false,
+      isSynced: true,
+    );
+  }
 }

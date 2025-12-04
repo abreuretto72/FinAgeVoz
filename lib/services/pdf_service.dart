@@ -260,7 +260,7 @@ class PdfService {
 
     // Subsequent Pages: Transaction List Grouped by Category
     if (transactions.isNotEmpty) {
-      final currencyFormat = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+      final currencyFormat = NumberFormat.simpleCurrency(locale: languageCode);
       final dateFormat = DateFormat('dd/MM/yyyy');
 
       // Group by category

@@ -363,6 +363,15 @@ class DatabaseService {
     await _settingsBox.put('first_run_voice', value);
   }
 
+  DateTime? getLastSyncTime() {
+    final str = _settingsBox.get('last_sync_time');
+    return str != null ? DateTime.parse(str) : null;
+  }
+
+  Future<void> setLastSyncTime(DateTime time) async {
+    await _settingsBox.put('last_sync_time', time.toIso8601String());
+  }
+
   // Transactions
   Future<void> addTransaction(Transaction transaction) async {
     // Enforce algebraic sign logic on add
@@ -397,6 +406,8 @@ class DatabaseService {
             installmentNumber: transaction.installmentNumber,
             totalInstallments: transaction.totalInstallments,
             attachments: transaction.attachments,
+            updatedAt: DateTime.now().toUtc(),
+            isSynced: false,
           )
         : transaction;
 
@@ -404,7 +415,29 @@ class DatabaseService {
   }
 
   List<Transaction> getTransactions() {
-    return _transactionBox.values.toList().reversed.toList();
+    return _transactionBox.values.where((t) => !t.isDeleted).toList().reversed.toList();
+  }
+
+  List<Transaction> getDirtyTransactions() {
+    return _transactionBox.values.where((t) => !t.isSynced).toList();
+  }
+
+  Future<void> saveTransactionFromCloud(Transaction transaction) async {
+    // Save exactly as received from cloud, but ensure isSynced is true locally
+    // We need to find if it exists to get the key, or add it
+    dynamic key;
+    try {
+      final existing = _transactionBox.values.firstWhere((t) => t.id == transaction.id);
+      key = existing.key;
+    } catch (e) {
+      // Not found, will add
+    }
+
+    if (key != null) {
+      await _transactionBox.put(key, transaction);
+    } else {
+      await _transactionBox.add(transaction);
+    }
   }
 
   double getBalance() {
@@ -414,41 +447,233 @@ class DatabaseService {
 
   // Events
   Future<void> addEvent(Event event) async {
-    await _eventBox.add(event);
+    // Ensure new event has sync fields set
+    final eventToAdd = Event(
+      id: event.id,
+      title: event.title,
+      date: event.date,
+      description: event.description,
+      isCancelled: event.isCancelled,
+      recurrence: event.recurrence,
+      lastNotifiedDate: event.lastNotifiedDate,
+      attachments: event.attachments,
+      updatedAt: DateTime.now().toUtc(),
+      isSynced: false,
+    );
+    await _eventBox.add(eventToAdd);
   }
 
   List<Event> getEvents() {
-    return _eventBox.values.toList();
+    return _eventBox.values.where((e) => !e.isDeleted).toList();
   }
 
-  Future<void> updateEvent(int index, Event event) async {
-    await _eventBox.putAt(index, event);
+  List<Event> getDirtyEvents() {
+    return _eventBox.values.where((e) => !e.isSynced).toList();
   }
 
-  Future<void> deleteEvent(int index) async {
-    await _eventBox.deleteAt(index);
+  Future<void> saveEventFromCloud(Event event) async {
+    dynamic key;
+    try {
+      final existing = _eventBox.values.firstWhere((e) => e.id == event.id);
+      key = existing.key;
+    } catch (e) {
+      // Not found
+    }
+
+    if (key != null) {
+      await _eventBox.put(key, event);
+    } else {
+      await _eventBox.add(event);
+    }
+  }
+
+  Future<void> updateEvent(dynamic indexOrId, Event event) async {
+    // Handle both index (int) and ID (String) for backward compatibility/transition
+    if (indexOrId is int) {
+       // Legacy index support - discouraged but kept for safety
+       // We must find the actual object to preserve ID if possible, but here we just update
+       // Note: This might break if list is filtered.
+       // Better to find by ID if event has one.
+       final key = _eventBox.keyAt(indexOrId);
+       final updatedEvent = Event(
+          id: event.id,
+          title: event.title,
+          date: event.date,
+          description: event.description,
+          isCancelled: event.isCancelled,
+          recurrence: event.recurrence,
+          lastNotifiedDate: event.lastNotifiedDate,
+          attachments: event.attachments,
+          updatedAt: DateTime.now().toUtc(),
+          isSynced: false,
+          isDeleted: false,
+       );
+       await _eventBox.put(key, updatedEvent);
+    } else if (indexOrId is String) {
+       final existing = _eventBox.values.firstWhere((e) => e.id == indexOrId);
+       final key = existing.key;
+       final updatedEvent = Event(
+          id: event.id,
+          title: event.title,
+          date: event.date,
+          description: event.description,
+          isCancelled: event.isCancelled,
+          recurrence: event.recurrence,
+          lastNotifiedDate: event.lastNotifiedDate,
+          attachments: event.attachments,
+          updatedAt: DateTime.now().toUtc(),
+          isSynced: false,
+          isDeleted: false,
+       );
+       await _eventBox.put(key, updatedEvent);
+    }
+  }
+
+  Future<void> deleteEvent(dynamic indexOrId) async {
+    if (indexOrId is int) {
+       final key = _eventBox.keyAt(indexOrId);
+       final event = _eventBox.get(key);
+       if (event != null) {
+         final deletedEvent = Event(
+            id: event.id,
+            title: event.title,
+            date: event.date,
+            description: event.description,
+            isCancelled: event.isCancelled,
+            recurrence: event.recurrence,
+            lastNotifiedDate: event.lastNotifiedDate,
+            attachments: event.attachments,
+            updatedAt: DateTime.now().toUtc(),
+            isSynced: false,
+            isDeleted: true,
+         );
+         await _eventBox.put(key, deletedEvent);
+       }
+    } else if (indexOrId is String) {
+       try {
+         final event = _eventBox.values.firstWhere((e) => e.id == indexOrId);
+         final key = event.key;
+         final deletedEvent = Event(
+            id: event.id,
+            title: event.title,
+            date: event.date,
+            description: event.description,
+            isCancelled: event.isCancelled,
+            recurrence: event.recurrence,
+            lastNotifiedDate: event.lastNotifiedDate,
+            attachments: event.attachments,
+            updatedAt: DateTime.now().toUtc(),
+            isSynced: false,
+            isDeleted: true,
+         );
+         await _eventBox.put(key, deletedEvent);
+       } catch (e) {
+         print("Event not found for deletion: $indexOrId");
+       }
+    }
   }
 
   // Transaction update
-  Future<void> updateTransaction(int index, Transaction transaction) async {
-    await _transactionBox.putAt(index, transaction);
+  Future<void> updateTransaction(dynamic indexOrId, Transaction transaction) async {
+    dynamic key;
+    if (indexOrId is int) {
+      key = _transactionBox.keyAt(indexOrId);
+    } else if (indexOrId is String) {
+      try {
+        final existing = _transactionBox.values.firstWhere((t) => t.id == indexOrId);
+        key = existing.key;
+      } catch (e) {
+        print("Transaction not found for update: $indexOrId");
+        return;
+      }
+    }
+
+    if (key != null) {
+      final updatedTransaction = Transaction(
+        id: transaction.id,
+        description: transaction.description,
+        amount: transaction.amount,
+        isExpense: transaction.isExpense,
+        date: transaction.date,
+        category: transaction.category,
+        subcategory: transaction.subcategory,
+        isReversal: transaction.isReversal,
+        originalTransactionId: transaction.originalTransactionId,
+        installmentId: transaction.installmentId,
+        installmentNumber: transaction.installmentNumber,
+        totalInstallments: transaction.totalInstallments,
+        attachments: transaction.attachments,
+        updatedAt: DateTime.now().toUtc(),
+        isSynced: false,
+        isDeleted: false,
+      );
+      await _transactionBox.put(key, updatedTransaction);
+    }
   }
 
-  Future<void> deleteTransaction(int index) async {
-    await _transactionBox.deleteAt(index);
+  Future<void> deleteTransaction(dynamic indexOrId) async {
+    dynamic key;
+    Transaction? transaction;
+    
+    if (indexOrId is int) {
+      key = _transactionBox.keyAt(indexOrId);
+      transaction = _transactionBox.get(key);
+    } else if (indexOrId is String) {
+      try {
+        transaction = _transactionBox.values.firstWhere((t) => t.id == indexOrId);
+        key = transaction.key;
+      } catch (e) {
+        print("Transaction not found for deletion: $indexOrId");
+        return;
+      }
+    }
+
+    if (transaction != null && key != null) {
+      final deletedTransaction = Transaction(
+        id: transaction.id,
+        description: transaction.description,
+        amount: transaction.amount,
+        isExpense: transaction.isExpense,
+        date: transaction.date,
+        category: transaction.category,
+        subcategory: transaction.subcategory,
+        isReversal: transaction.isReversal,
+        originalTransactionId: transaction.originalTransactionId,
+        installmentId: transaction.installmentId,
+        installmentNumber: transaction.installmentNumber,
+        totalInstallments: transaction.totalInstallments,
+        attachments: transaction.attachments,
+        updatedAt: DateTime.now().toUtc(),
+        isSynced: false,
+        isDeleted: true,
+      );
+      await _transactionBox.put(key, deletedTransaction);
+    }
   }
 
   Future<void> deleteTransactionSeries(String installmentId) async {
-    final keysToDelete = <dynamic>[];
-    for (var i = 0; i < _transactionBox.length; i++) {
-      final t = _transactionBox.getAt(i);
-      if (t != null && t.installmentId == installmentId) {
-        keysToDelete.add(_transactionBox.keyAt(i));
-      }
-    }
+    final transactions = _transactionBox.values.where((t) => t.installmentId == installmentId).toList();
     
-    for (var key in keysToDelete) {
-      await _transactionBox.delete(key);
+    for (var t in transactions) {
+      final deletedTransaction = Transaction(
+        id: t.id,
+        description: t.description,
+        amount: t.amount,
+        isExpense: t.isExpense,
+        date: t.date,
+        category: t.category,
+        subcategory: t.subcategory,
+        isReversal: t.isReversal,
+        originalTransactionId: t.originalTransactionId,
+        installmentId: t.installmentId,
+        installmentNumber: t.installmentNumber,
+        totalInstallments: t.totalInstallments,
+        attachments: t.attachments,
+        updatedAt: DateTime.now().toUtc(),
+        isSynced: false,
+        isDeleted: true,
+      );
+      await _transactionBox.put(t.key, deletedTransaction);
     }
   }
 
@@ -459,9 +684,29 @@ class DatabaseService {
 
   List<Category> getCategories({String? type}) {
     if (type == null) {
-      return _categoryBox.values.toList();
+      return _categoryBox.values.where((c) => !c.isDeleted).toList();
     }
-    return _categoryBox.values.where((c) => c.type == type).toList();
+    return _categoryBox.values.where((c) => c.type == type && !c.isDeleted).toList();
+  }
+
+  List<Category> getDirtyCategories() {
+    return _categoryBox.values.where((c) => !c.isSynced).toList();
+  }
+
+  Future<void> saveCategoryFromCloud(Category category) async {
+    dynamic key;
+    try {
+      final existing = _categoryBox.values.firstWhere((c) => c.id == category.id);
+      key = existing.key;
+    } catch (e) {
+      // Not found
+    }
+
+    if (key != null) {
+      await _categoryBox.put(key, category);
+    } else {
+      await _categoryBox.add(category);
+    }
   }
 
   /// Deletes a category only if no transaction references it.
@@ -469,16 +714,38 @@ class DatabaseService {
   Future<bool> deleteCategory(int index) async {
     final category = _categoryBox.getAt(index);
     if (category == null) return false;
-    final used = _transactionBox.values.any((t) => t.category == category.name);
+    final used = _transactionBox.values.any((t) => t.category == category.name && !t.isDeleted);
     if (used) {
       return false; // cannot delete because there are transactions using it
     }
-    await _categoryBox.deleteAt(index);
+    
+    final deletedCategory = Category(
+      id: category.id,
+      name: category.name,
+      description: category.description,
+      subcategories: category.subcategories,
+      type: category.type,
+      updatedAt: DateTime.now().toUtc(),
+      isSynced: false,
+      isDeleted: true,
+    );
+    
+    await _categoryBox.putAt(index, deletedCategory);
     return true;
   }
 
   Future<void> updateCategory(int index, Category category) async {
-    await _categoryBox.putAt(index, category);
+    final updatedCategory = Category(
+      id: category.id,
+      name: category.name,
+      description: category.description,
+      subcategories: category.subcategories,
+      type: category.type,
+      updatedAt: DateTime.now().toUtc(),
+      isSynced: false,
+      isDeleted: false,
+    );
+    await _categoryBox.putAt(index, updatedCategory);
   }
 
   // Migration: Update transactions from 2024 to 2025
@@ -1029,5 +1296,105 @@ class DatabaseService {
 
   Future<void> setAppLockEnabled(bool value) async {
     await _settingsBox.put('app_lock_enabled', value);
+  }
+
+  bool getAutoSyncEnabled() {
+    return _settingsBox.get('auto_sync_enabled', defaultValue: true);
+  }
+
+  Future<void> setAutoSyncEnabled(bool value) async {
+    await _settingsBox.put('auto_sync_enabled', value);
+  }
+
+  // --- Sync Helpers ---
+
+  Future<void> markTransactionAsSynced(Transaction t) async {
+    // We need to find the key because the object passed might be a copy
+    dynamic key;
+    if (t.isInBox) {
+      key = t.key;
+    } else {
+      try {
+        final existing = _transactionBox.values.firstWhere((item) => item.id == t.id);
+        key = existing.key;
+      } catch (e) {
+        return; // Not found
+      }
+    }
+
+    final updated = Transaction(
+      id: t.id,
+      description: t.description,
+      amount: t.amount,
+      isExpense: t.isExpense,
+      date: t.date,
+      category: t.category,
+      subcategory: t.subcategory,
+      isReversal: t.isReversal,
+      originalTransactionId: t.originalTransactionId,
+      installmentId: t.installmentId,
+      installmentNumber: t.installmentNumber,
+      totalInstallments: t.totalInstallments,
+      attachments: t.attachments,
+      updatedAt: t.updatedAt,
+      isDeleted: t.isDeleted,
+      isSynced: true,
+    );
+    await _transactionBox.put(key, updated);
+  }
+
+  Future<void> markEventAsSynced(Event e) async {
+    dynamic key;
+    if (e.isInBox) {
+      key = e.key;
+    } else {
+      try {
+        final existing = _eventBox.values.firstWhere((item) => item.id == e.id);
+        key = existing.key;
+      } catch (err) {
+        return;
+      }
+    }
+
+    final updated = Event(
+      id: e.id,
+      title: e.title,
+      date: e.date,
+      description: e.description,
+      isCancelled: e.isCancelled,
+      recurrence: e.recurrence,
+      lastNotifiedDate: e.lastNotifiedDate,
+      attachments: e.attachments,
+      updatedAt: e.updatedAt,
+      isDeleted: e.isDeleted,
+      isSynced: true,
+    );
+    await _eventBox.put(key, updated);
+  }
+
+  Future<void> markCategoryAsSynced(Category c) async {
+    dynamic key;
+    if (c.isInBox) {
+      key = c.key;
+    } else {
+      try {
+        final existing = _categoryBox.values.firstWhere((item) => item.id == c.id);
+        key = existing.key;
+      } catch (err) {
+        return;
+      }
+    }
+
+    final updated = Category(
+      id: c.id,
+      name: c.name,
+      description: c.description,
+      subcategories: c.subcategories,
+      type: c.type,
+      updatedAt: c.updatedAt,
+      isDeleted: c.isDeleted,
+      isSynced: true,
+    );
+    await _categoryBox.put(key, updated);
   }
 }

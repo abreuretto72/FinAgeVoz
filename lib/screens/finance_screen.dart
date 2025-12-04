@@ -248,7 +248,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
   @override
   Widget build(BuildContext context) {
     String locale = _currentLanguage;
-    if (locale == 'pt_BR' || locale == 'pt_PT') locale = 'pt_BR';
+    if (locale == 'pt_BR') locale = 'pt_BR';
+    else if (locale == 'pt_PT') locale = 'pt_PT';
     else if (locale == 'en') locale = 'en_US';
     else if (locale == 'es') locale = 'es_ES';
     else if (locale == 'de') locale = 'de_DE';

@@ -10,6 +10,9 @@ import 'services/database_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/auth_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'services/sync/cloud_sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +46,21 @@ void main() async {
   // Initialize Date Formatting
   await initializeDateFormatting('pt_BR', null);
   print("DEBUG: Date formatting initialized");
+
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print("DEBUG: Firebase initialized");
+    
+    // Initialize Sync Service
+    await CloudSyncService().init();
+    print("DEBUG: CloudSyncService initialized");
+  } catch (e) {
+    print("WARNING: Firebase initialization failed: $e");
+    // Continue app execution even if Firebase fails (offline mode)
+  }
 
   runApp(const FinAgeVozApp());
 }
