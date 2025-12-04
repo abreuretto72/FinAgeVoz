@@ -13,6 +13,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/sync/cloud_sync_service.dart';
+import 'services/subscription/subscription_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +58,10 @@ void main() async {
     // Initialize Sync Service
     await CloudSyncService().init();
     print("DEBUG: CloudSyncService initialized");
+
+    // Initialize Subscription Service
+    await SubscriptionService().init();
+    print("DEBUG: SubscriptionService initialized");
   } catch (e) {
     print("WARNING: Firebase initialization failed: $e");
     // Continue app execution even if Firebase fails (offline mode)

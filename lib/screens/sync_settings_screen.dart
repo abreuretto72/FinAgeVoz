@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/database_service.dart';
 import '../services/sync/cloud_sync_service.dart';
+import '../services/subscription/subscription_service.dart';
+import '../services/subscription/feature_gate.dart';
 import '../utils/localization.dart';
 
 class SyncSettingsScreen extends StatefulWidget {
@@ -156,7 +158,10 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
               // Actions
               ElevatedButton.icon(
                 onPressed: () async {
-                  await _syncService.sync();
+                  final allowed = await FeatureGate(SubscriptionService()).canUseFeature(context, AppFeature.useCloudSync);
+                  if (allowed) {
+                    await _syncService.sync();
+                  }
                 },
                 icon: const Icon(Icons.sync),
                 label: const Text('Sincronizar Agora'),
