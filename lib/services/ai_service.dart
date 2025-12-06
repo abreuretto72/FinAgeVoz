@@ -313,6 +313,9 @@ class AIService {
     1. Determine if it is an Expense or Income.
     2. Select the most appropriate Category from the respective list.
     3. Select the most appropriate Subcategory from the map for that Category.
+    
+    For requests to SHOW, LIST or SEE installments or future payments visually, return "NAVIGATE" with target "INSTALLMENTS".
+    For other reports, return "NAVIGATE" with target "REPORTS".
 
     Output JSON format:
     {
@@ -335,7 +338,7 @@ class AIService {
         "recurrence": "string. Optional. 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY' or null."
       },
       "navigation": {
-        "target": "FINANCE" | "AGENDA" | "HOME" | "CLOSE" | "REPORTS" | "CATEGORIES"
+        "target": "FINANCE" | "AGENDA" | "HOME" | "CLOSE" | "REPORTS" | "CATEGORIES" | "INSTALLMENTS"
       },
       "contact": {
         "name": "string. The name of the person to call."
@@ -364,6 +367,9 @@ class AIService {
     "Ver categorias" -> {"intent": "NAVIGATE", "navigation": {"target": "CATEGORIES"}}
     "Mostrar os eventos" -> {"intent": "NAVIGATE", "navigation": {"target": "AGENDA"}}
     "Fechar app" -> {"intent": "NAVIGATE", "navigation": {"target": "CLOSE"}}
+    "Mostrar relatório de parcelas" -> {"intent": "NAVIGATE", "navigation": {"target": "INSTALLMENTS"}}
+    "Listar parcelas a vencer" -> {"intent": "NAVIGATE", "navigation": {"target": "INSTALLMENTS"}}
+    "Ver parcelas" -> {"intent": "NAVIGATE", "navigation": {"target": "INSTALLMENTS"}}
 
     Call Examples:
     "Ligar para João" -> {"intent": "CALL_CONTACT", "contact": {"name": "João"}}

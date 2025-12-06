@@ -53,6 +53,12 @@ class Transaction extends HiveObject {
   @HiveField(15)
   final bool isSynced;
 
+  @HiveField(16)
+  final bool isPaid;
+
+  @HiveField(17)
+  final DateTime? paymentDate;
+
   Transaction({
     required this.id,
     required this.description,
@@ -70,6 +76,8 @@ class Transaction extends HiveObject {
     DateTime? updatedAt,
     this.isDeleted = false,
     this.isSynced = false,
+    this.isPaid = false,
+    this.paymentDate,
   }) : updatedAt = updatedAt ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
@@ -89,6 +97,8 @@ class Transaction extends HiveObject {
       'attachments': attachments,
       'updatedAt': updatedAt?.toIso8601String(),
       'isDeleted': isDeleted,
+      'isPaid': isPaid,
+      'paymentDate': paymentDate?.toIso8601String(),
     };
   }
 
@@ -110,6 +120,8 @@ class Transaction extends HiveObject {
       updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
       isDeleted: map['isDeleted'] ?? false,
       isSynced: true, // When coming from cloud, it is synced
+      isPaid: map['isPaid'] ?? false,
+      paymentDate: map['paymentDate'] != null ? DateTime.parse(map['paymentDate']) : null,
     );
   }
 

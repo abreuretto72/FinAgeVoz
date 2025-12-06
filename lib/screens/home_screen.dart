@@ -14,7 +14,9 @@ import '../services/ai_service.dart';
 import '../services/database_service.dart';
 import '../services/event_notification_service.dart';
 import '../services/import_service.dart';
+import '../services/import_service.dart';
 import '../services/contact_service.dart';
+import '../services/transaction_notification_service.dart';
 
 import '../models/transaction_model.dart';
 import '../models/event_model.dart';
@@ -28,12 +30,15 @@ import 'agenda_screen.dart';
 import 'reports_screen.dart';
 import 'category_screen.dart';
 import 'onboarding_screen.dart';
+import 'installments_report_screen.dart';
 import 'data_management_screen.dart';
 import 'settings_screen.dart';
 import 'activity_log_screen.dart';
 import '../services/query_service.dart';
 import '../services/sync/cloud_sync_service.dart';
 import 'sync_settings_screen.dart';
+import '../services/subscription/feature_gate.dart';
+import '../services/subscription/subscription_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -586,6 +591,7 @@ class _HomeScreenState extends State<HomeScreen> {
     };
     _verifyGroqModel();
     _checkTodayEvents();
+    _checkInstallmentNotifications();
     _checkCloudRestore();
   }
 
@@ -864,6 +870,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 40),
                   GestureDetector(
                     onTap: () async {
+                      // Feature Gate Check
+                      final allowed = await FeatureGate(SubscriptionService()).canUseFeature(context, AppFeature.voiceCommands);
+                      if (!allowed) return;
+
                       // Check if voice commands are enabled
                       final voiceEnabled = _dbService.getVoiceCommandsEnabled();
                       
@@ -1175,6 +1185,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _navigate(const AgendaScreen());
       } else if (target == 'REPORTS') {
         _navigate(const ReportsScreen());
+      } else if (target == 'INSTALLMENTS') {
+        _navigate(const InstallmentsReportScreen());
       } else if (target == 'CATEGORIES') {
         _navigate(const CategoryScreen());
       } else if (target == 'CLOSE') {
@@ -1254,5 +1266,50 @@ class _HomeScreenState extends State<HomeScreen> {
     await notificationService.checkAndNotifyTodayEvents();
     
     _hasAnnouncedEvents = true;
+  }
+
+  Future<void> _checkInstallmentNotifications() async {
+    final service = TransactionNotificationService();
+    final upcoming = await service.checkUpcomingInstallments();
+    
+    if (upcoming.isNotEmpty && mounted) {
+      for (var t in upcoming) {
+        if (!mounted) return;
+        
+        final dateStr = DateFormat('dd/MM').format(t.date);
+        final message = "A parcela de ${t.description} vence amanhã, dia $dateStr. Valor: ${t.amount.toStringAsFixed(2)} reais.";
+        
+        await _voiceService.speak(message);
+        await Future.delayed(const Duration(seconds: 1));
+        await _voiceService.speak("Você já efetuou o pagamento?");
+        
+        final result = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Lembrete de Pagamento'),
+            content: Text('A parcela de ${t.description} vence amanhã.\nValor: R\$ ${t.amount.toStringAsFixed(2)}\n\nVocê já pagou?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Não'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Sim, já paguei'),
+              ),
+            ],
+          ),
+        );
+        
+        if (result == true) {
+          await _dbService.markTransactionAsPaid(t.id, DateTime.now());
+          await _voiceService.speak("Marcado como pago.");
+        } else {
+          await _voiceService.speak("Ok, vou lembrar depois.");
+        }
+        
+        await Future.delayed(const Duration(seconds: 1));
+      }
+    }
   }
 }

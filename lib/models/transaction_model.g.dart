@@ -30,13 +30,18 @@ class TransactionAdapter extends TypeAdapter<Transaction> {
       installmentNumber: fields[10] as int?,
       totalInstallments: fields[11] as int?,
       attachments: (fields[12] as List?)?.cast<String>(),
+      updatedAt: fields[13] as DateTime?,
+      isDeleted: fields[14] as bool? ?? false,
+      isSynced: fields[15] as bool? ?? false,
+      isPaid: fields[16] as bool? ?? false,
+      paymentDate: fields[17] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Transaction obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -62,7 +67,17 @@ class TransactionAdapter extends TypeAdapter<Transaction> {
       ..writeByte(11)
       ..write(obj.totalInstallments)
       ..writeByte(12)
-      ..write(obj.attachments);
+      ..write(obj.attachments)
+      ..writeByte(13)
+      ..write(obj.updatedAt)
+      ..writeByte(14)
+      ..write(obj.isDeleted)
+      ..writeByte(15)
+      ..write(obj.isSynced)
+      ..writeByte(16)
+      ..write(obj.isPaid)
+      ..writeByte(17)
+      ..write(obj.paymentDate);
   }
 
   @override

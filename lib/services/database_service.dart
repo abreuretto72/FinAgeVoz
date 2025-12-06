@@ -414,6 +414,35 @@ class DatabaseService {
     await _transactionBox.add(tToAdd);
   }
 
+  Future<void> markTransactionAsPaid(String id, DateTime date) async {
+    try {
+      final t = _transactionBox.values.firstWhere((t) => t.id == id);
+      final updatedT = Transaction(
+        id: t.id,
+        description: t.description,
+        amount: t.amount,
+        isExpense: t.isExpense,
+        date: t.date,
+        isReversal: t.isReversal,
+        originalTransactionId: t.originalTransactionId,
+        category: t.category,
+        subcategory: t.subcategory,
+        installmentId: t.installmentId,
+        installmentNumber: t.installmentNumber,
+        totalInstallments: t.totalInstallments,
+        attachments: t.attachments,
+        updatedAt: DateTime.now().toUtc(),
+        isDeleted: t.isDeleted,
+        isSynced: false,
+        isPaid: true,
+        paymentDate: date,
+      );
+      await _transactionBox.put(t.key, updatedT);
+    } catch (e) {
+      print("Transaction not found: $id");
+    }
+  }
+
   List<Transaction> getTransactions() {
     return _transactionBox.values.where((t) => !t.isDeleted).toList().reversed.toList();
   }

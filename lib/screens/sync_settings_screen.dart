@@ -177,6 +177,11 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
                 subtitle: const Text('Sincronizar dados a cada 5 minutos quando conectado'),
                 value: _autoSync,
                 onChanged: user == null ? null : (value) async {
+                  if (value) {
+                     final allowed = await FeatureGate(SubscriptionService()).canUseFeature(context, AppFeature.useCloudSync);
+                     if (!allowed) return;
+                  }
+
                   setState(() {
                     _autoSync = value;
                   });
