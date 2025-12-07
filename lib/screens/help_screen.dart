@@ -52,23 +52,75 @@ class HelpScreen extends StatelessWidget {
             ),
             
             const SizedBox(height: 24),
-            _buildSectionTitle('Dicas de Uso'),
+            _buildSectionTitle('Comandos de Voz'),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    Text(
-                      'Comandos de Voz',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                    Text('Experimente dizer:', style: TextStyle(fontWeight: FontWeight.bold)),
                     SizedBox(height: 8),
-                    Text('Você pode realizar ações rapidamente usando sua voz. Tente dizer:'),
-                    SizedBox(height: 8),
-                    _FeatureItem('"Ligar para [Nome do Contato]"', icon: Icons.phone),
                     _FeatureItem('"Adicionar despesa de 50 reais em alimentação"', icon: Icons.mic),
-                    _FeatureItem('"Agendar reunião amanhã às 14 horas"', icon: Icons.calendar_today),
+                    _FeatureItem('"Ligar para Maria"', icon: Icons.phone),
+                    _FeatureItem('"Agendar dentista amanhã às 14 horas"', icon: Icons.calendar_today),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+            _buildSectionTitle('Navegação'),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    _FeatureItem('Diga "Finanças" para ir às finanças', icon: Icons.attach_money),
+                    _FeatureItem('Diga "Agenda" para ir à agenda', icon: Icons.calendar_today),
+                    _FeatureItem('Ligar para o contato', icon: Icons.phone),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+            _buildSectionTitle('Finanças'),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    _FeatureItem('Controle de Despesas e Receitas', icon: Icons.attach_money),
+                    _FeatureItem('Parcelamentos: O app gera as parcelas futuras e avisa no vencimento.', icon: Icons.credit_card),
+                    _FeatureItem('Categoria Imobilizado: Para compra e venda de bens duráveis (ex: Imóveis, Veículos).', icon: Icons.business),
+                    _FeatureItem('Relatórios: Visualize gastos por categoria e resumo de parcelamentos.', icon: Icons.bar_chart),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+            _buildSectionTitle('Agenda e Saúde'),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    _FeatureItem('Avisos de Voz: Todos os eventos da agenda são avisados por voz quando chega a hora.', icon: Icons.record_voice_over),
+                    _FeatureItem('Lembretes de Medicamentos: Receba avisos antes e na hora exata de tomar seu remédio.', icon: Icons.medication),
+                    Padding(
+                      padding: EdgeInsets.only(left: 24, bottom: 8),
+                      child: Text(
+                        'Dica: Crie um evento na Agenda com o nome do remédio e configure a recorrência.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ),
+                    _FeatureItem('Confirmação de Pagamento: O app pergunta se você pagou uma parcela no dia do vencimento.', icon: Icons.check_circle_outline),
+                    _FeatureItem('Contatos: Ligue diretamente pelo app usando comandos de voz.', icon: Icons.contact_phone),
                   ],
                 ),
               ),
@@ -106,7 +158,7 @@ class HelpScreen extends StatelessWidget {
             const SizedBox(height: 40),
             const Center(
               child: Text(
-                'Versão 1.0.0',
+                'Versão 1.1.0',
                 style: TextStyle(color: Colors.grey),
               ),
             ),
