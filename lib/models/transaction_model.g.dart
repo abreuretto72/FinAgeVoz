@@ -31,9 +31,9 @@ class TransactionAdapter extends TypeAdapter<Transaction> {
       totalInstallments: fields[11] as int?,
       attachments: (fields[12] as List?)?.cast<String>(),
       updatedAt: fields[13] as DateTime?,
-      isDeleted: fields[14] as bool? ?? false,
-      isSynced: fields[15] as bool? ?? false,
-      isPaid: fields[16] as bool? ?? false,
+      isDeleted: fields[14] as bool,
+      isSynced: fields[15] as bool,
+      isPaid: fields[16] as bool,
       paymentDate: fields[17] as DateTime?,
     );
   }

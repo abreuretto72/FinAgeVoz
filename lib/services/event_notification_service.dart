@@ -47,28 +47,47 @@ class EventNotificationService {
           print('EventNotificationService: Found today event (repeat): "${event.title}"');
           return true;
         }
+        // Check for notification logic
+        // 1. Daily Summary (First time app opens today)
+        // 2. Urgent Reminder (At reminder time)
         
-        // Verificar se já foi notificado hoje (apenas para notificação automática)
-        // Se a configuração 'always_announce_events' for false, respeitamos o lastNotifiedDate
+        final reminderMinutes = event.reminderMinutes > 0 ? event.reminderMinutes : 30;
         final alwaysAnnounce = _dbService.getAlwaysAnnounceEvents();
-        
-        if (!alwaysAnnounce && event.lastNotifiedDate != null) {
-          final lastNotified = DateTime(
-            event.lastNotifiedDate!.year,
-            event.lastNotifiedDate!.month,
-            event.lastNotifiedDate!.day,
-          );
-          
-          // Se já foi notificado hoje, pular
-          if (lastNotified.isAtSameMomentAs(today)) {
-            print('EventNotificationService: Event "${event.title}" already notified today');
-            return false;
-          }
+        bool shouldNotify = false;
+
+        if (alwaysAnnounce || event.lastNotifiedDate == null) {
+           shouldNotify = true;
+        } else {
+           final last = event.lastNotifiedDate!;
+           final isToday = last.year == today.year && last.month == today.month && last.day == today.day;
+           
+           if (!isToday) {
+              // Not yet notified today -> Daily Summary
+              shouldNotify = true;
+           } else {
+              // Already notified today. Check for Urgent Reminder.
+              final timeUntilEvent = eventTimeToday.difference(now);
+              final timeSinceLastNotify = now.difference(last);
+              
+              // Trigger if within reminder window AND enough time passed since last notification
+              // We use a 20 minute buffer to prevent immediate loops if the user acknowledges.
+              if (timeUntilEvent.inMinutes <= reminderMinutes && 
+                  timeUntilEvent.inMinutes >= 0 && 
+                  timeSinceLastNotify.inMinutes > 15) {
+                  
+                  shouldNotify = true;
+                  print('EventNotificationService: Triggering URGENT reminder ($reminderMinutes min) for "${event.title}"');
+              }
+           }
         }
-        print('EventNotificationService: Found today event: "${event.title}"');
-        return true;
+        
+        if (shouldNotify) {
+           print('EventNotificationService: Found event to notify: "${event.title}"');
+           return true; 
+        }
+        
+        return false;
       }
-      
       return false;
     }).toList();
     
@@ -99,7 +118,7 @@ class EventNotificationService {
       final event = events.first;
       final timeStr = '${event.date.hour.toString().padLeft(2, '0')}:${event.date.minute.toString().padLeft(2, '0')}';
       await _voiceService.speak(
-        'Você tem um evento hoje: ${event.title} às $timeStr. Confirme dizendo OK.'
+        'Você tem um evento hoje: ${event.title} às $timeStr. Confirme dizendo OK. Eu te avisarei novamente 10 minutos antes.'
       );
       
       // Aguardar confirmação do usuário
@@ -107,7 +126,7 @@ class EventNotificationService {
     } else {
       // Anunciar quantidade total primeiro
       await _voiceService.speak(
-        'Você tem ${events.length} eventos hoje. Vou listar cada um.'
+        'Você tem ${events.length} eventos hoje. Vou listar cada um. Confirme com OK e te lembrarei 10 minutos antes de cada um.'
       );
       
       await Future.delayed(const Duration(milliseconds: 500));
@@ -118,7 +137,7 @@ class EventNotificationService {
         final timeStr = '${event.date.hour.toString().padLeft(2, '0')}:${event.date.minute.toString().padLeft(2, '0')}';
         
         await _voiceService.speak(
-          'Evento ${i + 1}: ${event.title} às $timeStr. Confirme dizendo OK.'
+          'Evento ${i + 1}: ${event.title} às $timeStr.'
         );
         
         // Aguardar confirmação antes de continuar para o próximo
@@ -131,7 +150,7 @@ class EventNotificationService {
       }
       
       // Mensagem final
-      await _voiceService.speak('Esses são todos os eventos de hoje.');
+      await _voiceService.speak('Tudo certo. Te avisarei 10 minutos antes dos horários.');
     }
   }
 

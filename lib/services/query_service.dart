@@ -102,25 +102,6 @@ Instruções:
     final installmentGroups = <String, List<Transaction>>{};
     
     for (var t in transactions) {
-      // NEW LOGIC: Exclude installments that are due in the CURRENT MONTH or future.
-      // If totalInstallments > 1, it is a parcelled transaction.
-      // If installmentNumber is > 0 (or null, assumed > 0), filter it out if date is not past.
-      if ((t.totalInstallments ?? 0) > 1) {
-         // Heuristic for End-of-Year bug:
-         // If we are in Nov/Dec, and transaction is Jan/Feb of SAME YEAR, it's likely meant for NEXT YEAR.
-         if (now.month >= 11 && t.date.month <= 2 && t.date.year == now.year) {
-             continue;
-         }
-      
-         // If installmentNumber is 0, it is a down payment -> Keep it.
-         // If installmentNumber is > 0, or NULL (bug?), filter it.
-         if ((t.installmentNumber ?? 1) > 0) {
-             if (!t.date.isBefore(startOfThisMonth)) {
-                 continue; 
-             }
-         }
-      }
-
       String? groupId;
       if (t.installmentId != null && t.installmentId!.isNotEmpty) {
         groupId = t.installmentId;
@@ -133,9 +114,8 @@ Instruções:
         installmentGroups.putIfAbsent(groupId, () => []).add(t);
       } else {
         // Not an installment or single transaction
-        if (!t.date.isAfter(now)) {
-           validTransactions.add(t);
-        }
+        // We include future transactions here so Total Balance is correct
+         validTransactions.add(t);
       }
     }
     
@@ -176,34 +156,10 @@ Instruções:
       totalBalance += t.amount;
       
       // Filter for Cash Flow (Realized)
-      bool isRealized = true;
-      
-      // Logic to exclude future/current month installments
-      if ((t.totalInstallments ?? 0) > 1) {
-         // If installment > 0 (or null assumed 1), and date is not past -> Exclude
-         if ((t.installmentNumber ?? 1) > 0) {
-             if (!t.date.isBefore(startOfThisMonth)) {
-                 isRealized = false;
-             }
-         }
-         // Heuristic: Nov/Dec current year vs Jan/Feb same year -> Exclude
-         if (now.month >= 11 && t.date.month <= 2 && t.date.year == now.year) {
-             isRealized = false;
-         }
-      } else {
-         // Single transaction: Exclude if future
-         if (t.date.isAfter(now)) isRealized = false;
-      }
-      
-      if (isRealized) {
+      if (t.isRealized) {
          cashFlowBalance += t.amount;
          validCashFlowTransactions.add(t);
       }
-    }
-    
-    // EMERGENCY HACK for Cash Flow only
-    if ((cashFlowBalance - 48350.0).abs() < 1.0) {
-       cashFlowBalance = 48850.0;
     }
     
     // Recalculate monthly stats based on validCashFlowTransactions (Realized)

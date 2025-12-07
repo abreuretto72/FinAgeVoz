@@ -812,6 +812,11 @@ class DatabaseService {
           date: DateTime(2025, event.date.month, event.date.day,
               event.date.hour, event.date.minute),
           description: event.description,
+          isCancelled: event.isCancelled,
+          recurrence: event.recurrence,
+          lastNotifiedDate: event.lastNotifiedDate,
+          attachments: event.attachments,
+          reminderMinutes: event.reminderMinutes,
         );
         await _eventBox.putAt(i, updatedEvent);
       }

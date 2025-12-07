@@ -37,6 +37,9 @@ class Event extends HiveObject {
   @HiveField(10)
   final bool isSynced;
 
+  @HiveField(11)
+  final int reminderMinutes; // Minutes before event to remind (Default 30)
+
   Event({
     required this.id,
     required this.title,
@@ -49,6 +52,7 @@ class Event extends HiveObject {
     DateTime? updatedAt,
     this.isDeleted = false,
     this.isSynced = false,
+    this.reminderMinutes = 30,
   }) : updatedAt = updatedAt ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
@@ -63,6 +67,7 @@ class Event extends HiveObject {
       'attachments': attachments,
       'updatedAt': updatedAt?.toIso8601String(),
       'isDeleted': isDeleted,
+      'reminderMinutes': reminderMinutes,
     };
   }
 
@@ -79,6 +84,7 @@ class Event extends HiveObject {
       updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
       isDeleted: map['isDeleted'] ?? false,
       isSynced: true,
+      reminderMinutes: map['reminderMinutes'] ?? 30,
     );
   }
 }

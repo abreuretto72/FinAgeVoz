@@ -130,4 +130,32 @@ class Transaction extends HiveObject {
 
   // Helper to get installment display text
   String get installmentText => isInstallment ? 'Parcela $installmentNumber/$totalInstallments' : '';
+
+  // Helper to determine if transaction is realized (Cash Flow)
+  // Refined Rules:
+  // - Income: Realized if Paid OR Date <= Today (Presumption of receipt)
+  // - Expense: Realized ONLY if Paid (Strict liquidity view)
+  bool get isRealized {
+    if (isPaid) return true;
+    
+    // For Expenses, strictly require isPaid for Cash Flow (Liquidity)
+    if (isExpense) return false;
+
+    // For Income, assume realized if date is today or past
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return date.isBefore(today.add(const Duration(days: 1)));
+  }
+
+  // Helper to check for Overdue status (Atrasado)
+  // Only applies to Expenses that are NOT paid and date < today
+  bool get isOverdue {
+    if (!isExpense) return false;
+    if (isPaid) return false;
+    
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    // Explicitly strictly before today (yesterday or older)
+    return date.isBefore(today);
+  }
 }

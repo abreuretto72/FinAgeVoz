@@ -132,44 +132,19 @@ class _FinanceScreenState extends State<FinanceScreen> {
     _totalBalance = 0;
     _cashFlowBalance = 0;
     
-    final startOfThisMonth = DateTime(now.year, now.month, 1);
+    // final now = DateTime.now(); // Removed duplicate
 
     for (var t in _filteredTransactions) {
-      // Total Balance (Includes everything in the filter)
+      // Total Balance (Includes everything in the filter - projected)
       _totalBalance += t.amount;
       
       // Cash Flow Balance (Realized Only)
-      bool isRealized = true;
-      
-      // Logic to exclude future/current month installments (matching QueryService)
-      if ((t.totalInstallments ?? 0) > 1) {
-         // If installment > 0 (or null assumed 1), and date is not past -> Exclude
-         if ((t.installmentNumber ?? 1) > 0) {
-             if (!t.date.isBefore(startOfThisMonth)) {
-                 isRealized = false;
-             }
-         }
-         // Heuristic: Nov/Dec current year vs Jan/Feb same year -> Exclude
-         if (now.month >= 11 && t.date.month <= 2 && t.date.year == now.year) {
-             isRealized = false;
-         }
-      } else {
-         // Single transaction: Exclude if future
-         if (t.date.isAfter(now)) isRealized = false;
-      }
-      
-      if (isRealized) {
+      if (t.isRealized) {
         _cashFlowBalance += t.amount;
       }
     }
     
     _filteredBalance = _cashFlowBalance; // Use Cash Flow for PDF/Legacy display if needed
-    
-    // EMERGENCY HACK consistency for Cash Flow
-    // Removed period check to ensure it triggers if the value matches the error pattern.
-    if ((_cashFlowBalance - 48350.0).abs() < 5.0) {
-       _cashFlowBalance = 48850.0;
-    }
 
     _sortTransactions();
   }
@@ -684,60 +659,98 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       final transactionIndex = _transactions.indexOf(transaction);
                       final isSelected = _selectedTransactionIds.contains(transaction.id);
 
-                      return ListTile(
-                        selected: isSelected,
-                        selectedTileColor: Colors.blue.withOpacity(0.1),
-                        leading: _isSelectionMode
-                          ? Checkbox(
-                              value: isSelected,
-                              onChanged: (value) => _toggleSelection(transaction.id),
-                            )
-                          : CircleAvatar(
-                              backgroundColor: transaction.isReversal 
-                                  ? Colors.orange[100] 
-                                  : (transaction.isExpense ? Colors.red[100] : Colors.green[100]),
-                              child: (transaction.attachments != null && transaction.attachments!.isNotEmpty)
-                                  ? Text(
-                                      String.fromCharCode(Icons.attach_file.codePoint),
-                                      style: TextStyle(
-                                        fontFamily: Icons.attach_file.fontFamily,
-                                        package: Icons.attach_file.fontPackage,
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: transaction.isExpense ? Colors.red : Colors.green,
-                                      ),
-                                    )
-                                  : Icon(
-                                      transaction.isReversal 
-                                          ? Icons.undo 
-                                          : (transaction.isExpense ? Icons.arrow_downward : Icons.arrow_upward),
-                                      color: transaction.isReversal 
-                                          ? Colors.orange 
-                                          : (transaction.isExpense ? Colors.red : Colors.green),
-                                    ),
+                        final isOverdue = transaction.isOverdue;
+                        final isPending = !transaction.isRealized;
+
+                        return Opacity(
+                          opacity: isPending ? 0.6 : 1.0, 
+                          child: ListTile(
+                            selected: isSelected,
+                            selectedTileColor: isOverdue 
+                                ? Colors.red.withOpacity(0.1) 
+                                : Colors.blue.withOpacity(0.1),
+                            leading: _isSelectionMode
+                              ? Checkbox(
+                                  value: isSelected,
+                                  onChanged: (value) => _toggleSelection(transaction.id),
+                                )
+                              : CircleAvatar(
+                                  backgroundColor: transaction.isReversal 
+                                      ? Colors.orange[100] 
+                                      : (transaction.isExpense 
+                                          ? (isOverdue ? Colors.red[50] : Colors.red[100]) 
+                                          : Colors.green[100]),
+                                  child: isOverdue
+                                    ? const Icon(Icons.warning, color: Colors.red)
+                                    : (transaction.isRealized
+                                        ? const Icon(Icons.check, color: Colors.black54, size: 16)
+                                        : (transaction.attachments != null && transaction.attachments!.isNotEmpty
+                                            ? Text(
+                                                String.fromCharCode(Icons.attach_file.codePoint),
+                                                style: TextStyle(
+                                                  fontFamily: Icons.attach_file.fontFamily,
+                                                  package: Icons.attach_file.fontPackage,
+                                                  fontSize: 24,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: transaction.isExpense ? Colors.red : Colors.green,
+                                                ),
+                                              )
+                                            : Icon(
+                                                // If not realized (pending), show schedule icon, else show direction
+                                                isPending ? Icons.schedule : (transaction.isExpense ? Icons.arrow_downward : Icons.arrow_upward),
+                                                color: transaction.isReversal 
+                                                    ? Colors.orange 
+                                                    : (transaction.isExpense ? Colors.red : Colors.green),
+                                              ))),
+                                ),
+                            title: Row(
+                              children: [
+                                Expanded(child: Text(
+                                  transaction.isInstallment 
+                                    ? '${transaction.description} (${transaction.installmentText})'
+                                    : transaction.description,
+                                  style: TextStyle(
+                                    decoration: transaction.isPaid ? TextDecoration.none : null,
+                                    fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
+                                    color: isOverdue ? Colors.red : null,
+                                  ),
+                                )),
+                                if (transaction.isPaid)
+                                  const Padding(
+                                    padding: EdgeInsets.only(left: 4),
+                                    child: Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                  ),
+                              ],
                             ),
-                        title: Row(
-                          children: [
-                            Expanded(child: Text(
-                              transaction.isInstallment 
-                                ? '${transaction.description} (${transaction.installmentText})'
-                                : transaction.description
-                            )),
-                            if (transaction.isPaid)
-                              const Padding(
-                                padding: EdgeInsets.only(left: 4),
-                                child: Icon(Icons.check_circle, color: Colors.green, size: 16),
+                            subtitle: Text(
+                              '${AppLocalizations.tCategory(transaction.category, _currentLanguage)} • ${dateFormat.format(transaction.date)}',
+                              style: TextStyle(
+                                color: isOverdue ? Colors.redAccent : null,
                               ),
-                          ],
-                        ),
-                        subtitle: Text('${AppLocalizations.tCategory(transaction.category, _currentLanguage)} • ${dateFormat.format(transaction.date)}'),
-                        trailing: Text(
-                          currencyFormat.format(transaction.amount),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: transaction.isExpense ? Colors.red : Colors.green,
-                          ),
-                        ),
+                            ),
+                            trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  currencyFormat.format(transaction.amount),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: transaction.isExpense ? Colors.red : Colors.green,
+                                  ),
+                                ),
+                                if (isPending)
+                                  Text(
+                                    t('pending'), // Make sure this key exists or use "A Realizar" if t() allows literal fallback or add key
+                                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                  ),
+                                if (isOverdue)
+                                  const Text(
+                                    "Atrasado",
+                                    style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
+                                  ),
+                              ],
+                            ),
                         onLongPress: () {
                           if (!_isSelectionMode) {
                             _toggleSelectionMode();
@@ -811,6 +824,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                           subcategory: transaction.subcategory,
                                           isReversal: true,
                                           originalTransactionId: transaction.id,
+                                          isPaid: true, // Reversal is effectively 'paid' immediately to offset balance
                                         );
                                         await _dbService.addTransaction(reversalTransaction);
                                         _loadData();
@@ -956,7 +970,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                             ),
                           );
                         },
-                      );
+                      ),
+                    );
                     },
                   ),
           ),

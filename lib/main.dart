@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'models/transaction_model.dart';
 import 'models/event_model.dart';
 import 'models/category_model.dart';
@@ -17,7 +19,7 @@ import 'services/subscription/subscription_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  print("DEBUG: WidgetsFlutterBinding initialized");
+  print("DEBUG: runApp starting sequence");
   
   // Initialize Hive
   await Hive.initFlutter();
@@ -34,39 +36,51 @@ void main() async {
   print("DEBUG: DatabaseService initialized");
   
   // Migrate old data from 2024 to 2025
-  print("DEBUG: Migrating transactions...");
-  await dbService.migrateTransactionsTo2025();
-  print("DEBUG: Migrating events...");
-  await dbService.migrateEventsTo2025();
-  print("DEBUG: Migration complete");
+  try {
+    print("DEBUG: Migrating transactions...");
+    await dbService.migrateTransactionsTo2025();
+    print("DEBUG: Migrating events...");
+    await dbService.migrateEventsTo2025();
+    print("DEBUG: Migration complete");
+  } catch (e) {
+    print("WARNING: Migration error: $e");
+  }
   
   // Load Env
-  await dotenv.load(fileName: ".env");
-  print("DEBUG: Env loaded");
+  try {
+    await dotenv.load(fileName: ".env");
+    print("DEBUG: Env loaded");
+  } catch(e) { print("DEBUG: Env load failed: $e"); }
   
   // Initialize Date Formatting
   await initializeDateFormatting('pt_BR', null);
   print("DEBUG: Date formatting initialized");
 
-  // Initialize Firebase
+  // Initialize External Services with Timeout Protection
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
-    );
+    ).timeout(const Duration(seconds: 5));
     print("DEBUG: Firebase initialized");
-    
-    // Initialize Sync Service
-    await CloudSyncService().init();
-    print("DEBUG: CloudSyncService initialized");
-
-    // Initialize Subscription Service
-    await SubscriptionService().init();
-    print("DEBUG: SubscriptionService initialized");
   } catch (e) {
-    print("WARNING: Firebase initialization failed: $e");
-    // Continue app execution even if Firebase fails (offline mode)
+    print("WARNING: Firebase initialization failed or timed out: $e");
   }
 
+  try {
+    await CloudSyncService().init().timeout(const Duration(seconds: 3));
+    print("DEBUG: CloudSyncService initialized");
+  } catch (e) {
+    print("WARNING: CloudSyncService init failed: $e");
+  }
+
+  try {
+    await SubscriptionService().init().timeout(const Duration(seconds: 3));
+    print("DEBUG: SubscriptionService initialized");
+  } catch (e) {
+    print("WARNING: SubscriptionService init failed: $e");
+  }
+
+  print("DEBUG: calling runApp");
   runApp(const FinAgeVozApp());
 }
 
@@ -84,20 +98,20 @@ class FinAgeVozApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           locale: Locale(language),
           supportedLocales: const [
-            Locale('pt', 'BR'),  // Português (Brasil)
-            Locale('pt', 'PT'),  // Português (Portugal)
-            Locale('en', ''),    // English
-            Locale('es', ''),    // Español
-            Locale('de', ''),    // Deutsch (Alemão)
-            Locale('it', ''),    // Italiano
-            Locale('fr', ''),    // Français
-            Locale('ja', ''),    // 日本語 (Japonês)
-            Locale('zh', ''),    // 中文 (Chinês)
-            Locale('hi', ''),    // हिन्दी (Hindi/Indiano)
-            Locale('ar', ''),    // العربية (Árabe)
-            Locale('id', ''),    // Bahasa Indonesia
-            Locale('ru', ''),    // Русский (Russo)
-            Locale('bn', ''),    // বাংলা (Bengali)
+            Locale('pt', 'BR'),
+            Locale('pt', 'PT'),
+            Locale('en', ''),
+            Locale('es', ''),
+            Locale('de', ''),
+            Locale('it', ''),
+            Locale('fr', ''),
+            Locale('ja', ''),
+            Locale('zh', ''),
+            Locale('hi', ''),
+            Locale('ar', ''),
+            Locale('id', ''),
+            Locale('ru', ''),
+            Locale('bn', ''),
           ],
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,

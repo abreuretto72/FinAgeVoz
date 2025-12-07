@@ -21,13 +21,17 @@ class CategoryAdapter extends TypeAdapter<Category> {
       description: fields[1] as String,
       subcategories: (fields[2] as List).cast<String>(),
       type: fields[3] as String,
+      id: fields[4] as String?,
+      updatedAt: fields[5] as DateTime?,
+      isDeleted: fields[6] as bool,
+      isSynced: fields[7] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, Category obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -35,7 +39,15 @@ class CategoryAdapter extends TypeAdapter<Category> {
       ..writeByte(2)
       ..write(obj.subcategories)
       ..writeByte(3)
-      ..write(obj.type);
+      ..write(obj.type)
+      ..writeByte(4)
+      ..write(obj.id)
+      ..writeByte(5)
+      ..write(obj.updatedAt)
+      ..writeByte(6)
+      ..write(obj.isDeleted)
+      ..writeByte(7)
+      ..write(obj.isSynced);
   }
 
   @override

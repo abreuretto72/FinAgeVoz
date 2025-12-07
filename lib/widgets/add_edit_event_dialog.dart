@@ -28,6 +28,7 @@ class _AddEditEventDialogState extends State<AddEditEventDialog> {
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
   String? _recurrence;
+  int _reminderMinutes = 30; // Default 30 minutes
 
   final DatabaseService _dbService = DatabaseService();
 
@@ -41,10 +42,12 @@ class _AddEditEventDialogState extends State<AddEditEventDialog> {
       _selectedTime = TimeOfDay.fromDateTime(widget.event!.date);
       _recurrence = widget.event!.recurrence;
       if (_recurrence == 'NONE') _recurrence = null;
+      _reminderMinutes = widget.event!.reminderMinutes;
     } else {
       _selectedDate = DateTime.now();
       _selectedTime = TimeOfDay.now();
       _recurrence = null;
+      _reminderMinutes = 30;
     }
   }
 
@@ -101,6 +104,7 @@ class _AddEditEventDialogState extends State<AddEditEventDialog> {
         isCancelled: widget.event?.isCancelled ?? false,
         recurrence: _recurrence,
         lastNotifiedDate: widget.event?.lastNotifiedDate, // Preservar data de notificação
+        reminderMinutes: _reminderMinutes,
       );
 
       if (widget.event != null) {
@@ -175,6 +179,24 @@ class _AddEditEventDialogState extends State<AddEditEventDialog> {
                 onChanged: (value) {
                   setState(() {
                     _recurrence = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                value: _reminderMinutes,
+                decoration: const InputDecoration(labelText: 'Avisar com antecedência'),
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('Na hora do evento')),
+                  DropdownMenuItem(value: 15, child: Text('15 minutos antes')),
+                  DropdownMenuItem(value: 30, child: Text('30 minutos antes (Padrão)')),
+                  DropdownMenuItem(value: 60, child: Text('1 hora antes')),
+                  DropdownMenuItem(value: 120, child: Text('2 horas antes')),
+                  DropdownMenuItem(value: 1440, child: Text('1 dia antes')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _reminderMinutes = value ?? 30;
                   });
                 },
               ),

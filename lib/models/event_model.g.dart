@@ -25,13 +25,17 @@ class EventAdapter extends TypeAdapter<Event> {
       recurrence: fields[5] as String?,
       lastNotifiedDate: fields[6] as DateTime?,
       attachments: (fields[7] as List?)?.cast<String>(),
+      updatedAt: fields[8] as DateTime?,
+      isDeleted: fields[9] as bool,
+      isSynced: fields[10] as bool,
+      reminderMinutes: fields[11] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, Event obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +51,15 @@ class EventAdapter extends TypeAdapter<Event> {
       ..writeByte(6)
       ..write(obj.lastNotifiedDate)
       ..writeByte(7)
-      ..write(obj.attachments);
+      ..write(obj.attachments)
+      ..writeByte(8)
+      ..write(obj.updatedAt)
+      ..writeByte(9)
+      ..write(obj.isDeleted)
+      ..writeByte(10)
+      ..write(obj.isSynced)
+      ..writeByte(11)
+      ..write(obj.reminderMinutes);
   }
 
   @override

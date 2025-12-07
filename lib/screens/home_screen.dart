@@ -76,6 +76,17 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _initVoice();
+    // Check for events on startup as requested
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 2), () async {
+        try {
+          await _checkTodayEvents();
+          await _checkInstallmentNotifications();
+        } catch (e) {
+          print("Error in startup checks: $e");
+        }
+      });
+    });
   }
 
   @override
@@ -1159,12 +1170,15 @@ class _HomeScreenState extends State<HomeScreen> {
         final dateStr = data['date'];
         final date = dateStr != null ? DateTime.parse(dateStr) : DateTime.now();
         final recurrence = data['recurrence'];
+        final reminderMinutes = data['reminderMinutes'] as int? ?? 30; // Capture reminder minutes
+        
         final event = Event(
           id: const Uuid().v4(),
           title: title,
           date: date,
           description: data['description'] ?? '',
           recurrence: recurrence,
+          reminderMinutes: reminderMinutes,
         );
         await _dbService.addEvent(event);
         await _dbService.addOperationToHistory(OperationHistory(
