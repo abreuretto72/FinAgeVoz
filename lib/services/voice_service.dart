@@ -49,6 +49,18 @@ class VoiceService {
     } catch (e) {
       print("VoiceService: Exception during init: $e");
     }
+    
+    // Default config
+    await _flutterTts.setIosAudioCategory(IosTextToSpeechAudioCategory.playAndRecord, [
+       IosTextToSpeechAudioCategoryOptions.defaultToSpeaker,
+       IosTextToSpeechAudioCategoryOptions.allowBluetooth,
+       IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
+    ]);
+    await _flutterTts.setLanguage("pt-BR");
+    await _flutterTts.setPitch(1.0);
+    await _flutterTts.setSpeechRate(0.5);
+    await _flutterTts.setVolume(1.0);
+    await _flutterTts.awaitSpeakCompletion(true);
   }
 
   Future<void> setLanguage(String languageCode) async {
@@ -100,10 +112,10 @@ class VoiceService {
           }
         },
         localeId: _currentLocaleId,
-        pauseFor: const Duration(seconds: 30), // Wait 30 seconds of silence before stopping (very tolerant)
-        listenFor: const Duration(seconds: 60), // Max listen duration increased to 60s
-        partialResults: false, // Desabilitado para evitar processamento prematuro
-        cancelOnError: false, // Não cancela ao primeiro erro
+        pauseFor: const Duration(seconds: 10), // Generous pause handling
+        listenFor: const Duration(seconds: 60), 
+        partialResults: true, // Enable partials to keep connection alive
+        cancelOnError: false,
       );
     }
   }

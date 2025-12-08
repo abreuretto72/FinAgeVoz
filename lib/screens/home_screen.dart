@@ -1,6 +1,7 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:avatar_glow/avatar_glow.dart';
 import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -24,9 +25,14 @@ import '../models/category_model.dart';
 import '../models/operation_history.dart';
 import '../utils/localization.dart';
 import '../utils/installment_helper.dart';
+import '../services/agenda_repository.dart';
+import '../models/agenda_models.dart';
+import 'agenda_form_screen.dart';
+import 'medicines/medicine_form_screen.dart';
+import '../models/medicine_model.dart';
 
 import 'finance_screen.dart';
-import 'agenda_screen.dart';
+import 'agenda_list_page.dart';
 import 'reports_screen.dart';
 import 'category_screen.dart';
 import 'onboarding_screen.dart';
@@ -964,7 +970,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         icon: Icons.calendar_today,
                         label: t('nav_agenda'),
                         color: Colors.blue,
-                        onTap: () => _navigate(const AgendaScreen()),
+                        onTap: () => _navigate(const AgendaListPage()),
                       ),
                       _buildQuickAccessButton(
                         icon: Icons.bar_chart,
@@ -1078,7 +1084,15 @@ class _HomeScreenState extends State<HomeScreen> {
       if (data != null) {
         final description = data['description'] ?? 'Despesa';
         final amount = (data['amount'] as num?)?.toDouble();
-        final isExpense = data['isExpense'] ?? true;
+        
+        // Fix: isExpense matches 'EXPENSE' or 'INCOME'. AI might return 'isExpense' boolean or 'type' string.
+        bool isExpense = true;
+        if (data['type'] != null && data['type'] is String) {
+           isExpense = (data['type'] as String).toUpperCase() == 'EXPENSE';
+        } else if (data['isExpense'] != null && data['isExpense'] is bool) {
+           isExpense = data['isExpense'];
+        }
+        
         final dateStr = data['date'];
         final date = dateStr != null ? DateTime.parse(dateStr) : DateTime.now();
         final category = data['category'] ?? 'Outras Despesas';
@@ -1139,6 +1153,10 @@ class _HomeScreenState extends State<HomeScreen> {
             await _voiceService.speak('Não entendi o valor da transação.');
             return;
           }
+          final now = DateTime.now();
+          final isTodayOrPast = date.isBefore(now) || 
+                               (date.year == now.year && date.month == now.month && date.day == now.day);
+
           final transaction = Transaction(
             id: const Uuid().v4(),
             description: description,
@@ -1147,6 +1165,8 @@ class _HomeScreenState extends State<HomeScreen> {
             date: date,
             category: category,
             subcategory: subcategory,
+            isPaid: isTodayOrPast,
+            paymentDate: isTodayOrPast ? date : null,
           );
           await _dbService.addTransaction(transaction);
           await _dbService.addOperationToHistory(OperationHistory(
@@ -1191,12 +1211,100 @@ class _HomeScreenState extends State<HomeScreen> {
         ));
         await _voiceService.speak('Evento $title agendado para ${DateFormat('dd/MM HH:mm').format(date)}.');
       }
+    } else if (intent == 'ADD_AGENDA_ITEM') {
+      final data = result['agenda_item'];
+      if (data != null) {
+        final typeStr = (data['type'] as String).toUpperCase();
+        final title = data['title'] as String;
+        final dateStr = data['date'] as String?;
+        final timeStr = data['time'] as String?;
+        
+        DateTime? date;
+        if (dateStr != null) {
+           try { date = DateTime.parse(dateStr); } catch (_) {}
+        }
+        
+        AgendaItemType type = AgendaItemType.values.firstWhere(
+           (e) => e.toString().split('.').last == typeStr, 
+           orElse: () => AgendaItemType.COMPROMISSO
+        );
+
+        final item = AgendaItem(
+           tipo: type,
+           titulo: title,
+           descricao: data['description'],
+           dataInicio: date,
+           horarioInicio: timeStr,
+           status: ItemStatus.PENDENTE,
+        );
+        
+        if (type == AgendaItemType.PAGAMENTO) {
+           item.pagamento = PagamentoInfo(
+             valor: (data['payment_value'] as num?)?.toDouble() ?? 0.0,
+             status: 'PENDENTE',
+             dataVencimento: date ?? DateTime.now(),
+           );
+        } else if (type == AgendaItemType.REMEDIO) {
+           // Rule: Never auto-save medicines. Open form.
+           String medName = title;
+           if (medName.toLowerCase().trim() == 'remédio' || medName.toLowerCase().contains('agendar remédio')) {
+               medName = ""; 
+           }
+           
+           // Create draft
+           final draft = Remedio(
+              id: const Uuid().v4(),
+              nome: medName, 
+              criadoEm: DateTime.now(),
+              atualizadoEm: DateTime.now(),
+           );
+           
+           await _voiceService.speak("Abrindo cadastro do remédio. Por favor, configure a posologia.");
+           
+           if (mounted) {
+              _navigate(MedicineFormScreen(remedio: draft));
+           }
+           return; 
+        } else if (type == AgendaItemType.ANIVERSARIO) {
+           item.aniversario = AniversarioInfo(
+             nomePessoa: data['person_name'] ?? title,
+             notificarAntes: 1,
+             parentesco: null, // Mandatory
+           );
+           
+           // Clean Name
+           String name = item.aniversario!.nomePessoa;
+           if (name.toLowerCase() == 'aniversário' || 
+               name.toLowerCase() == 'novo aniversário' ||
+               name.toLowerCase().contains('adicionar aniversário')) {
+               name = "";
+               item.aniversario!.nomePessoa = "";
+           } else if (name.isNotEmpty) {
+               name = name[0].toUpperCase() + name.substring(1);
+               item.aniversario!.nomePessoa = name;
+           }
+
+           item.titulo = name.isNotEmpty ? "Aniversário de $name" : "Novo Aniversário";
+           
+           if (item.recorrencia == null) {
+              item.recorrencia = RecorrenciaInfo(frequencia: 'ANUAL');
+           }
+           
+           // DO NOT SAVE. NAVIGATE.
+           await _voiceService.speak('Confirme o nome e a data e informe o grau de parentesco do aniversariante antes de salvar.');
+           if (mounted) _navigate(AgendaFormScreen(draftItem: item));
+           return;
+        }
+        
+        await AgendaRepository().addItem(item);
+        await _voiceService.speak('Adicionado à agenda: $title');
+      }
     } else if (intent == 'NAVIGATE') {
       final target = result['navigation']?['target'];
       if (target == 'FINANCE') {
         _navigate(const FinanceScreen());
       } else if (target == 'AGENDA') {
-        _navigate(const AgendaScreen());
+        _navigate(const AgendaListPage());
       } else if (target == 'REPORTS') {
         _navigate(const ReportsScreen());
       } else if (target == 'INSTALLMENTS') {
@@ -1279,33 +1387,282 @@ class _HomeScreenState extends State<HomeScreen> {
     final notificationService = EventNotificationService();
     await notificationService.checkAndNotifyTodayEvents();
     
+    // Check medicines
+    await _checkMedicines();
+
+    // Check birthdays
+    await _checkBirthdays();
+
     _hasAnnouncedEvents = true;
+  }
+
+  Future<void> _checkBirthdays() async {
+    final service = EventNotificationService();
+    final birthdays = await service.getDueBirthdays();
+    
+    if (birthdays.isEmpty) return;
+    
+    // Announce
+    if (birthdays.length == 1) {
+       await _voiceService.speak("Hoje é o aniversário de ${birthdays.first.aniversario!.nomePessoa}.");
+    } else {
+       await _voiceService.speak("Hoje há ${birthdays.length} aniversários.");
+    }
+    await Future.delayed(const Duration(seconds: 3));
+
+    for (var item in birthdays) {
+       if (!mounted) return;
+       await _showBirthdayDialog(item);
+    }
+  }
+
+  Future<void> _showBirthdayDialog(AgendaItem item) async {
+      final info = item.aniversario!;
+      // Determine priority channel logic
+      String? channelName;
+      IconData? channelIcon;
+      bool canSend = false;
+
+      // Logic: WhatsApp -> Email -> SMS
+      if (info.telefone != null && info.telefone!.isNotEmpty) {
+         channelName = "WhatsApp";
+         channelIcon = Icons.chat;
+         canSend = true;
+      } else if (info.emailContato != null && info.emailContato!.isNotEmpty) {
+         channelName = "E-mail";
+         channelIcon = Icons.email;
+         canSend = true;
+      } else if (info.smsPhone != null && info.smsPhone!.isNotEmpty) {
+         channelName = "SMS";
+         channelIcon = Icons.sms;
+         canSend = true;
+      } else {
+         channelName = "Nenhum canal";
+         channelIcon = Icons.error;
+         canSend = false;
+      }
+
+      final msgCtrl = TextEditingController(text: info.mensagemPadrao ?? "Parabéns ${info.nomePessoa}! Tudo de bom!");
+
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+           return StatefulBuilder(
+             builder: (context, setStateUi) {
+               return AlertDialog(
+                 title: Text("🎉 Aniversário de ${info.nomePessoa}"),
+                 content: SingleChildScrollView(
+                   child: Column(
+                     mainAxisSize: MainAxisSize.min,
+                     children: [
+                       if (!canSend)
+                          const Text("⚠️ Sem contato cadastrado! Edite o item.", style: TextStyle(color: Colors.red)),
+                       if (canSend)
+                          Row(children: [
+                             Icon(channelIcon, color: Colors.green),
+                             const SizedBox(width: 8),
+                             Text("Enviar via $channelName"),
+                          ]),
+                       const SizedBox(height: 10),
+                       TextField(
+                         controller: msgCtrl,
+                         maxLines: 4,
+                         decoration: InputDecoration(
+                           labelText: "Mensagem",
+                           border: const OutlineInputBorder(),
+                           suffixIcon: IconButton(
+                              icon: const Icon(Icons.auto_awesome, color: Colors.purple),
+                              tooltip: "Gerar nova sugestão por IA",
+                              onPressed: () async {
+                                 // Generate AI
+                                 // Reuse logic or simple prompt here
+                                 String relationship = info.parentesco ?? "alguém especial";
+                                 String prompt = "Gere uma mensagem curta de feliz aniversário para ${info.nomePessoa} ($relationship). ";
+                                 // Simplified tone selection for dialog re-generation
+                                 prompt += "Tom: Carinhoso e adequado.";
+                                 
+                                 final newMsg = await _aiService.answerQuestion(prompt);
+                                 setStateUi(() {
+                                    msgCtrl.text = newMsg.replaceAll('"', ''); 
+                                 });
+                              },
+                           ),
+                         ),
+                       ),
+                     ] 
+                   ),
+                 ),
+                 actions: [
+                    TextButton(
+                      child: const Text("Lembrar depois"), 
+                      onPressed: () => Navigator.pop(context)
+                    ),
+                    TextButton(
+                      child: const Text("Já parabenizei"), 
+                      onPressed: () async {
+                         await EventNotificationService().markBirthdayAsSent(item);
+                         Navigator.pop(context);
+                         await _voiceService.speak("Ok, marcado como enviado.");
+                      },
+                    ),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.send),
+                      label: Text(canSend ? "Enviar agora" : "Editar Contato"), 
+                      onPressed: () async {
+                         Navigator.pop(context);
+
+                         if (!canSend) {
+                            // Navigate to edit? Or just show error
+                            // Simple for now: just close. User needs to edit manually.
+                            await _voiceService.speak("Por favor adicione um contato na agenda.");
+                            return;
+                         }
+
+                         bool sent = false;
+                         if (channelName == "WhatsApp") {
+                            sent = await ContactService().sendMessageOnWhatsApp(info.telefone!, msgCtrl.text);
+                         } else if (channelName == "E-mail") {
+                            final Uri emailLaunchUri = Uri(
+                              scheme: 'mailto',
+                              path: info.emailContato!,
+                              query: 'subject=Feliz Aniversário ${info.nomePessoa}!&body=${Uri.encodeComponent(msgCtrl.text)}',
+                            );
+                            if (await canLaunchUrl(emailLaunchUri)) {
+                               await launchUrl(emailLaunchUri);
+                               sent = true;
+                            }
+                         } else if (channelName == "SMS") {
+                            final Uri smsLaunchUri = Uri(
+                              scheme: 'sms',
+                              path: info.smsPhone!,
+                              queryParameters: <String, String>{
+                                'body': msgCtrl.text,
+                              },
+                            );
+                            if (await canLaunchUrl(smsLaunchUri)) {
+                               await launchUrl(smsLaunchUri);
+                               sent = true;
+                            }
+                         }
+
+                         if (sent) {
+                            // Update info
+                            info.mensagemPadrao = msgCtrl.text; // Save used message
+                            await EventNotificationService().markBirthdayAsSent(item);
+                            await _voiceService.speak("Mensagem enviada!");
+                         } else {
+                            await _voiceService.speak("Erro ao abrir aplicativo.");
+                         }
+                      }
+                    ),
+                 ],
+               );
+             }
+           );
+        }
+      );
+  }
+
+  Future<void> _checkMedicines() async {
+    final service = EventNotificationService();
+    final meds = await service.getDueMedicines();
+    
+    if (meds.isEmpty) return;
+    
+    // Announce
+    if (meds.length == 1) {
+       await _voiceService.speak("Hora de tomar o remédio: ${meds.first.remedio!.nome}.");
+    } else {
+       await _voiceService.speak("Você tem ${meds.length} remédios para tomar agora.");
+    }
+    
+    for (var item in meds) {
+       if (!mounted) return;
+       await _showMedicineDialog(item);
+    }
+  }
+
+  Future<void> _showMedicineDialog(AgendaItem item) async {
+     final info = item.remedio!;
+     
+     await showDialog(
+       context: context,
+       barrierDismissible: false,
+       builder: (context) {
+          return AlertDialog(
+            title: Row(children: [
+               const Icon(Icons.medication, color: Colors.redAccent),
+               const SizedBox(width: 8),
+               Expanded(child: Text("Hora do Remédio: ${info.nome}")),
+            ]),
+            content: Text("Dosagem: ${info.dosagem}\n\nVocê já tomou?"),
+            actions: [
+               TextButton(
+                 child: const Text("Adiar"),
+                 onPressed: () {
+                    // Just close for now
+                    Navigator.pop(context);
+                 }
+               ),
+               ElevatedButton(
+                 child: const Text("Já tomei"),
+                 onPressed: () async {
+                    Navigator.pop(context);
+                    await EventNotificationService().markMedicineAsTaken(item);
+                    await _voiceService.speak("Registrado. Próxima dose agendada.");
+                 }
+               )
+            ],
+          );
+       }
+     );
   }
 
   Future<void> _checkInstallmentNotifications() async {
     final service = TransactionNotificationService();
-    final upcoming = await service.checkUpcomingInstallments();
+    final unpaid = await service.checkUnpaidInstallments();
     
-    if (upcoming.isNotEmpty && mounted) {
-      for (var t in upcoming) {
+    if (unpaid.isNotEmpty && mounted) {
+      if (unpaid.length > 3) {
+         await _voiceService.speak("Você tem ${unpaid.length} parcelas vencendo ou atrasadas. Verifique a lista.");
+         return; 
+      }
+
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final tomorrow = today.add(const Duration(days: 1));
+
+      for (var t in unpaid) {
         if (!mounted) return;
         
-        final dateStr = DateFormat('dd/MM').format(t.date);
-        final message = "A parcela de ${t.description} vence amanhã, dia $dateStr. Valor: ${t.amount.toStringAsFixed(2)} reais.";
+        final tDate = DateTime(t.date.year, t.date.month, t.date.day);
+        String message;
+        
+        if (tDate.isAtSameMomentAs(tomorrow)) {
+           message = "Lembrete: A parcela de ${t.description} vence amanhã. Valor: ${t.amount.toStringAsFixed(2)} reais.";
+        } else if (tDate.isAtSameMomentAs(today)) {
+           message = "Atenção: A parcela de ${t.description} vence hoje! Valor: ${t.amount.toStringAsFixed(2)} reais.";
+        } else {
+           final daysLate = today.difference(tDate).inDays;
+           message = "A parcela de ${t.description} está atrasada há $daysLate dias.";
+        }
         
         await _voiceService.speak(message);
         await Future.delayed(const Duration(seconds: 1));
-        await _voiceService.speak("Você já efetuou o pagamento?");
+        
+        if (!mounted) return;
         
         final result = await showDialog<bool>(
           context: context,
+          barrierDismissible: false,
           builder: (context) => AlertDialog(
-            title: const Text('Lembrete de Pagamento'),
-            content: Text('A parcela de ${t.description} vence amanhã.\nValor: R\$ ${t.amount.toStringAsFixed(2)}\n\nVocê já pagou?'),
+            title: const Text('Confirmar Pagamento'),
+            content: Text('${t.description}\nValor: R\$ ${t.amount.toStringAsFixed(2)}\nVencimento: ${DateFormat('dd/MM/yyyy').format(t.date)}\n\nJá efetuou este pagamento?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Não'),
+                child: const Text('Lembrar depois'),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),

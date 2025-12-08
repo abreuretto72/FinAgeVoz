@@ -8,6 +8,7 @@ import 'models/transaction_model.dart';
 import 'models/event_model.dart';
 import 'models/category_model.dart';
 import 'models/operation_history.dart';
+import 'models/medicine_model.dart';
 import 'services/database_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/auth_screen.dart';
@@ -16,6 +17,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/sync/cloud_sync_service.dart';
 import 'services/subscription/subscription_service.dart';
+import 'utils/hive_setup.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,13 +29,28 @@ void main() async {
   Hive.registerAdapter(EventAdapter());
   Hive.registerAdapter(CategoryAdapter());
   Hive.registerAdapter(OperationHistoryAdapter());
-  print("DEBUG: Hive initialized and adapters registered");
+  Hive.registerAdapter(RemedioAdapter());
+  Hive.registerAdapter(PosologiaAdapter());
+  Hive.registerAdapter(HistoricoTomadaAdapter());
+  
+  // Initialize Agenda V2 Hive
+  print("DEBUG: Initializing Agenda Hive...");
+  try {
+     await initAgendaHive().timeout(const Duration(seconds: 5));
+     print("DEBUG: Agenda Hive initialized");
+  } catch(e) {
+     print("CRITICAL ERROR: Agenda Hive Init Failed: $e");
+  }
   
   // Initialize Database Service (opens boxes)
   final dbService = DatabaseService();
   print("DEBUG: Initializing DatabaseService...");
-  await dbService.init();
-  print("DEBUG: DatabaseService initialized");
+  try {
+    await dbService.init().timeout(const Duration(seconds: 5));
+    print("DEBUG: DatabaseService initialized");
+  } catch(e) {
+    print("CRITICAL ERROR: DatabaseService Init Failed: $e");
+  }
   
   // Migrate old data from 2024 to 2025
   try {

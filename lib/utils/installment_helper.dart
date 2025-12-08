@@ -50,6 +50,8 @@ class InstallmentHelper {
         installmentId: installmentId,
         installmentNumber: 0, // 0 indica entrada
         totalInstallments: installments,
+        isPaid: true,
+        paymentDate: downPaymentDate,
       ));
     }
 
@@ -84,6 +86,8 @@ class InstallmentHelper {
         installmentId: installmentId,
         installmentNumber: i + 1,
         totalInstallments: installments,
+        isPaid: installmentDate.isBefore(DateTime.now()) || (installmentDate.year == DateTime.now().year && installmentDate.month == DateTime.now().month && installmentDate.day == DateTime.now().day),
+        paymentDate: (installmentDate.isBefore(DateTime.now()) || (installmentDate.year == DateTime.now().year && installmentDate.month == DateTime.now().month && installmentDate.day == DateTime.now().day)) ? installmentDate : null,
       ));
     }
 

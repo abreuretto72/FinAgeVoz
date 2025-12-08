@@ -183,6 +183,10 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
               }
             }
 
+            final now = DateTime.now();
+            final isTodayOrPast = _selectedDate.isBefore(now) || 
+                                 (_selectedDate.year == now.year && _selectedDate.month == now.month && _selectedDate.day == now.day);
+            
             Navigator.pop(context, {
               'description': _descriptionController.text,
               'amount': finalAmount,
@@ -190,6 +194,8 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
               'date': _selectedDate,
               'category': _selectedCategory,
               'subcategory': _selectedSubcategory,
+              'isPaid': isTodayOrPast, 
+              'paymentDate': isTodayOrPast ? _selectedDate : null,
             });
           },
           child: Text(t('save')),

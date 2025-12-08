@@ -11,6 +11,7 @@ import '../models/transaction_model.dart';
 import '../models/event_model.dart';
 import '../models/category_model.dart';
 import '../models/operation_history.dart';
+import '../models/medicine_model.dart';
 import '../utils/constants.dart';
 
 class DatabaseService {
@@ -23,6 +24,9 @@ class DatabaseService {
   late Box _settingsBox;
   late Box<Category> _categoryBox;
   late Box<OperationHistory> _historyBox;
+  late Box<Remedio> _remedioBox;
+  late Box<Posologia> _posologiaBox;
+  late Box<HistoricoTomada> _historicoTomadaBox;
 
   final ValueNotifier<String> languageNotifier = ValueNotifier('pt_BR');
 
@@ -34,6 +38,12 @@ class DatabaseService {
     _settingsBox = await Hive.openBox('settings');
     _categoryBox = await Hive.openBox<Category>('categories');
     _historyBox = await Hive.openBox<OperationHistory>('operation_history');
+    
+    // Medicine boxes
+    _remedioBox = await Hive.openBox<Remedio>('remedios');
+    _posologiaBox = await Hive.openBox<Posologia>('posologias');
+    _historicoTomadaBox = await Hive.openBox<HistoricoTomada>('historico_tomadas');
+
     print("DEBUG: Hive boxes opened. Category box empty? ${_categoryBox.isEmpty}");
     
     // Seed default categories if none exist
@@ -41,6 +51,12 @@ class DatabaseService {
       print("DEBUG: Seeding categories...");
       await _seedCategories();
       print("DEBUG: Categories seeded.");
+    }
+    
+    // One-time reset for Agenda V2
+    if (!isAgendaResetV2) {
+       print("DEBUG: Resetting Agenda tables for V2...");
+       await resetAgenda();
     }
     
     // Initialize language notifier
@@ -1430,5 +1446,81 @@ class DatabaseService {
       isSynced: true,
     );
     await _categoryBox.put(key, updated);
+  }
+
+
+  // One-time reset for new agenda
+  Future<void> resetAgenda() async {
+    await _eventBox.clear();
+    await _settingsBox.put('agenda_reset_v2', true);
+    print("DEBUG: Agenda events cleared for update.");
+  }
+  
+  bool get isAgendaResetV2 => _settingsBox.get('agenda_reset_v2', defaultValue: false);
+
+  // Medicine CRUD
+  Future<void> addRemedio(Remedio r) async {
+    await _remedioBox.put(r.id, r);
+  }
+  
+  List<Remedio> getRemedios() => _remedioBox.values.toList();
+  
+  Remedio? getRemedio(String id) => _remedioBox.get(id);
+
+  Future<void> updateRemedio(Remedio r) async {
+    await _remedioBox.put(r.id, r);
+  }
+
+  Future<void> deleteRemedio(String id) async {
+    await _remedioBox.delete(id);
+    final posologias = getPosologias(id);
+    for (var p in posologias) {
+       await deletePosologia(p.id);
+    }
+  }
+
+  // Posologia CRUD
+  Future<void> addPosologia(Posologia p) async {
+    await _posologiaBox.put(p.id, p);
+    final remedio = getRemedio(p.remedioId);
+    if (remedio != null) {
+       if (!remedio.posologiaIds.contains(p.id)) {
+           remedio.posologiaIds.add(p.id);
+           await updateRemedio(remedio);
+       }
+    }
+  }
+
+  List<Posologia> getPosologias(String remedioId) {
+    return _posologiaBox.values.where((p) => p.remedioId == remedioId).toList();
+  }
+  
+  Posologia? getPosologia(String id) => _posologiaBox.get(id);
+
+  Future<void> updatePosologia(Posologia p) async {
+    await _posologiaBox.put(p.id, p);
+  }
+
+  Future<void> deletePosologia(String id) async {
+    await _posologiaBox.delete(id);
+    final history = getHistorico(id);
+    for (var h in history) {
+       await deleteHistoricoTomada(h.id);
+    }
+  }
+
+  // Historico CRUD
+  Future<void> addHistoricoTomada(HistoricoTomada h) async {
+    await _historicoTomadaBox.put(h.id, h);
+  }
+
+  List<HistoricoTomada> getHistorico(String posologiaId) {
+    return _historicoTomadaBox.values.where((h) => h.posologiaId == posologiaId).toList();
+  }
+  
+  List<HistoricoTomada> getAllHistorico() => _historicoTomadaBox.values.toList();
+
+  Future<void> deleteHistoricoTomada(String id) async {
+    await _historicoTomadaBox.delete(id);
   }
 }

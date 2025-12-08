@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import '../models/event_model.dart';
 import '../services/database_service.dart';
 import '../services/voice_service.dart';
+import '../services/agenda_repository.dart';
+import '../models/agenda_models.dart';
+import '../services/contact_service.dart';
+import '../services/ai_service.dart';
+import '../services/medicine_service.dart';
+import '../models/medicine_model.dart';
+import 'package:uuid/uuid.dart';
 
 class EventNotificationService {
   final DatabaseService _dbService = DatabaseService();
@@ -282,5 +289,141 @@ class EventNotificationService {
     }
 
     return false;
+  }
+
+  /// Verifica aniversários do dia que ainda não foram enviados
+  Future<List<AgendaItem>> getDueBirthdays() async {
+    final repo = AgendaRepository();
+    final allItems = repo.getAllItems();
+    final now = DateTime.now();
+    final due = <AgendaItem>[];
+    
+    for (var item in allItems) {
+      if (item.tipo == AgendaItemType.ANIVERSARIO && item.aniversario != null) {
+        final bday = item.aniversario!;
+        DateTime? targetDate = bday.dataNascimento ?? item.dataInicio;
+        
+        if (targetDate != null && targetDate.month == now.month && targetDate.day == now.day) {
+           if (bday.ultimoAnoEnviado != now.year) {
+             due.add(item);
+           }
+        }
+      }
+    }
+    return due;
+  }
+
+  Future<void> markBirthdayAsSent(AgendaItem item) async {
+    if (item.aniversario != null) {
+       item.aniversario!.ultimoAnoEnviado = DateTime.now().year;
+       await AgendaRepository().updateItem(item);
+    }
+  }
+
+  /// Verifica remédios que precisam ser tomados (Sistema Novo + Legado)
+  Future<List<AgendaItem>> getDueMedicines() async {
+    final medService = MedicineService();
+    final db = DatabaseService();
+    final now = DateTime.now();
+    final due = <AgendaItem>[];
+    
+    // 1. Check Legacy Items
+    final repo = AgendaRepository();
+    final allItems = repo.getAllItems();
+    for (var item in allItems) {
+      if (item.tipo == AgendaItemType.REMEDIO && item.remedio != null) {
+         // Legacy logic: check target time vs now
+         // Only if it doesn't look like a "virtual" item (db persisted)
+         // Assuming legacy items are persisted.
+         DateTime target = item.remedio!.proximaDose ?? item.remedio!.inicioTratamento;
+         if (target.isBefore(now.add(const Duration(minutes: 1))) && item.status == 'PENDENTE') {
+             due.add(item);
+         }
+      }
+    }
+    
+    // 2. Check New System (Remedio/Posologia)
+    final remedios = db.getRemedios();
+    for (var r in remedios) {
+       for (var pid in r.posologiaIds) {
+          final p = db.getPosologia(pid);
+          if (p == null) continue;
+          
+          if (!p.exigirConfirmacao) continue; // Skip if no confirmation needed (auto-taken?)
+
+          // Check last 24 hours to catch missed doses
+          final checkStart = now.subtract(const Duration(hours: 24));
+          final doses = medService.calculateNextDoses(p, checkStart, limit: 10);
+          
+          for (var d in doses) {
+             // If dose is too far in future, stop
+             if (d.isAfter(now.add(const Duration(minutes: 1)))) break;
+             
+             // Check history
+             final history = db.getHistorico(p.id);
+             final taken = history.any((h) => 
+               h.dataHoraProgramada.isAtSameMomentAs(d) || 
+               (h.dataHoraProgramada.difference(d).inMinutes.abs() < 10 && h.taken)
+             );
+             
+             if (!taken) {
+               // Found a due/missed dose
+               final virtualItem = await medService.createVirtualAgendaItem(r, p, d);
+               due.add(virtualItem);
+             }
+          }
+       }
+    }
+    return due;
+  }
+
+  /// Marca remédio como tomado
+  Future<void> markMedicineAsTaken(AgendaItem item) async {
+    final db = DatabaseService();
+    // Case 1: Legacy Item
+    if (item.isInBox) {
+        if (item.remedio == null) return;
+        final med = item.remedio!;
+        final now = DateTime.now();
+        med.ultimaDoseTomada = now;
+        
+        // Calculate next dose (Legacy logic)
+        if (med.frequenciaTipo == 'HORAS') {
+           med.proximaDose = now.add(Duration(hours: med.intervalo));
+        } else {
+           med.proximaDose = now.add(const Duration(hours: 24));
+        }
+        med.status = 'PENDENTE'; // Keep passing it forward
+        await AgendaRepository().updateItem(item);
+        return;
+    }
+
+    // Case 2: New System (Virtual Item)
+    if (item.remedio != null) {
+       final remedios = db.getRemedios();
+       final r = remedios.where((e) => e.nome == item.remedio!.nome).firstOrNull;
+       if (r != null) {
+          final scheduledTime = item.dataInicio!;
+          // Find matching posology
+          // We don't have exact ID, try to find one that aligns or just the first valid one
+          for (var pid in r.posologiaIds) {
+             final p = db.getPosologia(pid);
+             if (p != null) {
+                // Register history
+                final h = HistoricoTomada(
+                  id: const Uuid().v4(),
+                  posologiaId: p.id,
+                  dataHoraProgramada: scheduledTime,
+                  dataHoraReal: DateTime.now(),
+                  taken: true,
+                  observacao: "Marcado via voz/notificação",
+                );
+                await db.addHistoricoTomada(h);
+                // We don't "update next dose" because calculateNextDoses checks history.
+                return;
+             }
+          }
+       }
+    }
   }
 }

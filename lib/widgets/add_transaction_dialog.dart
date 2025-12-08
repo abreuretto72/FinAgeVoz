@@ -141,6 +141,10 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                   return;
                 }
 
+                final now = DateTime.now();
+                final isTodayOrPast = _selectedDate.isBefore(now) || 
+                                     (_selectedDate.year == now.year && _selectedDate.month == now.month && _selectedDate.day == now.day);
+
                 final newTransaction = Transaction(
                   id: const Uuid().v4(),
                   description: _descriptionController.text,
@@ -149,6 +153,8 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                   date: _selectedDate,
                   category: _selectedCategory,
                   subcategory: _selectedSubcategory,
+                  isPaid: isTodayOrPast,
+                  paymentDate: isTodayOrPast ? _selectedDate : null,
                 );
 
                 await _dbService.addTransaction(newTransaction);

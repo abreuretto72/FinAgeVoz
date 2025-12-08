@@ -138,13 +138,10 @@ class Transaction extends HiveObject {
   bool get isRealized {
     if (isPaid) return true;
     
-    // For Expenses, strictly require isPaid for Cash Flow (Liquidity)
-    if (isExpense) return false;
-
-    // For Income, assume realized if date is today or past
+    // User requested: If date <= Today, it is realized/performed.
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    return date.isBefore(today.add(const Duration(days: 1)));
+    final tomorrow = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    return date.isBefore(tomorrow);
   }
 
   // Helper to check for Overdue status (Atrasado)

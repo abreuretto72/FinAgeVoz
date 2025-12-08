@@ -319,7 +319,7 @@ class AIService {
 
     Output JSON format:
     {
-      "intent": "ADD_TRANSACTION" | "ADD_EVENT" | "NAVIGATE" | "QUERY" | "UNDO" | "CALL_CONTACT" | "UNKNOWN",
+      "intent": "ADD_TRANSACTION" | "ADD_EVENT" | "ADD_AGENDA_ITEM" | "NAVIGATE" | "QUERY" | "UNDO" | "CALL_CONTACT" | "UNKNOWN",
       "transaction": {
         "description": "string. REQUIRED.",
         "amount": "number. REQUIRED. If not found, return null.",
@@ -336,6 +336,22 @@ class AIService {
         "date": "ISO 8601 string (YYYY-MM-DDTHH:mm:ss). REQUIRED.",
         "description": "string",
         "recurrence": "string. Optional. 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY' or null."
+      },
+      "agenda_item": {
+        "type": "COMPROMISSO" | "TAREFA" | "LEMBRETE" | "PAGAMENTO" | "REMEDIO" | "ANIVERSARIO" | "META" | "PROJETO" | "NOTA" | "ROTINA" | "PRAZO",
+        "title": "string. REQUIRED.",
+        "date": "ISO 8601 string (YYYY-MM-DDTHH:mm:ss).",
+        "time": "HH:mm string.",
+        "description": "string",
+        "payment_value": "number (for PAGAMENTO)",
+        "medicine_dosage": "string (for REMEDIO)",
+        "person_name": "string (for ANIVERSARIO)",
+        "relationship": "string (for ANIVERSARIO e.g. 'Mãe', 'Amigo', 'Tia')",
+        "recurrence": {
+          "frequencia": "DIARIO" | "SEMANAL" | "MENSAL" | "ANUAL" | "HORAS",
+          "intervalo": "int (default 1)",
+          "diasDaSemana": "List<int> (1=Mon, 7=Sun)"
+        }
       },
       "navigation": {
         "target": "FINANCE" | "AGENDA" | "HOME" | "CLOSE" | "REPORTS" | "CATEGORIES" | "INSTALLMENTS"
@@ -360,6 +376,17 @@ class AIService {
     "Reunião amanhã às 14h" -> {"intent": "ADD_EVENT", "event": {"title": "Reunião", "date": "$currentYear-11-23T14:00:00", "recurrence": null}}
     "Reunião de equipe toda segunda às 10h" -> {"intent": "ADD_EVENT", "event": {"title": "Reunião de equipe", "date": "$currentYear-11-24T10:00:00", "recurrence": "WEEKLY"}}
     "Pagar conta todo dia 5" -> {"intent": "ADD_EVENT", "event": {"title": "Pagar conta", "date": "$currentYear-12-05T09:00:00", "recurrence": "MONTHLY"}}
+
+    Agenda Examples (Smart Agenda):
+    "Adicionar uma reunião amanhã às 9 da manhã com o João" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "COMPROMISSO", "title": "Reunião com João", "date": "$currentYear-11-23T09:00:00", "time": "09:00", "description": "Com João"}}
+    "Me lembra de tomar remédio às 8" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "REMEDIO", "title": "Tomar remédio", "date": "$currentYear-11-22T20:00:00", "time": "20:00"}}
+    "Registrar pagamento da internet no dia 5, valor 120 reais" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "PAGAMENTO", "title": "Internet", "date": "$currentYear-12-05T00:00:00", "payment_value": 120.0}}
+    "Agendar aniversário da minha mãe dia 12 de agosto" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "ANIVERSARIO", "title": "Aniversário da mãe", "person_name": "Mãe", "relationship": "Mãe", "date": "$currentYear-08-12T00:00:00"}}
+    "Aniversário de Mara 10 de Março" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "ANIVERSARIO", "title": "Aniversário de Mara", "person_name": "Mara", "date": "$currentYear-03-10T00:00:00"}}
+    "Criar tarefa comprar ração hoje à tarde" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "TAREFA", "title": "Comprar ração", "date": "$currentYear-11-22T15:00:00", "time": "15:00"}}
+    "Caminhar todo dia às 7" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "TAREFA", "title": "Caminhar", "time": "07:00", "recurrence": {"frequencia": "DIARIO", "intervalo": 1}}}
+    "Tomar remédio de 8 em 8 horas" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "REMEDIO", "title": "Tomar remédio", "recurrence": {"frequencia": "HORAS", "intervalo": 8}}}
+    "Lixo toda segunda às 20h" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "ROTINA", "title": "Colocar lixo", "time": "20:00", "recurrence": {"frequencia": "SEMANAL", "diasDaSemana": [1]}}}
     
     Navigation Examples:
     "Abrir finanças" -> {"intent": "NAVIGATE", "navigation": {"target": "FINANCE"}}
