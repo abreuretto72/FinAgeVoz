@@ -666,19 +666,27 @@
 
 Entenda o significado dos símbolos visuais do app:
 
+
 | Ícone | Significado | Contexto |
 | :---: | :--- | :--- |
+| ☰ | **Menu Principal** | Abre o menu lateral com todas as opções de navegação. |
 | 🎤 | **Voz / IA** | Toque para falar comandos ou pedir ajuda à IA. |
+| 🔍 | **Buscar** | Pesquisar transações ou eventos por nome. |
+| 🏷️ | **Filtro** | Filtrar listagens por data, categoria, tipo ou status. |
 | ✅ | **Confirmado / Pago** | Transações financeiras já realizadas (dinheiro saiu/entrou). |
 | 🕒 | **Pendente / Futuro** | Contas a pagar, a receber ou eventos futuros. |
+| 💲 | **Financeiro** | Representa transações, pagamentos e recebimentos. |
 | 🔁 | **Recorrente** | Item que se repete automaticamente (Mensal, Anual, etc). |
 | 🎂 | **Aniversário** | Evento de aniversário (permite gerar mensagem IA). |
 | 💊 | **Medicamento** | Horário de remédio ou cadastro de saúde. |
+| 📄 | **PDF** | Ícone para gerar e exportar relatórios em formato PDF. |
 | 📎 | **Anexo** | Indica presença de foto ou documento vinculado. |
-| 📤 | **Exportar** | Gera relatório PDF ou compartilha texto. |
-| 💾 | **Salvar/Backup** | Gravação de dados ou backup na nuvem. |
+| ✏️ | **Editar** | Alterar detalhes de um registro existente. |
 | 🗑️ | **Excluir** | Remove o item permanentemente. |
-| ➕ | **Adicionar** | Criar novo registro (Transação, Evento, Remédio). |
+| ➕ | **Adicionar** | Botão para criar novo registro (Transação, Evento, Remédio). |
+| 💾 | **Backup** | Salvar dados localmente ou na nuvem (Google Drive). |
+| 📤 | **Compartilhar** | Enviar relatório ou comprovante para outros apps (WhatsApp, etc). |
+
 
 
 ## 📞 **Suporte e Documentação**
