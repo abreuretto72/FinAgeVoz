@@ -668,9 +668,12 @@ Entenda o significado dos símbolos visuais do app:
 
 
 
+
 | Símbolo (Aproximado) | Nome do Ícone | Função no App |
 | :---: | :--- | :--- |
 | ☰ | **Menu (Hambúrguer)** | Abre o menu lateral esquerdo. |
+| 🔲 / 🏷️ | **Ícone de Categorias** | Acesso rápido ao gerenciamento de categorias (Topo Dir.). |
+| ❓ | **Interrogação** | Acessar tela de Ajuda e Manual. |
 | 🎤 | **Microfone** | Ativa o reconhecimento de voz. |
 | 🔍 | **Lupa** | Pesquisar transações ou eventos. |
 | 🌪️ / 📋 | **Filtro / Funil** | Exibido para opções de filtro (data, categoria). |
@@ -687,6 +690,7 @@ Entenda o significado dos símbolos visuais do app:
 | ➕ | **Sinal de Mais** | Criar novo (Botão flutuante). |
 | 💾 | **Disquete** | Salvar backup. |
 | 📤 | **Compartilhar** | Enviar para outros aplicativos. |
+
 
 
 
