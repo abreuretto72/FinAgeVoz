@@ -31,7 +31,7 @@
 ### 💊 Gestão de Saúde e Medicamentos
 - ✅ **Cadastro Detalhado**: Nome, dosagem, forma farmacêutica e finalidade.
 - ✅ **Posologia Flexível**: Configure intervalos (ex: a cada 8 horas), horários fixos ou uso contínuo.
-- ✅ **Controle de Estoque**: O sistema alerta quando o remédio está acabando.
+
 - ✅ **Histórico de Tomada**: Marque cada dose como tomada para manter um registro de aderência ao tratamento.
 - ✅ **Anexos**: Guarde fotos de receitas e bulas junto ao medicamento.
 
