@@ -16,7 +16,7 @@
   - "Comprei um café de 5 reais"
   - "Criar evento reunião amanhã às 14h"
   - "Quanto gastei este mês?"
-  - "Desfazer última operação"
+
 
 ### 💰 Gestão Financeira
 - ✅ Adicionar transações por voz ou manualmente
@@ -35,11 +35,6 @@
 - ✅ Anexos e notas
 - ✅ Integração com calendário (importação/exportação .ics)
 
-### 🔄 Sistema de "Arrependimento"
-- ✅ Desfazer criação de transações e eventos
-- ✅ Restaurar edições anteriores com snapshots
-- ✅ Histórico das últimas 5 operações
-- ✅ Comandos: "Desfazer", "Me arrependi", "Cancelar última operação"
 
 ### 🤖 Inteligência Artificial
 - ✅ Processamento de linguagem natural com **Groq (Llama 3.3)**
@@ -170,11 +165,7 @@ flutter build ios --release
 🤖 App: "Você gastou R$ 450,00 em Alimentação este mês"
 ```
 
-### Exemplo 4: Desfazer Operação
-```
-👤 Usuário: "Me arrependi"
-🤖 App: "Operação desfeita: Café, R$ 5,00"
-```
+
 
 ## 🤝 Contribuindo
 
