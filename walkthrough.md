@@ -2,44 +2,7 @@
 
 ## ✅ Funcionalidades Implementadas Recentemente
 
-### 1. Sistema de "Arrependimento" para Eventos (NOVO!)
 
-Agora você pode desfazer a criação e edição de eventos usando comandos de voz!
-
-#### Como Funciona:
-
-**Comandos de voz suportados:**
-```
-"Desfazer"
-"Cancelar última operação"
-"Apagar última transação"
-"Me arrependi"
-```
-
-**O que pode ser desfeito:**
-- ✅ **Criação de eventos**: Remove o evento recém-criado
-- ✅ **Edição de eventos**: Restaura o evento ao estado anterior
-- ✅ **Transações simples**: Remove a transação
-- ✅ **Compras parceladas**: Remove todas as parcelas de uma vez
-
-**Histórico:**
-- Mantém as últimas 5 operações
-- Funciona tanto para transações quanto para eventos
-- Restaura o estado exato anterior no caso de edições
-
-#### Exemplos de Uso:
-
-1. **Criar um evento e se arrepender:**
-   - Você: "Criar evento reunião amanhã às 14h"
-   - App: "Evento criado: Reunião"
-   - Você: "Desfazer"
-   - App: "Operação desfeita: Evento: Reunião"
-
-2. **Editar um evento e reverter:**
-   - Você edita um evento pela interface
-   - Você: "Me arrependi"
-   - App: "Operação desfeita: Edição de evento: [nome]"
-   - O evento volta ao estado anterior
 
 ### 2. Eventos Recorrentes (Completo!)
 
@@ -140,23 +103,14 @@ Agora você pode pedir para o app ligar para alguém usando comandos de voz.
 ## 📋 Arquivos Modificados Nesta Sessão
 
 ### Modelos:
-- **`lib/models/operation_history.dart`**: 
-  - Adicionados campos `eventId` e `eventSnapshot`
-  - Suporte para tipos 'event' e 'event_edit'
-  - Helper `isEvent` para identificar operações de eventos
+
 
 - **`lib/models/event_model.dart`**:
   - Adicionado campo `lastNotifiedDate` para rastrear notificações
   - Permite notificar usuário apenas uma vez por dia
 
 ### Serviços:
-- **`lib/services/database_service.dart`**:
-  - Método `undoLastOperation` expandido para eventos e chamadas
-  - Suporte para desfazer criação de eventos
-  - Suporte para restaurar estado anterior em edições
-  - Tratamento para tipo `call` (apenas remove do histórico)
-  - Helper `_eventToMap` para criar snapshots
-  - Incluído `lastNotifiedDate` em snapshots
+
 
 - **`lib/services/event_notification_service.dart`** (NOVO):
   - Serviço dedicado para notificações de eventos
@@ -205,23 +159,7 @@ Agora você pode pedir para o app ligar para alguém usando comandos de voz.
 
 ## 🧪 Como Testar
 
-### Teste 1: Criar e Desfazer Evento
-1. Abra a tela de Agenda
-2. Toque no botão + (FloatingActionButton)
-3. Preencha: "Reunião importante", data/hora, recorrência "Semanal"
-4. Salve
-5. Volte para a tela inicial
-6. Diga: "Desfazer"
-7. ✅ O evento deve ser removido
 
-### Teste 2: Editar e Reverter Evento
-1. Crie um evento qualquer
-2. Toque no evento para ver detalhes
-3. Toque em "Editar"
-4. Mude o título para algo diferente
-5. Salve
-6. Diga: "Me arrependi"
-7. ✅ O evento deve voltar ao título original
 
 ### Teste 3: Eventos Recorrentes
 1. Crie um evento com recorrência "Diário"
@@ -280,9 +218,7 @@ Agora você pode pedir para o app ligar para alguém usando comandos de voz.
 ## 🎯 Próximos Passos Sugeridos
 
 1. **Testes no dispositivo físico** (SM A256E detectado)
-2. **Validar todos os cenários de undo**
-3. **Testar eventos recorrentes em diferentes períodos**
-4. **Verificar comportamento com múltiplas operações no histórico**
+
 
 ---
 
