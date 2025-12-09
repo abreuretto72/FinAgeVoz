@@ -748,7 +748,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       : (transaction.isExpense ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1)),
                   child: Icon(
                     transaction.isReversal 
-                        ? Icons.undo 
+                        ? Icons.replay 
                         : (transaction.isExpense ? Icons.arrow_downward : Icons.arrow_upward),
                     color: transaction.isReversal 
                         ? Colors.orange 

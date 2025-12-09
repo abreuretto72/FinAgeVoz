@@ -577,21 +577,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirm != true) return;
 
     try {
-      // Delete everything by setting cutoff date to far future
-      final futureDate = DateTime.now().add(const Duration(days: 36500)); // 100 years
-      final deleted = await _dbService.deleteOldData(futureDate);
+      // Delete EVERYTHING using the dedicated method
+      await _dbService.deleteAllData();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              t('data_wiped_msg')
-                  .replaceAll('{transactions}', deleted['transactions'].toString())
-                  .replaceAll('{events}', deleted['events'].toString()),
-            ),
+            content: Text(t('data_wiped_msg').replaceAll('{transactions}', '?').replaceAll('{events}', '?')), // Adapte a msg ou use uma genérica
             backgroundColor: Colors.red,
           ),
         );
+         // Opcional: Reiniciar app para garantir estado limpo
+         // Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       }
     } catch (e) {
       if (mounted) {

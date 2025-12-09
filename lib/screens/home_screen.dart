@@ -23,7 +23,7 @@ import '../services/transaction_notification_service.dart';
 import '../models/transaction_model.dart';
 import '../models/event_model.dart';
 import '../models/category_model.dart';
-import '../models/operation_history.dart';
+
 import '../utils/localization.dart';
 import '../utils/installment_helper.dart';
 import '../services/agenda_repository.dart';
@@ -41,7 +41,7 @@ import 'installments_report_screen.dart';
 import 'data_management_screen.dart';
 import 'settings_screen.dart';
 import 'help_screen.dart';
-import 'activity_log_screen.dart';
+
 import '../services/query_service.dart';
 import '../services/sync/cloud_sync_service.dart';
 import 'sync_settings_screen.dart';
@@ -722,14 +722,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _navigate(const DataManagementScreen());
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.history),
-              title: Text(t('menu_activity_log')),
-              onTap: () {
-                Navigator.pop(context);
-                _navigate(const ActivityLogScreen());
-              },
-            ),
+
             ListTile(
               leading: const Icon(Icons.file_upload),
               title: Text(t('menu_import_transactions')),
@@ -1161,15 +1154,7 @@ class _HomeScreenState extends State<HomeScreen> {
             await _dbService.addTransaction(t);
             transactionIds.add(t.id);
           }
-          await _dbService.addOperationToHistory(OperationHistory(
-            id: const Uuid().v4(),
-            type: 'transaction',
-            description: isExpense
-                ? "Compra parcelada: $description ($installments x)"
-                : "Receita parcelada: $description ($installments x)",
-            timestamp: DateTime.now(),
-            transactionIds: transactionIds,
-          ));
+
           double totalFeedback = amount ?? 0.0;
           if (installmentAmount != null) {
             totalFeedback = downPayment + (installmentAmount * installments);
@@ -1203,13 +1188,7 @@ class _HomeScreenState extends State<HomeScreen> {
             paymentDate: isTodayOrPast ? date : null,
           );
           await _dbService.addTransaction(transaction);
-          await _dbService.addOperationToHistory(OperationHistory(
-            id: const Uuid().v4(),
-            type: 'transaction',
-            description: isExpense ? "Gasto de $description" : "Receita de $description",
-            timestamp: DateTime.now(),
-            transactionIds: [transaction.id],
-          ));
+
           await _voiceService.speak(
             isExpense
                 ? 'Gasto de $description no valor de ${amount.toStringAsFixed(2)} reais registrado.'
@@ -1235,14 +1214,7 @@ class _HomeScreenState extends State<HomeScreen> {
           reminderMinutes: reminderMinutes,
         );
         await _dbService.addEvent(event);
-        await _dbService.addOperationToHistory(OperationHistory(
-          id: const Uuid().v4(),
-          type: 'event',
-          description: title,
-          timestamp: DateTime.now(),
-          transactionIds: [],
-          eventId: event.id,
-        ));
+
         await _voiceService.speak('Evento $title agendado para ${DateFormat.Md(_currentLanguage).add_Hm().format(date)}.');
       }
     } else if (intent == 'ADD_AGENDA_ITEM') {
@@ -1358,13 +1330,7 @@ class _HomeScreenState extends State<HomeScreen> {
           await _voiceService.speak('Abrindo WhatsApp para $name.');
           final success = await ContactService().callOnWhatsApp(phoneNumber);
           if (success) {
-             await _dbService.addOperationToHistory(OperationHistory(
-              id: const Uuid().v4(),
-              type: 'call',
-              description: "Ligação para $name",
-              timestamp: DateTime.now(),
-              transactionIds: [],
-            ));
+
           } else {
             await _voiceService.speak('Não foi possível abrir o WhatsApp.');
           }

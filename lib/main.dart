@@ -8,7 +8,7 @@ import 'l10n/app_localizations.dart';
 import 'models/transaction_model.dart';
 import 'models/event_model.dart';
 import 'models/category_model.dart';
-import 'models/operation_history.dart';
+
 import 'models/medicine_model.dart';
 import 'services/database_service.dart';
 import 'screens/splash_screen.dart';
@@ -30,7 +30,7 @@ void main() async {
   Hive.registerAdapter(TransactionAdapter());
   Hive.registerAdapter(EventAdapter());
   Hive.registerAdapter(CategoryAdapter());
-  Hive.registerAdapter(OperationHistoryAdapter());
+
   Hive.registerAdapter(RemedioAdapter());
   Hive.registerAdapter(PosologiaAdapter());
   Hive.registerAdapter(HistoricoTomadaAdapter());

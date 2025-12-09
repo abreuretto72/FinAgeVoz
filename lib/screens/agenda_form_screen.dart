@@ -96,7 +96,16 @@ class _AgendaFormScreenState extends State<AgendaFormScreen> {
       _selectedType = AgendaItemType.COMPROMISSO; // Default
       _startDate = DateTime.now();
       _startTime = TimeOfDay.now();
+      _startTime = TimeOfDay.now();
     }
+    
+    // Listener para sincronizar Nome -> Título em Aniversários
+    _personNameController.addListener(() {
+      if (_selectedType == AgendaItemType.ANIVERSARIO && _titleController.text.isEmpty) {
+         // Só copia se o título estiver vazio ou se o usuário não mudou manualmente
+         // Simplificação: Vamos forçar a cópia se o título começar com "Aniversário de " ou estiver vazio
+      }
+    });
   }
 
   @override
@@ -132,10 +141,11 @@ class _AgendaFormScreenState extends State<AgendaFormScreen> {
               },
             ),
             const SizedBox(height: 16),
+            if (_selectedType != AgendaItemType.ANIVERSARIO)
             TextFormField(
               controller: _titleController,
               decoration: const InputDecoration(labelText: 'Título'),
-              validator: (v) => v == null || v.isEmpty ? 'Obrigatório' : null,
+              validator: (v) => (_selectedType != AgendaItemType.ANIVERSARIO && (v == null || v.isEmpty)) ? 'Obrigatório' : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -148,7 +158,8 @@ class _AgendaFormScreenState extends State<AgendaFormScreen> {
             // Generic Date/Time for Appointment/Task etc
             if (_selectedType == AgendaItemType.COMPROMISSO || 
                 _selectedType == AgendaItemType.TAREFA || 
-                _selectedType == AgendaItemType.LEMBRETE) ...[
+                _selectedType == AgendaItemType.LEMBRETE ||
+                _selectedType == AgendaItemType.ANIVERSARIO) ...[
                _buildDateTimePickers(),
                const SizedBox(height: 16),
             ],
@@ -192,7 +203,7 @@ class _AgendaFormScreenState extends State<AgendaFormScreen> {
               if (d != null) setState(() => _startDate = d);
             },
             child: InputDecorator(
-              decoration: const InputDecoration(labelText: 'Data'),
+              decoration: InputDecoration(labelText: _selectedType == AgendaItemType.ANIVERSARIO ? 'Data do Aniversário' : 'Data'),
               child: Text(_startDate != null ? "${_startDate!.day}/${_startDate!.month}/${_startDate!.year}" : "Selecione"),
             ),
           ),
@@ -469,91 +480,105 @@ class _AgendaFormScreenState extends State<AgendaFormScreen> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    
-    // BIRTHDAY VALIDATION
-    if (_selectedType == AgendaItemType.ANIVERSARIO) {
-       if (_selectedRelationship == null || _selectedRelationship!.isEmpty) {
-           ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(content: Text('Informe o grau de parentesco ou relação com o aniversariante.'), backgroundColor: Colors.red)
-           );
-           return;
-       }
+    try {
+      // Auto-fill title
+      if (_selectedType == AgendaItemType.ANIVERSARIO) {
+          _titleController.text = "Aniversário de ${_personNameController.text}";
+      }
+
+      if (!_formKey.currentState!.validate()) {
+        showDialog(context: context, builder: (c) => AlertDialog(title: Text("Erro"), content: Text("Campos obrigatórios não preenchidos (verifique vermelho).")));
+        return;
+      }
+      
+      // Validação Parentesco
+      if (_selectedType == AgendaItemType.ANIVERSARIO) {
+         if (_selectedRelationship == null || _selectedRelationship!.isEmpty) {
+             showDialog(context: context, builder: (c) => AlertDialog(title: Text("Atenção"), content: Text("Por favor, selecione o Grau de Parentesco.")));
+             return;
+         }
+      }
+      
+      // Construct objects (Mantendo lógica original...)
+      PagamentoInfo? pagInfo;
+      RemedioInfo? medInfo;
+      AniversarioInfo? bdayInfo;
+      RecorrenciaInfo? recInfo;
+
+      if (_selectedType == AgendaItemType.PAGAMENTO) {
+         pagInfo = PagamentoInfo(
+           valor: double.tryParse(_valueController.text.replaceAll(',', '.')) ?? 0.0,
+           status: _paymentStatusController.text,
+           dataVencimento: _paymentDate ?? DateTime.now(),
+           moeda: 'BRL',
+         );
+      } else if (_selectedType == AgendaItemType.REMEDIO) {
+         medInfo = RemedioInfo(
+           nome: _medNameController.text,
+           dosagem: _dosageController.text,
+           frequenciaTipo: 'HORAS',
+           intervalo: _intervalHours.toInt(),
+           inicioTratamento: DateTime.now(), 
+           status: 'PENDENTE',
+         );
+      } else if (_selectedType == AgendaItemType.ANIVERSARIO) {
+         bdayInfo = AniversarioInfo(
+           nomePessoa: _personNameController.text,
+           mensagemPadrao: _birthdayMessageController.text,
+           telefone: _phoneNumberController.text,
+           emailContato: _emailController.text,
+           smsPhone: _smsController.text,
+           parentesco: _selectedRelationship,
+           notificarAntes: _notifyDaysBefore.toInt(),
+           permitirEnvioCartao: true,
+           mensagemGeradaPorIA: _aiGenerated,
+           precisaConfirmarAntesDeEnviar: true,
+         );
+         recInfo = RecorrenciaInfo(frequencia: 'ANUAL');
+      }
+
+      final newItem = AgendaItem(
+        tipo: _selectedType,
+        titulo: _titleController.text,
+        descricao: _descriptionController.text,
+        dataInicio: _startDate ?? DateTime.now(), // Garante data
+        horarioInicio: _startTime != null ? "${_startTime!.hour}:${_startTime!.minute.toString().padLeft(2,'0')}" : null,
+        status: ItemStatus.PENDENTE,
+        pagamento: pagInfo,
+        remedio: medInfo,
+        aniversario: bdayInfo,
+        recorrencia: recInfo,
+        anexos: _attachments,
+      );
+
+      // Verificação crítica: Se temos um item, mas ele não está no banco (isInBox false),
+      // significa que veio de um rascunho de voz mas foi passado como 'item'.
+      // Nesse caso, devemos Adicionar, não Atualizar.
+      if (widget.item != null && widget.item!.isInBox) {
+        widget.item!.tipo = newItem.tipo;
+        widget.item!.titulo = newItem.titulo;
+        widget.item!.descricao = newItem.descricao;
+        widget.item!.dataInicio = newItem.dataInicio;
+        widget.item!.horarioInicio = newItem.horarioInicio;
+        widget.item!.pagamento = newItem.pagamento;
+        widget.item!.remedio = newItem.remedio;
+        widget.item!.aniversario = newItem.aniversario;
+        widget.item!.recorrencia = newItem.recorrencia;
+        widget.item!.anexos = newItem.anexos;
+        
+        // Usar .save() direto do objeto Hive é mais seguro para updates
+        await widget.item!.save(); 
+      } else {
+        await _repo.addItem(newItem);
+      }
+
+      if (mounted) Navigator.pop(context);
+
+    } catch (e, stack) {
+      showDialog(context: context, builder: (c) => AlertDialog(
+        title: Text("Erro Técnico"), 
+        content: SingleChildScrollView(child: Text("Erro ao salvar: $e\n\n$stack"))
+      ));
     }
-    
-    // Construct specific objects
-    PagamentoInfo? pagInfo;
-    RemedioInfo? medInfo;
-    AniversarioInfo? bdayInfo;
-    RecorrenciaInfo? recInfo;
-
-    if (_selectedType == AgendaItemType.PAGAMENTO) {
-       pagInfo = PagamentoInfo(
-         valor: double.tryParse(_valueController.text.replaceAll(',', '.')) ?? 0.0,
-         status: _paymentStatusController.text,
-         dataVencimento: _paymentDate ?? DateTime.now(),
-         moeda: 'BRL',
-       );
-    } else if (_selectedType == AgendaItemType.REMEDIO) {
-       medInfo = RemedioInfo(
-         nome: _medNameController.text,
-         dosagem: _dosageController.text,
-         frequenciaTipo: 'HORAS',
-         intervalo: _intervalHours.toInt(),
-         inicioTratamento: DateTime.now(), // Simplified
-         status: 'PENDENTE',
-       );
-    } else if (_selectedType == AgendaItemType.ANIVERSARIO) {
-       bdayInfo = AniversarioInfo(
-         nomePessoa: _personNameController.text,
-         mensagemPadrao: _birthdayMessageController.text,
-         telefone: _phoneNumberController.text,
-         emailContato: _emailController.text,
-         smsPhone: _smsController.text,
-         parentesco: _selectedRelationship,
-         notificarAntes: _notifyDaysBefore.toInt(),
-         permitirEnvioCartao: true,
-         mensagemGeradaPorIA: _aiGenerated,
-         precisaConfirmarAntesDeEnviar: true,
-       );
-       recInfo = RecorrenciaInfo(frequencia: 'ANUAL');
-    }
-
-    final newItem = AgendaItem(
-      tipo: _selectedType,
-      titulo: _titleController.text,
-      descricao: _descriptionController.text,
-      dataInicio: _startDate,
-      horarioInicio: _startTime != null ? "${_startTime!.hour}:${_startTime!.minute.toString().padLeft(2,'0')}" : null,
-      status: ItemStatus.PENDENTE,
-      pagamento: pagInfo,
-      remedio: medInfo,
-      aniversario: bdayInfo,
-      recorrencia: recInfo,
-      anexos: _attachments,
-    );
-
-    if (widget.item != null) {
-      // Edit mode (delete old and add new as we changed type potentially, or strictly update fields)
-      // For simplicity in Hive without ID management, we often delete/add if key logic is complex, 
-      // but here we can't easily swap keys. 
-      // Ideally we update the EXISTING object fields.
-      // But Hive objects are mutable.
-      widget.item!.tipo = newItem.tipo;
-      widget.item!.titulo = newItem.titulo;
-      widget.item!.descricao = newItem.descricao;
-      widget.item!.dataInicio = newItem.dataInicio;
-      widget.item!.horarioInicio = newItem.horarioInicio;
-      widget.item!.pagamento = newItem.pagamento;
-      widget.item!.remedio = newItem.remedio;
-      widget.item!.aniversario = newItem.aniversario;
-      widget.item!.recorrencia = newItem.recorrencia;
-      widget.item!.anexos = newItem.anexos;
-      await _repo.updateItem(widget.item!);
-    } else {
-      await _repo.addItem(newItem);
-    }
-
-    if (mounted) Navigator.pop(context);
   }
 }

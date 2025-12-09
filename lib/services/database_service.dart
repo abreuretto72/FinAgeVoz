@@ -10,8 +10,10 @@ import 'package:path/path.dart' as p;
 import '../models/transaction_model.dart';
 import '../models/event_model.dart';
 import '../models/category_model.dart';
-import '../models/operation_history.dart';
+
 import '../models/medicine_model.dart';
+import '../models/agenda_models.dart';
+import '../utils/hive_setup.dart';
 import '../utils/constants.dart';
 
 class DatabaseService {
@@ -23,7 +25,7 @@ class DatabaseService {
   late Box<Event> _eventBox;
   late Box _settingsBox;
   late Box<Category> _categoryBox;
-  late Box<OperationHistory> _historyBox;
+
   late Box<Remedio> _remedioBox;
   late Box<Posologia> _posologiaBox;
   late Box<HistoricoTomada> _historicoTomadaBox;
@@ -37,7 +39,7 @@ class DatabaseService {
     _eventBox = await Hive.openBox<Event>('events');
     _settingsBox = await Hive.openBox('settings');
     _categoryBox = await Hive.openBox<Category>('categories');
-    _historyBox = await Hive.openBox<OperationHistory>('operation_history');
+
     
     // Medicine boxes
     _remedioBox = await Hive.openBox<Remedio>('remedios');
@@ -107,6 +109,8 @@ class DatabaseService {
       
       // Fix for phantom transaction (User reported error: 3150 vs 2350 -> 800 difference)
       // await _removePhantomHealthTransaction(); // Disabled after fix confirmed
+      // Ensure sync between Finance and Agenda
+      await _syncMissingAgendaItems();
     }
   }
   
@@ -428,6 +432,7 @@ class DatabaseService {
         : transaction;
 
     await _transactionBox.add(tToAdd);
+    await _syncAdd(tToAdd);
   }
 
   Future<void> markTransactionAsPaid(String id, DateTime date) async {
@@ -454,6 +459,7 @@ class DatabaseService {
         paymentDate: date,
       );
       await _transactionBox.put(t.key, updatedT);
+      await _syncUpdate(updatedT);
     } catch (e) {
       print("Transaction not found: $id");
     }
@@ -653,6 +659,7 @@ class DatabaseService {
         isDeleted: false,
       );
       await _transactionBox.put(key, updatedTransaction);
+      await _syncUpdate(updatedTransaction);
     }
   }
 
@@ -693,6 +700,7 @@ class DatabaseService {
         isDeleted: true,
       );
       await _transactionBox.put(key, deletedTransaction);
+      await _syncDelete(deletedTransaction.id);
     }
   }
 
@@ -719,6 +727,7 @@ class DatabaseService {
         isDeleted: true,
       );
       await _transactionBox.put(t.key, deletedTransaction);
+      await _syncDelete(t.id);
     }
   }
 
@@ -1214,98 +1223,11 @@ class DatabaseService {
     };
   }
 
-  // Operation History Methods
 
-  /// Adds an operation to history, keeping only the last 5
-  Future<void> addOperationToHistory(OperationHistory operation) async {
-    await _historyBox.add(operation);
-    
-    // Keep only last 50 operations (increased for activity log)
-    if (_historyBox.length > 50) {
-      await _historyBox.deleteAt(0);
-    }
-  }
 
-  /// Gets the last N operations (most recent first)
-  List<OperationHistory> getLastOperations([int count = 5]) {
-    final operations = _historyBox.values.toList();
-    if (operations.isEmpty) return [];
-    
-    // Sort by timestamp descending
-    operations.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-    
-    return operations.take(count).toList();
-  }
 
-  /// Undoes the last operation
-  /// Returns the description of what was undone, or null if nothing to undo
-  Future<String?> undoLastOperation() async {
-    if (_historyBox.isEmpty) return null;
 
-    final lastOp = _historyBox.getAt(_historyBox.length - 1)!;
-    
-    if (lastOp.isEvent) {
-      // Handle event operations
-      if (lastOp.type == 'event') {
-        // Undo event creation - delete the event
-        if (lastOp.eventId != null) {
-          final eventKey = _eventBox.keys.firstWhere(
-            (k) => _eventBox.get(k)?.id == lastOp.eventId,
-            orElse: () => null,
-          );
-          
-          if (eventKey != null) {
-            await _eventBox.delete(eventKey);
-          }
-        }
-      } else if (lastOp.type == 'event_edit') {
-        // Undo event edit - restore previous state
-        if (lastOp.eventId != null && lastOp.eventSnapshot != null) {
-          final eventKey = _eventBox.keys.firstWhere(
-            (k) => _eventBox.get(k)?.id == lastOp.eventId,
-            orElse: () => null,
-          );
-          
-          if (eventKey != null) {
-            // Restore from snapshot
-            final snapshot = lastOp.eventSnapshot!;
-            final restoredEvent = Event(
-              id: snapshot['id'] as String,
-              title: snapshot['title'] as String,
-              date: DateTime.parse(snapshot['date'] as String),
-              description: snapshot['description'] as String,
-              isCancelled: snapshot['isCancelled'] as bool,
-              recurrence: snapshot['recurrence'] as String?,
-              lastNotifiedDate: snapshot['lastNotifiedDate'] != null 
-                  ? DateTime.parse(snapshot['lastNotifiedDate'] as String)
-                  : null,
-            );
-            await _eventBox.put(eventKey, restoredEvent);
-          }
-        }
-      }
-    } else if (lastOp.type == 'call') {
-      // Cannot undo a call, just remove from history
-      // No action needed on database
-    } else {
-      // Handle transaction operations (existing code)
-      for (final txId in lastOp.transactionIds) {
-        final txKey = _transactionBox.keys.firstWhere(
-          (k) => _transactionBox.get(k)?.id == txId,
-          orElse: () => null,
-        );
-        
-        if (txKey != null) {
-          await _transactionBox.delete(txKey);
-        }
-      }
-    }
 
-    // Remove from history
-    await _historyBox.deleteAt(_historyBox.length - 1);
-
-    return lastOp.displayText;
-  }
 
   /// Helper to convert Event to Map for snapshot
   Map<String, dynamic> _eventToMap(Event event) {
@@ -1543,23 +1465,157 @@ class DatabaseService {
   Future<void> deleteAllData() async {
     print("DEBUG: Iniciando exclusão completa de dados...");
     
-    // Limpar todas as boxes
+    // Limpar todas as boxes de DADOS (preservando configurações estruturais como categorias)
     await _transactionBox.clear();
     await _eventBox.clear();
-    await _categoryBox.clear();
-    await _historyBox.clear();
+    // await _categoryBox.clear(); // NÃO apagar categorias
+
     await _remedioBox.clear();
     await _posologiaBox.clear();
     await _historicoTomadaBox.clear();
+    
+    // AGENDA ITEMS
+    await ensureAgendaBoxOpen();
+    await agendaBox.clear();
     
     // Limpar settings (mas manter configuração de idioma se desejar)
     final currentLanguage = getLanguage();
     await _settingsBox.clear();
     await setLanguage(currentLanguage); // Restaurar idioma
     
-    // Re-seed categorias padrão
-    await _seedCategories();
+    // Categorias são preservadas, não precisa re-seed
+    // await _seedCategories();
     
     print("DEBUG: Todos os dados foram excluídos.");
+  }
+  /* Sincronismo Financeiro -> Agenda */
+
+  Future<void> _syncMissingAgendaItems() async {
+     print("DEBUG: Checking for missing agenda items...");
+     await ensureAgendaBoxOpen();
+     final agenda = agendaBox;
+     
+     final existingIds = agenda.values
+         .where((i) => i.pagamento?.transactionId != null)
+         .map((i) => i.pagamento!.transactionId!)
+         .toSet();
+         
+     final transactions = _transactionBox.values; 
+     int count = 0;
+     
+     for (var t in transactions) {
+        bool isRelevant = (!t.isPaid || t.isInstallment);
+        // Ignore apenas Receitas Realizadas Não-Parceladas (Histórico puro)
+        if (!isRelevant && !t.isExpense) continue; 
+        
+        // Se for despesa paga à vista e não parcelada, também ignorar (opcional, mas mantém consistência)
+        if (!isRelevant) continue;
+
+        if (!existingIds.contains(t.id)) {
+           await _syncAdd(t); // Reuse existing add logic which assumes box is open
+           count++;
+        }
+     }
+     if (count > 0) print("DEBUG: Synced $count missing transactions to agenda.");
+  }
+
+  Future<void> _syncAdd(Transaction t) async {
+    // Sincronizar se for relevante para Agenda:
+    // 1. Despesa Pendente ou Parcelada.
+    // 2. Receita Pendente ou Parcelada/Recorrente.
+    // 3. Qualquer transação futura.
+    // Ignorar: Receita à vista já realizada (histórico puro).
+    
+    bool isRelevant = (!t.isPaid || t.isInstallment);
+    if (!isRelevant && !t.isExpense) {
+       // Se for receita realizada à vista, não poluir a agenda por enquanto
+       // (Exceto se o usuário quiser histórico completo, mas o foco é 'Lembretes')
+       return;
+    }
+    // Nota: Despesa realizada à vista pode ser interessante manter se o usuário quiser ver o gasto do dia na agenda.
+    // Mas vamos focar em PENDÊNCIAS e PARCELAMENTOS conforme pedido.
+    if (!isRelevant) return; // Se está pago e não é parcelado, ignora (para simplificar)
+
+    await ensureAgendaBoxOpen();
+    final box = agendaBox;
+
+    final prefix = t.isExpense ? "Pagar: " : "Receber: ";
+    final baseTitle = t.description;
+    final fullTitle = baseTitle.startsWith(prefix) ? baseTitle : "$prefix$baseTitle";
+
+    final agendaItem = AgendaItem(
+      tipo: AgendaItemType.PAGAMENTO,
+      titulo: fullTitle,
+      descricao: t.installmentText.isNotEmpty ? t.installmentText : "Gerado pelo Financeiro",
+      dataInicio: t.date,
+      horarioInicio: "${t.date.hour}:${t.date.minute.toString().padLeft(2,'0')}",
+      status: t.isPaid ? ItemStatus.CONCLUIDO : ItemStatus.PENDENTE,
+      pagamento: PagamentoInfo(
+        valor: t.amount.abs(), // Valor absoluto
+        status: t.isPaid ? 'PAGO' : 'PENDENTE',
+        dataVencimento: t.date,
+        dataPagamento: t.paymentDate,
+        transactionId: t.id,
+        moeda: 'BRL',
+      ),
+      criado: DateTime.now(),
+    );
+
+    final exists = box.values.any((i) => i.pagamento?.transactionId == t.id);
+    if (!exists) {
+       await box.add(agendaItem);
+       print("DEBUG: Synced transaction ${t.id} to Agenda.");
+    }
+  }
+
+  Future<void> _syncUpdate(Transaction t) async {
+    // Se deixou de ser relevante (ex: apagou?), deletar? Não, update.
+    // Se marcou como pago à vista, vira CONCLUIDO.
+    
+    await ensureAgendaBoxOpen();
+    final box = agendaBox;
+    
+    try {
+      final item = box.values.firstWhere((i) => i.pagamento?.transactionId == t.id);
+      
+      final prefix = t.isExpense ? "Pagar: " : "Receber: ";
+      // Evitar duplo prefixo se já tiver
+      // Mas cuidado, a descrição original 't.description' vem limpa do DB? Sim.
+      final fullTitle = "$prefix${t.description}";
+
+      item.titulo = fullTitle;
+      item.descricao = t.installmentText.isNotEmpty ? t.installmentText : "Gerado pelo Financeiro";
+      item.dataInicio = t.date;
+      item.horarioInicio = "${t.date.hour}:${t.date.minute.toString().padLeft(2,'0')}";
+      item.status = t.isPaid ? ItemStatus.CONCLUIDO : ItemStatus.PENDENTE;
+      item.atualizadoEm = DateTime.now();
+      
+      if (item.pagamento != null) {
+        item.pagamento!.valor = t.amount.abs();
+        item.pagamento!.status = t.isPaid ? 'PAGO' : 'PENDENTE';
+        item.pagamento!.dataVencimento = t.date;
+        item.pagamento!.dataPagamento = t.paymentDate;
+      }
+
+      await item.save();
+      print("DEBUG: Updated synced agenda item for ${t.id}");
+    } catch (e) {
+      // Not found, create it if relevant
+       bool isRelevant = (!t.isPaid || t.isInstallment);
+       if (isRelevant) {
+          await _syncAdd(t);
+       }
+    }
+  }
+
+  Future<void> _syncDelete(String transactionId) async {
+    await ensureAgendaBoxOpen();
+    final box = agendaBox;
+    
+    final itemsToDelete = box.values.where((i) => i.pagamento?.transactionId == transactionId).toList();
+    for (var item in itemsToDelete) {
+      await item.delete();
+      print("DEBUG: Deleted synced agenda item for $transactionId");
+    }
   }
 }

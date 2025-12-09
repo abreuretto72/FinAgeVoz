@@ -50,8 +50,8 @@ class InstallmentHelper {
         installmentId: installmentId,
         installmentNumber: 0, // 0 indica entrada
         totalInstallments: installments,
-        isPaid: true,
-        paymentDate: downPaymentDate,
+        isPaid: (downPaymentDate ?? DateTime.now()).isBefore(DateTime.now().add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1))) || (downPaymentDate?.day == DateTime.now().day && downPaymentDate?.month == DateTime.now().month && downPaymentDate?.year == DateTime.now().year),
+        paymentDate: ((downPaymentDate ?? DateTime.now()).isBefore(DateTime.now().add(const Duration(days: 1))) ) ? (downPaymentDate ?? DateTime.now()) : null,
       ));
     }
 
@@ -86,8 +86,8 @@ class InstallmentHelper {
         installmentId: installmentId,
         installmentNumber: i + 1,
         totalInstallments: installments,
-        isPaid: installmentDate.isBefore(DateTime.now()) || (installmentDate.year == DateTime.now().year && installmentDate.month == DateTime.now().month && installmentDate.day == DateTime.now().day),
-        paymentDate: (installmentDate.isBefore(DateTime.now()) || (installmentDate.year == DateTime.now().year && installmentDate.month == DateTime.now().month && installmentDate.day == DateTime.now().day)) ? installmentDate : null,
+        isPaid: false, // Parcelas futuras/planejadas nascem sempre pendentes
+        paymentDate: null,
       ));
     }
 

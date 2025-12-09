@@ -7,11 +7,16 @@ import 'package:intl/intl.dart';
 import '../services/database_service.dart';
 import '../utils/localization.dart';
 
+import 'package:uuid/uuid.dart';
+import '../models/transaction_model.dart';
+import '../utils/installment_helper.dart';
+
 /// Controller that orchestrates Voice -> AI -> Action flow.
 class VoiceController {
   final VoiceService _voiceService;
   final AIService _aiService;
   final AgendaRepository _agendaRepo;
+  final DatabaseService _dbService = DatabaseService(); // Initialize DB Service
   final VoidCallback? onProcessingStart;
   final VoidCallback? onProcessingEnd;
   final Function(AgendaItem)? onNavigateToForm;
@@ -28,7 +33,7 @@ class VoiceController {
         _agendaRepo = agendaRepo ?? AgendaRepository();
 
   String t(String key) {
-    return AppLocalizations.t(key, DatabaseService().getLanguage());
+    return AppLocalizations.t(key, _dbService.getLanguage()); // Use instance
   }
 
   Future<void> processVoiceCommand(String text) async {
@@ -42,7 +47,9 @@ class VoiceController {
 
       final intent = result['intent'];
 
-      if (intent == 'ADD_AGENDA_ITEM') {
+      if (intent == 'ADD_TRANSACTION') {
+        await handleTransaction(result['transaction']);
+      } else if (intent == 'ADD_AGENDA_ITEM') {
         await handleAgendaItem(result['agenda_item']);
       } else if (intent == 'QUERY') {
         await handleQuery(result['query']);
@@ -57,6 +64,108 @@ class VoiceController {
       await _voiceService.speak(t('voice_process_error'));
     } finally {
       onProcessingEnd?.call();
+    }
+  }
+
+  Future<void> handleTransaction(Map<String, dynamic>? data) async {
+    if (data == null) return;
+    
+    try {
+       await _dbService.init(); // Ensure initialized
+       
+       final description = data['description'] ?? "Transação por Voz";
+       final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+       final isExpense = data['isExpense'] == true;
+       // isPaid defaults: 
+       // If explicitly provided in JSON, use it.
+       // Else if expense -> default true (conservative, usually past expense) - BUT prompt says default depends on date.
+       // Let's rely on JSON 'isPaid' if present.
+       // If absent, check date: Future -> false, Past/Today -> true.
+       
+       DateTime date;
+       if (data['date'] != null) {
+          try { date = DateTime.parse(data['date']); } catch (_) { date = DateTime.now(); }
+       } else {
+          date = DateTime.now();
+       }
+
+       bool isPaid;
+       if (data['isPaid'] != null) {
+          isPaid = data['isPaid'] == true;
+       } else {
+           // Fallback logic
+           final now = DateTime.now();
+           final isFuture = date.isAfter(now) && !DateUtils.isSameDay(date, now);
+           isPaid = !isFuture;
+       }
+       
+       // Categories
+       final category = data['category'] ?? (isExpense ? 'Outras Despesas' : 'Outras Receitas');
+       final subcategory = data['subcategory'];
+       
+       // Installments / Recurrence
+       int installments = (data['installments'] as int?) ?? 1;
+       final recurrence = data['recurrence'] as String?;
+       
+       // If recurrence is MONTHLY and installments is 1, maybe it implies infinite?
+       if (recurrence == 'MONTHLY' && installments == 1) {
+           installments = 12; // Default to 1 year for monthly recurrence without count
+       }
+       
+       if (installments > 1) {
+           // Create Installments
+           final firstDate = date; // AI Date is start date
+           // For Income (Aluguel), start date is M0. For Expense (Card), usually M+1.
+           // However, if user said "Aluguel dia 10", and it is day 10, they expect it to be 1st installment.
+           // InstallmentHelper.createInstallments logic:
+           // If downPayment=0, it generates installments starting from firstInstallmentDate?
+           // No, createInstallments generates installments starting from firstInstallmentDate as M0?
+           // Let's check InstallmentHelper logic again.
+           // Loop i=0; date = firstDate + i months.
+           // So yes, first installment is AT firstInstallmentDate.
+           
+           final items = InstallmentHelper.createInstallments(
+              description: description,
+              totalAmount: null, // Allow installmentValue to drive total
+              installmentValue: amount, // Assuming "Amount" spoken is per installment (e.g. "Aluguel de 3000")
+              installments: installments,
+              firstInstallmentDate: firstDate,
+              category: category,
+              subcategory: subcategory,
+              isExpense: isExpense,
+              downPayment: (data['downPayment'] as num?)?.toDouble() ?? 0.0,
+           );
+           
+           for (var t in items) {
+               await _dbService.addTransaction(t);
+           }
+           
+           await _voiceService.speak("Agendado ${isExpense ? 'pagamento' : 'recebimento'} de $installments parcelas de $amount reais.");
+           
+       } else {
+           // Single Transaction
+           final t = Transaction(
+              id: const Uuid().v4(),
+              description: description,
+              amount: amount,
+              isExpense: isExpense,
+              date: date,
+              category: category,
+              subcategory: subcategory,
+              isPaid: isPaid,
+              paymentDate: isPaid ? date : null,
+           );
+           
+           await _dbService.addTransaction(t);
+           
+           final type = isExpense ? "Despesa" : "Receita";
+           final status = isPaid ? "registrada" : "agendada";
+           await _voiceService.speak("$type de $amount reais $status com sucesso.");
+       }
+       
+    } catch (e) {
+       print("Transaction creation error: $e");
+       await _voiceService.speak("Erro ao criar transação.");
     }
   }
 

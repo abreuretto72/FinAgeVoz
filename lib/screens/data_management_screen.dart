@@ -217,59 +217,7 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
     }
   }
 
-  Future<void> _deleteAllData() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(t('confirm_wipe_title')),
-        content: Text(t('confirm_wipe_msg')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(t('cancel')),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(t('wipe_all')),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-          ),
-        ],
-      ),
-    );
 
-    if (confirm != true) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      // Delete everything by setting cutoff date to far future
-      final futureDate = DateTime.now().add(const Duration(days: 36500)); // 100 years
-      final deleted = await _dbService.deleteOldData(futureDate);
-      
-      await _loadData();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              t('data_wiped_msg')
-                  .replaceAll('{transactions}', '${deleted['transactions']}')
-                  .replaceAll('{events}', '${deleted['events']}'),
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${t('error')}: $e')),
-        );
-      }
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -464,24 +412,7 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
                               ),
                             ),
                           ),
-                          const Divider(height: 32),
-                          Text(
-                            t('danger_zone'),
-                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              icon: const Icon(Icons.delete_forever, color: Colors.red),
-                              label: Text(t('wipe_all_data'), style: const TextStyle(color: Colors.red)),
-                              onPressed: _deleteAllData,
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.all(16),
-                                side: BorderSide(color: Colors.red),
-                              ),
-                            ),
-                          ),
+
                         ],
                       ),
                     ),

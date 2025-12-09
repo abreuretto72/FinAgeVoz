@@ -48,14 +48,6 @@
 "Quais eventos tenho hoje?"
 ```
 
-**Operações:**
-```
-"Desfazer"
-"Cancelar última operação"
-"Me arrependi"
-"Apagar última transação"
-```
-
 ---
 
 ### 2. 💰 **Gestão Financeira**
@@ -164,35 +156,11 @@
 - **Editar evento**: Atualizar informações do evento
 - **Cancelar evento**: Marcar como cancelado sem deletar
 - **Deletar evento**: Remover permanentemente
-- **Histórico de edições**: Registra alterações para desfazer
+
 
 ---
 
-### 4. 🔄 **Sistema de "Arrependimento" (Undo)**
 
-#### Funcionalidades
-- **Desfazer criação**: Remove transações ou eventos recém-criados
-- **Desfazer edição**: Restaura o estado anterior de eventos editados
-- **Histórico**: Mantém as últimas 5 operações
-- **Tipos suportados**:
-  - ✅ Transações simples
-  - ✅ Compras parceladas (remove todas as parcelas)
-  - ✅ Criação de eventos
-  - ✅ Edição de eventos (restaura snapshot anterior)
-
-#### Comandos
-```
-"Desfazer"
-"Cancelar última operação"
-"Apagar última transação"
-"Me arrependi"
-```
-
-#### Implementação
-- **Snapshots**: Armazena estado completo antes de edições
-- **Identificação**: Cada operação tem tipo, ID e timestamp
-- **Restauração**: Recupera dados exatos do snapshot
-- **Limpeza automática**: Remove operações antigas do histórico
 
 ---
 
@@ -268,7 +236,7 @@
   - `events`: Eventos da agenda
   - `categories`: Categorias personalizadas
   - `settings`: Configurações do app
-  - `operationHistory`: Histórico de operações
+
 - **Persistência**: Dados salvos localmente no dispositivo
 - **Performance**: Acesso rápido e eficiente
 
@@ -610,13 +578,7 @@
 6. Evento é criado com ícone 🔁
 7. Instâncias virtuais aparecem na lista
 
-### Fluxo 3: Desfazer Operação
-1. Usuário cria uma transação por engano
-2. Diz: "Desfazer"
-3. App busca última operação no histórico
-4. Remove a transação
-5. Confirma: "Operação desfeita: [descrição]"
-6. Saldo é recalculado
+
 
 ### Fluxo 4: Gerar Relatório PDF
 1. Usuário vai para Relatórios
@@ -667,7 +629,7 @@
 2. **IA avançada**: Processamento de linguagem natural com Llama
 3. **Multilíngue completo**: 14 idiomas com voz sincronizada
 4. **Eventos recorrentes**: Sistema completo de repetições
-5. **Sistema de undo**: Desfazer operações com snapshots
+
 6. **Parcelamento inteligente**: Lógica corrigida e relatório dedicado
 7. **Notificações inteligentes**: Anúncio individual de eventos
 8. **Backup em nuvem**: Integração com Google Drive
@@ -690,7 +652,7 @@
 
 ### Próximos Passos Sugeridos
 1. Testes em dispositivo físico
-2. Validação de todos os cenários de undo
+
 3. Testes de eventos recorrentes em diferentes períodos
 4. Verificação de comportamento com múltiplas operações no histórico
 5. Otimização de performance

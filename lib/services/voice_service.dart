@@ -284,6 +284,8 @@ class VoiceService {
   /// [text] Texto a ser falado (já deve estar traduzido)
   Future<void> speak(String text) async {
     print("VoiceService: Speaking in $_currentTtsLocale: '$text'");
+    // Garantir idioma antes de falar (defensivo)
+    await _flutterTts.setLanguage(_currentTtsLocale); 
     await _flutterTts.awaitSpeakCompletion(true);
     await _flutterTts.speak(text);
     print("VoiceService: Finished speaking");

@@ -132,11 +132,15 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
 
                 final totalAmount = downPayment + (count * amount);
                 
-                final firstInstallmentDate = DateTime(
-                  _selectedDate.year,
-                  _selectedDate.month + 1,
-                  _selectedDate.day,
-                );
+                // Para Despesas (Cartão): 1ª parcela mês que vem (M+1)
+                // Para Receitas (Aluguel/Recorrente): 1ª parcela na data selecionada (M0)
+                final firstInstallmentDate = _isExpense 
+                    ? DateTime(
+                        _selectedDate.year,
+                        _selectedDate.month + 1,
+                        _selectedDate.day,
+                      )
+                    : _selectedDate;
 
                 final transactions = InstallmentHelper.createInstallments(
                   description: _descriptionController.text,
@@ -236,29 +240,37 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: TextField(
-                      controller: _installmentsCountController,
-                      decoration: InputDecoration(
-                        labelText: t('installment_count'),
-                        border: const OutlineInputBorder(),
+                      child: TextField(
+                        controller: _installmentsCountController,
+                        decoration: InputDecoration(
+                          labelText: _isExpense ? t('installment_count') : 'Quantidade (meses)',
+                          border: const OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (_) => setState(() {}),
                       ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (_) => setState(() {}),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _installmentAmountController,
-                decoration: InputDecoration(
-                  labelText: t('installment_amount'),
-                  border: const OutlineInputBorder(),
-                  prefixText: '$_currencySymbol ',
+                  ],
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (_) => setState(() {}),
-              ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _installmentAmountController,
+                  decoration: InputDecoration(
+                    labelText: _isExpense ? t('installment_amount') : 'Valor Mensal',
+                    border: const OutlineInputBorder(),
+                    prefixText: '$_currencySymbol ',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
+                ),
+                if (!_isExpense && _isInstallment)
+                  Padding(
+                     padding: const EdgeInsets.only(top: 8),
+                     child: Text(
+                       "Para receitas recorrentes, mantenha a Entrada como 0,00 se o valor for constante.",
+                       style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                     ),
+                  ),
               const SizedBox(height: 8),
               Text(
                 '${t('total_calculated')} $_currencySymbol ${_calculateTotal().toStringAsFixed(2)}',

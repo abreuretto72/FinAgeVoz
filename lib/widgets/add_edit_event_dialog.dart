@@ -114,16 +114,7 @@ class _AddEditEventDialogState extends State<AddEditEventDialog> {
         // Add new event
         await _dbService.addEvent(event);
         
-        // Record in history for undo
-        final operation = OperationHistory(
-          id: const Uuid().v4(),
-          type: 'event',
-          transactionIds: [], // No transactions for events
-          description: event.title,
-          timestamp: DateTime.now(),
-          eventId: event.id,
-        );
-        await _dbService.addOperationToHistory(operation);
+
         
         Navigator.pop(context, true);
       }

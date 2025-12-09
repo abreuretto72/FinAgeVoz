@@ -24,6 +24,7 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
   late TextEditingController _descriptionController;
   late TextEditingController _amountController;
   late bool _isExpense;
+  late bool _isPaid;
   late DateTime _selectedDate;
   late String _selectedCategory;
   String? _selectedSubcategory;
@@ -44,6 +45,7 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
     // Show absolute amount for editing, handle sign on save
     _amountController = TextEditingController(text: _numberFormat.format(widget.transaction.amount.abs()));
     _isExpense = widget.transaction.isExpense;
+    _isPaid = widget.transaction.isPaid;
     _selectedDate = widget.transaction.date;
     _selectedCategory = widget.transaction.category;
     _selectedSubcategory = widget.transaction.subcategory;
@@ -98,6 +100,11 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
                 _loadCategories();
               });
             },
+          ),
+          SwitchListTile(
+            title: Text(t('status_paid') ?? "Pago"), // Fallback se a chave não existir
+            value: _isPaid,
+            onChanged: (val) => setState(() => _isPaid = val),
           ),
           const SizedBox(height: 16),
           ListTile(
@@ -211,8 +218,8 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
               'date': _selectedDate,
               'category': _selectedCategory,
               'subcategory': _selectedSubcategory,
-              'isPaid': isTodayOrPast, 
-              'paymentDate': isTodayOrPast ? _selectedDate : null,
+              'isPaid': _isPaid, 
+              'paymentDate': _isPaid ? _selectedDate : null,
             });
           },
           child: Text(t('save')),

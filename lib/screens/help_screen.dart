@@ -114,8 +114,8 @@ class _HelpScreenState extends State<HelpScreen> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 150),
       children: [
         _buildInfoCard(
-            t('help_finance_mgmt_title'), 
-            t('help_finance_mgmt_desc'),
+            t('help_module_fin_title'), 
+            t('help_module_fin_desc'),
             icon: Icons.attach_money
         ),
         _buildSectionHeader(t('help_section_features')),
@@ -162,20 +162,17 @@ class _HelpScreenState extends State<HelpScreen> {
           t('help_virtual_events_title'), 
           t('help_virtual_events_desc'),
         ),
+        _buildHelpItem(
+          t('help_module_bday_title'),
+          t('help_module_bday_desc'),
+        ),
         
         const Divider(height: 40),
         _buildSectionHeader(t('help_section_health')),
+
         _buildHelpItem(
-          t('help_health_control_title'), 
-          t('help_health_control_desc'),
-        ),
-        _buildHelpItem(
-          t('help_posology_title'), 
-          t('help_posology_desc'),
-        ),
-        _buildHelpItem(
-          t('help_medication_reminders_title'), 
-          t('help_medication_reminders_desc'),
+          t('help_module_meds_title'), 
+          t('help_module_meds_desc'),
         ),
       ],
     );

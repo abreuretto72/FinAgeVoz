@@ -11,6 +11,7 @@ import '../services/agenda_repository.dart';
 import '../services/medicine_service.dart';
 import '../services/database_service.dart';
 import 'agenda_form_screen.dart';
+import '../widgets/edit_transaction_dialog.dart';
 import 'medicines/medicine_list_screen.dart';
 import 'medicines/medicine_form_screen.dart';
 import '../services/pdf_service.dart';
@@ -79,34 +80,54 @@ class _AgendaListPageState extends State<AgendaListPage> {
   void _handlePaymentAction(AgendaItem item) {
     if (item.pagamento?.transactionId == null) return;
     
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
+      builder: (ctx) => AlertDialog(
+        title: const Text("Registro Vinculado"),
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ListTile(
-              leading: const Icon(Icons.check_circle, color: Colors.green),
-              title: const Text('Confirmar Pagamento'),
-              subtitle: Text(NumberFormat.simpleCurrency(locale: Localizations.localeOf(context).toString()).format(item.pagamento!.valor)),
-              onTap: () async {
-                 Navigator.pop(ctx);
-                 await _db.markTransactionAsPaid(item.pagamento!.transactionId!, DateTime.now());
-                 if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pagamento confirmado e registrado!')));
-                 }
-              },
-            ),
-             ListTile(
-               leading: const Icon(Icons.info_outline, color: Colors.blue),
-               title: const Text('Ver Detalhes'),
-               onTap: () {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pressione e segure para mais opções')));
-               },
-            ),
+             Text("Registros da aba Pagamentos não podem ser editados aqui. Edite o lançamento financeiro correspondente."),
+             SizedBox(height: 12),
+             Text("Você será redirecionado para o lançamento original.", style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancelar"),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.open_in_new),
+            label: const Text("Ir para Financeiro"),
+            onPressed: () async {
+               Navigator.pop(ctx);
+               // Find Transaction and Open Edit Dialog
+               try {
+                 final transaction = _db.getTransactions().firstWhere((t) => t.id == item.pagamento!.transactionId);
+                 
+                 await showDialog(
+                   context: context,
+                   builder: (context) => EditTransactionDialog(
+                     transaction: transaction,
+                     dbService: _db,
+                     currentLanguage: _currentLanguage,
+                   ),
+                 );
+                 
+                 // Refresh UI after coming back (sync happens automatically in DB service)
+                 setState(() {}); 
+               } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transação original não encontrada (possivelmente excluída).')));
+                    // Se não achou, talvez devêssemos oferecer para excluir o fantasma da agenda?
+                    // Mas o sync deve tratar.
+                  }
+               }
+            },
+          ),
+        ],
       ),
     );
   }
@@ -119,33 +140,9 @@ class _AgendaListPageState extends State<AgendaListPage> {
       final virtualItems = <AgendaItem>[];
 
       // Transactions -> Agenda
-      final transactionBox = Hive.box<Transaction>('transactions');
-      for (var t in transactionBox.values) {
-          if (t.isExpense && 
-              (t.totalInstallments ?? 0) > 1 && 
-              (t.installmentNumber ?? 0) > 0 &&
-              !t.isDeleted &&
-              !t.isPaid) {
-              
-              if (rangeStart != null && t.date.isBefore(rangeStart)) continue;
-              if (rangeEnd != null && t.date.isAfter(rangeEnd)) continue;
-
-              virtualItems.add(AgendaItem(
-                  tipo: AgendaItemType.PAGAMENTO,
-                  titulo: "${t.description} (${t.installmentNumber}/${t.totalInstallments})",
-                  dataInicio: t.date,
-                  horarioInicio: "08:00",
-                  status: t.isPaid ? ItemStatus.CONCLUIDO : ItemStatus.PENDENTE,
-                  pagamento: PagamentoInfo(
-                      valor: t.amount,
-                      status: t.isPaid ? "PAGO" : "PENDENTE",
-                      dataVencimento: t.date,
-                      descricaoFinanceira: "Parcela ${t.installmentNumber}/${t.totalInstallments}",
-                      transactionId: t.id,
-                  )
-              ));
-          }
-      }
+      // Transactions -> Agenda (Virtual Items REMOVED - Now managed by Source of Truth Sync in DatabaseService)
+      // Earlier logic generated virtual items on the fly. Now, they are persisted synced copies.
+      // Keeping this comment block to confirm removal of duplicate logic.
       
       // Medicines -> Agenda (Virtual items for future doses)
       // Default range for list view is usually -2 days to +30 days if not specified
@@ -384,11 +381,43 @@ class _AgendaListPageState extends State<AgendaListPage> {
                    } else if (item.tipo == AgendaItemType.REMEDIO) {
                       remedios.add(item);
                    } else if (item.tipo == AgendaItemType.PAGAMENTO) {
-                      pagamentos.add(item);
+                      // IGNORAR itens da AgendaBox para esta aba.
+                      // A aba Pagamentos é populada exclusivamente via _db.getTransactions() abaixo.
+                      continue; 
                   } else {
                       compromissos.add(item);
                    }
                 }
+                
+                // --- ORIGEM EXCLUSIVA: MÓDULO FINANCEIRO ---
+                // Popula a aba Pagamentos apenas com lançamentos PENDENTES.
+                final transactions = _db.getTransactions();
+                for (var t in transactions) {
+                   // FILTRO RIGOROSO: Apenas não pagos/não realizados
+                   if (t.isPaid) continue;
+                   
+                   // Criar item espelho (Somente Leitura)
+                   pagamentos.add(AgendaItem(
+                       tipo: AgendaItemType.PAGAMENTO,
+                       titulo: "${t.isExpense ? 'Pagar' : 'Receber'}: ${t.description}",
+                       dataInicio: t.date, 
+                       horarioInicio: null,
+                       status: ItemStatus.PENDENTE,
+                       pagamento: PagamentoInfo(
+                          transactionId: t.id,
+                          valor: t.amount,
+                          status: 'PENDENTE',
+                          dataVencimento: t.date,
+                       )
+                   ));
+                }
+                
+                // Ordenar Pagamentos por data de vencimento
+                pagamentos.sort((a, b) {
+                    final da = a.dataInicio ?? DateTime.now();
+                    final db = b.dataInicio ?? DateTime.now();
+                    return da.compareTo(db);
+                });
 
                 // Sort anniversaries by next occurrence
                 aniversarios.sort((a, b) {
@@ -462,7 +491,7 @@ class _AgendaListPageState extends State<AgendaListPage> {
                       leading: _buildLeadingIcon(item),
                       title: Text(item.titulo, style: const TextStyle(fontWeight: FontWeight.w600)),
                       subtitle: Text(_buildSubtitle(item)),
-                      trailing: item.remedio == null ? IconButton(
+                      trailing: (item.remedio == null && (item.tipo != AgendaItemType.PAGAMENTO || item.pagamento?.transactionId == null)) ? IconButton(
                         icon: const Icon(Icons.delete, color: Colors.grey),
                         onPressed: () => showDialog(
                           context: context, 
@@ -478,7 +507,7 @@ class _AgendaListPageState extends State<AgendaListPage> {
                              ],
                           )
                         ),
-                      ) : const Icon(Icons.auto_awesome, size: 16, color: Colors.purpleAccent),
+                      ) : (item.tipo == AgendaItemType.PAGAMENTO ? const Icon(Icons.lock, size: 16, color: Colors.grey) : const Icon(Icons.auto_awesome, size: 16, color: Colors.purpleAccent)),
                        onTap: () {
                           if (item.remedio != null) {
                               _handleMedicineAction(item);

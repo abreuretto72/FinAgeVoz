@@ -779,58 +779,26 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                 ],
                               ),
                               actions: [
-                                if (!transaction.isPaid && transaction.isInstallment && transaction.isExpense)
+                                if (!transaction.isPaid && transaction.isExpense)
                                   TextButton.icon(
-                                    icon: const Icon(Icons.check),
-                                    label: const Text('Marcar como Pago'),
+                                    icon: const Icon(Icons.check, color: Colors.green),
+                                    label: const Text('Marcar como Pago', style: TextStyle(color: Colors.green)),
                                     onPressed: () async {
                                       Navigator.pop(context);
                                       await _dbService.markTransactionAsPaid(transaction.id, DateTime.now());
                                       _loadData();
                                     },
                                   ),
-                                if (!transaction.isReversal)
-                                  TextButton.icon(
-                                    icon: const Icon(Icons.undo),
-                                    label: Text(t('reverse')),
-                                    onPressed: () async {
-                                      Navigator.pop(context);
-                                      final confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder: (context) => AlertDialog(
-                                          title: Text(t('reverse')),
-                                          content: Text('${t('confirm_reverse')}: ${transaction.description}?'),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () => Navigator.pop(context, false),
-                                              child: Text(t('cancel')),
-                                            ),
-                                            TextButton(
-                                              onPressed: () => Navigator.pop(context, true),
-                                              child: Text(t('reverse')),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                      
-                                      if (confirm == true) {
-                                        final reversalTransaction = Transaction(
-                                          id: const Uuid().v4(),
-                                          description: '${t('reversal_of')} ${transaction.description}',
-                                          amount: -transaction.amount,
-                                          isExpense: transaction.isExpense,
-                                          date: DateTime.now(),
-                                          category: transaction.category,
-                                          subcategory: transaction.subcategory,
-                                          isReversal: true,
-                                          originalTransactionId: transaction.id,
-                                          isPaid: true, // Reversal is effectively 'paid' immediately to offset balance
-                                        );
-                                        await _dbService.addTransaction(reversalTransaction);
-                                        _loadData();
-                                      }
-                                    },
-                                  ),
+                                TextButton.icon(
+                                  icon: const Icon(Icons.edit, color: Colors.blue),
+                                  label: Text(t('edit')),
+                                  onPressed: () async {
+                                    Navigator.pop(context);
+                                    await _editTransaction(transactionIndex);
+                                  },
+                                ),
+
+
                                 TextButton.icon(
                                   icon: const Icon(Icons.attach_file),
                                   label: Text(t('attachments_label')),
@@ -994,5 +962,43 @@ class _FinanceScreenState extends State<FinanceScreen> {
         },
       ),
     );
+  }
+  Future<void> _editTransaction(int transactionIndex) async {
+      final transaction = _transactions[transactionIndex];
+      
+      final result = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (context) => EditTransactionDialog(
+          transaction: transaction,
+          dbService: _dbService,
+          currentLanguage: _currentLanguage,
+        ),
+      );
+
+      if (result != null) {
+        final updatedTransaction = Transaction(
+          id: transaction.id,
+          description: result['description'],
+          amount: result['amount'],
+          isExpense: result['isExpense'],
+          date: result['date'],
+          category: result['category'],
+          subcategory: result['subcategory'],
+          attachments: transaction.attachments,
+          updatedAt: DateTime.now(),
+          isDeleted: transaction.isDeleted,
+          isSynced: transaction.isSynced,
+          installmentId: transaction.installmentId,
+          installmentNumber: transaction.installmentNumber,
+          totalInstallments: transaction.totalInstallments,
+          originalTransactionId: transaction.originalTransactionId,
+          isReversal: transaction.isReversal,
+          isPaid: result['isPaid'],
+          paymentDate: result['paymentDate'],
+        );
+
+        await _dbService.updateTransaction(transactionIndex, updatedTransaction);
+        _loadData();
+      }
   }
 }

@@ -240,17 +240,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
     if (result is Event) {
       await _dbService.updateEvent(index, result);
       
-      // Record edit in history for undo
-      final operation = OperationHistory(
-        id: const Uuid().v4(),
-        type: 'event_edit',
-        transactionIds: [],
-        description: result.title,
-        timestamp: DateTime.now(),
-        eventId: result.id,
-        eventSnapshot: snapshot,
-      );
-      await _dbService.addOperationToHistory(operation);
+
       
       _loadData();
     }
