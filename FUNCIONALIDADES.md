@@ -660,6 +660,27 @@
 
 ---
 
+---
+
+## 🏷️ **Guia de Ícones**
+
+Entenda o significado dos símbolos visuais do app:
+
+| Ícone | Significado | Contexto |
+| :---: | :--- | :--- |
+| 🎤 | **Voz / IA** | Toque para falar comandos ou pedir ajuda à IA. |
+| ✅ | **Confirmado / Pago** | Transações financeiras já realizadas (dinheiro saiu/entrou). |
+| 🕒 | **Pendente / Futuro** | Contas a pagar, a receber ou eventos futuros. |
+| 🔁 | **Recorrente** | Item que se repete automaticamente (Mensal, Anual, etc). |
+| 🎂 | **Aniversário** | Evento de aniversário (permite gerar mensagem IA). |
+| 💊 | **Medicamento** | Horário de remédio ou cadastro de saúde. |
+| 📎 | **Anexo** | Indica presença de foto ou documento vinculado. |
+| 📤 | **Exportar** | Gera relatório PDF ou compartilha texto. |
+| 💾 | **Salvar/Backup** | Gravação de dados ou backup na nuvem. |
+| 🗑️ | **Excluir** | Remove o item permanentemente. |
+| ➕ | **Adicionar** | Criar novo registro (Transação, Evento, Remédio). |
+
+
 ## 📞 **Suporte e Documentação**
 
 - **README.md**: Introdução ao projeto
