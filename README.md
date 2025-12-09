@@ -19,21 +19,27 @@
 
 
 ### 💰 Gestão Financeira
+- ✅ **Pagamentos e Recebimentos**: Controle total de Contas a Pagar e Receber
+- ✅ **Status Inteligente**: Diferenciação automática entre PAGO (Realizado) e PENDENTE (Futuro)
 - ✅ Adicionar transações por voz ou manualmente
 - ✅ Categorias e subcategorias personalizáveis
 - ✅ **Parcelamento inteligente** (compras divididas em múltiplas parcelas)
-- ✅ Filtros avançados (período, categoria, tipo, valor)
-- ✅ Cálculo automático de saldo
 - ✅ Relatórios com gráficos e exportação em PDF
 - ✅ Anexos (imagens, documentos)
 
-### 📅 Agenda de Eventos
-- ✅ Criar eventos por voz ou manualmente
+### 📅 Agenda e Aniversários Smart
+- ✅ **Aniversários Inteligentes**: Cadastro eterno com IA generativa
+- ✅ **mensagens Automáticas**: A IA cria mensagens personalizadas (baseadas no parentesco) para envio via **WhatsApp, E-mail ou SMS**
+- ✅ Criar eventos comuns por voz ou manualmente
 - ✅ **Eventos recorrentes** (diário, semanal, mensal, anual)
 - ✅ **Notificações diárias** com anúncio por voz
-- ✅ Filtros por período e status
-- ✅ Anexos e notas
-- ✅ Integração com calendário (importação/exportação .ics)
+- ✅ Integração com calendário (.ics)
+
+### 💊 Gestão de Saúde
+- ✅ **Controle de Medicamentos**: Cadastro de remédios, dosagem e forma
+- ✅ **Posologia Flexível**: Intervalos, Horários fixos, Jejum
+- ✅ **Lembretes de Dose**: Notificações precisas para tomar o remédio
+- ✅ **Histórico de Tomada**: Confirmação e registro de aderência
 
 
 ### 🤖 Inteligência Artificial
