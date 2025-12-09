@@ -667,25 +667,27 @@
 Entenda o significado dos símbolos visuais do app:
 
 
-| Ícone | Significado | Contexto |
+
+| Símbolo (Aproximado) | Nome do Ícone | Função no App |
 | :---: | :--- | :--- |
-| ☰ | **Menu Principal** | Abre o menu lateral com todas as opções de navegação. |
-| 🎤 | **Voz / IA** | Toque para falar comandos ou pedir ajuda à IA. |
-| 🔍 | **Buscar** | Pesquisar transações ou eventos por nome. |
-| 🏷️ | **Filtro** | Filtrar listagens por data, categoria, tipo ou status. |
-| ✅ | **Confirmado / Pago** | Transações financeiras já realizadas (dinheiro saiu/entrou). |
-| 🕒 | **Pendente / Futuro** | Contas a pagar, a receber ou eventos futuros. |
-| 💲 | **Financeiro** | Representa transações, pagamentos e recebimentos. |
-| 🔁 | **Recorrente** | Item que se repete automaticamente (Mensal, Anual, etc). |
-| 🎂 | **Aniversário** | Evento de aniversário (permite gerar mensagem IA). |
-| 💊 | **Medicamento** | Horário de remédio ou cadastro de saúde. |
-| 📄 | **PDF** | Ícone para gerar e exportar relatórios em formato PDF. |
-| 📎 | **Anexo** | Indica presença de foto ou documento vinculado. |
-| ✏️ | **Editar** | Alterar detalhes de um registro existente. |
-| 🗑️ | **Excluir** | Remove o item permanentemente. |
-| ➕ | **Adicionar** | Botão para criar novo registro (Transação, Evento, Remédio). |
-| 💾 | **Backup** | Salvar dados localmente ou na nuvem (Google Drive). |
-| 📤 | **Compartilhar** | Enviar relatório ou comprovante para outros apps (WhatsApp, etc). |
+| ☰ | **Menu (Hambúrguer)** | Abre o menu lateral esquerdo. |
+| 🎤 | **Microfone** | Ativa o reconhecimento de voz. |
+| 🔍 | **Lupa** | Pesquisar transações ou eventos. |
+| 🌪️ / 📋 | **Filtro / Funil** | Exibido para opções de filtro (data, categoria). |
+| 🗑️ / ❎ | **Lixeira / X** | Excluir item ou Limpar filtros ativos. |
+| ✅ | **Check / Visto** | Confirmar ação ou Status "Pago". |
+| 🕒 | **Relógio** | Status "Pendente" ou "Agendado". |
+| 💲 | **Cifrão ($)** | Indicador de transações financeiras. |
+| 🔁 | **Setas Circulares** | Indicador de item recorrente. |
+| 🎂 | **Bolo** | Eventos de Aniversário. |
+| 💊 | **Pílula / Frasco** | Gestão de Medicamentos. |
+| 📄 | **Folha / PDF** | Ícone para exportar relatórios. |
+| 📎 | **Clipe** | Anexos (fotos/documentos). |
+| ✏️ | **Lápis** | Editar registro. |
+| ➕ | **Sinal de Mais** | Criar novo (Botão flutuante). |
+| 💾 | **Disquete** | Salvar backup. |
+| 📤 | **Compartilhar** | Enviar para outros aplicativos. |
+
 
 
 
