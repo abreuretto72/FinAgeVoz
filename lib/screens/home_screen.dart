@@ -11,6 +11,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart';
 
 import '../services/voice_service.dart';
+import '../voice/voice_controller.dart';
 import '../services/ai_service.dart';
 import '../services/database_service.dart';
 import '../services/event_notification_service.dart';
@@ -39,6 +40,7 @@ import 'onboarding_screen.dart';
 import 'installments_report_screen.dart';
 import 'data_management_screen.dart';
 import 'settings_screen.dart';
+import 'help_screen.dart';
 import 'activity_log_screen.dart';
 import '../services/query_service.dart';
 import '../services/sync/cloud_sync_service.dart';
@@ -57,7 +59,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final VoiceService _voiceService = VoiceService();
   final AIService _aiService = AIService();
   final DatabaseService _dbService = DatabaseService();
+
   final ImportService _importService = ImportService();
+  late final VoiceController _voiceController;
 
   bool _isListening = false;
   bool _isProcessing = false;
@@ -81,6 +85,31 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _voiceController = VoiceController(
+      voiceService: _voiceService,
+      aiService: _aiService,
+      onProcessingStart: () {
+          if (mounted) {
+            setState(() {
+              _isProcessing = true;
+              _statusText = t('status_processing');
+            });
+          }
+      },
+      onProcessingEnd: () {
+          if (mounted) {
+            setState(() {
+              _isProcessing = false;
+              if (!_isListening) _statusText = t('status_idle');
+            });
+          }
+      },
+      onNavigateToForm: (item) {
+         if (mounted) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => AgendaFormScreen(item: item)));
+         }
+      }
+    );
     _initVoice();
     // Check for events on startup as requested
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -798,7 +827,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline, color: Colors.white),
-            onPressed: _showHelpDialog,
+            onPressed: () => _navigate(const HelpScreen()),
           ),
           IconButton(
             icon: const Icon(Icons.category, color: Colors.white),
@@ -880,7 +909,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       IconButton(
                         icon: const Icon(Icons.help_outline, color: Colors.cyanAccent),
                         tooltip: t('menu_help'),
-                        onPressed: _showHelpDialog,
+                        onPressed: () => _navigate(const HelpScreen()),
                       ),
                     ],
                   ),
@@ -1074,10 +1103,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final intent = result['intent'];
 
     // Debug unknown intents
-    if (intent == 'UNKNOWN' || intent == null) {
-      print("DEBUG: AI returned UNKNOWN intent for command: '$text'");
       print('DEBUG: Full AI response: $result');
-    }
+
+    if (intent == 'ADD_AGENDA_ITEM') {
+        await _voiceController.handleAgendaItem(result['agenda_item']);
+        return;
+    } else if (intent == 'QUERY') {
+        await _voiceController.handleQuery(result['query']);
+        return;
+    } 
 
     if (intent == 'ADD_TRANSACTION') {
       final data = result['transaction'];

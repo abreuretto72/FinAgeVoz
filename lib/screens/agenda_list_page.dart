@@ -12,6 +12,7 @@ import '../services/database_service.dart';
 import 'agenda_form_screen.dart';
 import 'medicines/medicine_list_screen.dart';
 import 'medicines/medicine_form_screen.dart';
+import '../services/pdf_service.dart';
 
 class AgendaListPage extends StatefulWidget {
   const AgendaListPage({super.key});
@@ -107,6 +108,228 @@ class _AgendaListPageState extends State<AgendaListPage> {
     );
   }
 
+
+
+  /// Centralized method to fetch all items (manual + virtual)
+  List<AgendaItem> _getAllItems({DateTime? rangeStart, DateTime? rangeEnd}) {
+      final manualItems = agendaBox.values.toList();
+      final virtualItems = <AgendaItem>[];
+
+      // Transactions -> Agenda
+      final transactionBox = Hive.box<Transaction>('transactions');
+      for (var t in transactionBox.values) {
+          if (t.isExpense && 
+              (t.totalInstallments ?? 0) > 1 && 
+              (t.installmentNumber ?? 0) > 0 &&
+              !t.isDeleted &&
+              !t.isPaid) {
+              
+              if (rangeStart != null && t.date.isBefore(rangeStart)) continue;
+              if (rangeEnd != null && t.date.isAfter(rangeEnd)) continue;
+
+              virtualItems.add(AgendaItem(
+                  tipo: AgendaItemType.PAGAMENTO,
+                  titulo: "${t.description} (${t.installmentNumber}/${t.totalInstallments})",
+                  dataInicio: t.date,
+                  horarioInicio: "08:00",
+                  status: t.isPaid ? ItemStatus.CONCLUIDO : ItemStatus.PENDENTE,
+                  pagamento: PagamentoInfo(
+                      valor: t.amount,
+                      status: t.isPaid ? "PAGO" : "PENDENTE",
+                      dataVencimento: t.date,
+                      descricaoFinanceira: "Parcela ${t.installmentNumber}/${t.totalInstallments}",
+                      transactionId: t.id,
+                  )
+              ));
+          }
+      }
+      
+      // Medicines -> Agenda (Virtual items for future doses)
+      // Default range for list view is usually -2 days to +30 days if not specified
+      final now = DateTime.now();
+      final effectiveStart = rangeStart ?? now.subtract(const Duration(days: 2));
+      final effectiveEnd = rangeEnd ?? now.add(const Duration(days: 30)); 
+      
+      final allRemedios = _db.getRemedios();
+      for (var r in allRemedios) {
+          final posologias = _db.getPosologias(r.id);
+          for (var p in posologias) {
+              final doses = _medService.calculateNextDoses(p, effectiveStart, limit: 100); 
+              for (var d in doses) {
+                  if (d.isAfter(effectiveEnd)) break;
+                  // Only add if after start
+                  if (d.isBefore(effectiveStart)) continue;
+                  
+                  virtualItems.add(_medService.createVirtualAgendaItem(r, p, d));
+              }
+          }
+      }
+
+      final allItems = [...manualItems, ...virtualItems];
+      
+      // Filter manual items by date if range is provided
+      if (rangeStart != null || rangeEnd != null) {
+         allItems.removeWhere((item) {
+             final d = item.dataInicio ?? item.criadoEm;
+             if (rangeStart != null && d.isBefore(rangeStart)) return true;
+             if (rangeEnd != null && d.isAfter(rangeEnd)) return true;
+             return false;
+         });
+      }
+
+      allItems.sort((a, b) {
+          final da = a.dataInicio ?? a.criadoEm;
+          final db = b.dataInicio ?? b.criadoEm;
+          return da.compareTo(db);
+      });
+      
+      return allItems;
+  }
+
+  Future<void> _showPdfFilterDialog() async {
+    // Default vars
+    DateTime? startDate = DateTime.now();
+    DateTime? endDate = DateTime.now().add(const Duration(days: 7));
+    bool includeCompromissos = true;
+    bool includeAniversarios = true;
+    bool includeRemedios = true;
+    bool includePagamentos = true;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Filtrar Relatório PDF'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Selecione o período e os tipos de eventos para o relatório.', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                    const SizedBox(height: 15),
+                    
+                    // Date Range
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text("Início: ${DateFormat('dd/MM/yyyy').format(startDate!)}"),
+                      trailing: const Icon(Icons.calendar_today, size: 20),
+                      onTap: () async {
+                         final d = await showDatePicker(context: context, initialDate: startDate!, firstDate: DateTime(2020), lastDate: DateTime(2030));
+                         if (d != null) setState(() => startDate = d);
+                      },
+                    ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text("Fim: ${DateFormat('dd/MM/yyyy').format(endDate!)}"),
+                      trailing: const Icon(Icons.calendar_today, size: 20),
+                      onTap: () async {
+                         final d = await showDatePicker(context: context, initialDate: endDate!, firstDate: DateTime(2020), lastDate: DateTime(2030));
+                         if (d != null) setState(() => endDate = d);
+                      },
+                    ),
+                    const Divider(),
+                    
+                    // Types
+                    CheckboxListTile(
+                      title: const Text("Compromissos/Tarefas"),
+                      value: includeCompromissos,
+                      onChanged: (v) => setState(() => includeCompromissos = v!),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                    CheckboxListTile(
+                      title: const Text("Aniversários"),
+                      value: includeAniversarios,
+                      onChanged: (v) => setState(() => includeAniversarios = v!),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                    CheckboxListTile(
+                      title: const Text("Remédios"),
+                      value: includeRemedios,
+                      onChanged: (v) => setState(() => includeRemedios = v!),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                    CheckboxListTile(
+                      title: const Text("Pagamentos"),
+                      value: includePagamentos,
+                      onChanged: (v) => setState(() => includePagamentos = v!),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.picture_as_pdf),
+                  label: const Text('Gerar PDF'),
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    
+                    // Fetch items based on Date Range
+                    // Note: We might want slightly wider range or exact.
+                    // Let's us exact range end of day
+                    final start = DateTime(startDate!.year, startDate!.month, startDate!.day);
+                    final end = DateTime(endDate!.year, endDate!.month, endDate!.day, 23, 59, 59);
+
+                    var items = _getAllItems(rangeStart: start, rangeEnd: end);
+                    
+                    // Filter Types
+                    items = items.where((i) {
+                       if (i.tipo == AgendaItemType.COMPROMISSO || i.tipo == AgendaItemType.TAREFA) return includeCompromissos;
+                       if (i.tipo == AgendaItemType.ANIVERSARIO) return includeAniversarios;
+                       if (i.tipo == AgendaItemType.REMEDIO) return includeRemedios;
+                       if (i.tipo == AgendaItemType.PAGAMENTO) return includePagamentos;
+                       return true;
+                    }).toList();
+
+                    if (items.isEmpty) {
+                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nenhum item encontrado para os filtros selecionados.')));
+                       return;
+                    }
+
+                    // Generate Actions
+                    showModalBottomSheet(
+                       context: context,
+                       builder: (ctx) {
+                          return SafeArea(
+                            child: Column(
+                               mainAxisSize: MainAxisSize.min,
+                               children: [
+                                  ListTile(
+                                    leading: const Icon(Icons.share),
+                                    title: const Text('Compartilhar PDF'),
+                                    onTap: () async {
+                                       Navigator.pop(ctx);
+                                       await PdfService.shareAgendaReport(items, start, end);
+                                    },
+                                  ),
+                                  ListTile(
+                                    leading: const Icon(Icons.print),
+                                    title: const Text('Imprimir'),
+                                    onTap: () async {
+                                       Navigator.pop(ctx);
+                                       await PdfService.generateAgendaReport(items, start, end);
+                                    },
+                                  )
+                               ]
+                            ),
+                          );
+                       }
+                    );
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
@@ -129,10 +352,11 @@ class _AgendaListPageState extends State<AgendaListPage> {
                ),
                actions: [
                  IconButton(
-                   icon: const Icon(Icons.medication),
-                   tooltip: "Gerenciar Remédios",
-                   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MedicineListScreen())),
-                 )
+                   icon: const Icon(Icons.picture_as_pdf),
+                   tooltip: "Relatório PDF",
+                   onPressed: _showPdfFilterDialog,
+                 ),
+
                ],
             ),
             body: ListenableBuilder(
@@ -144,56 +368,7 @@ class _AgendaListPageState extends State<AgendaListPage> {
                   Hive.box<HistoricoTomada>('historico_tomadas').listenable(),
               ]),
               builder: (context, _) {
-                final manualItems = agendaBox.values.toList();
-                final virtualItems = <AgendaItem>[];
-
-                // Transactions -> Agenda
-                final transactionBox = Hive.box<Transaction>('transactions');
-                for (var t in transactionBox.values) {
-                   if (t.isExpense && 
-                       (t.totalInstallments ?? 0) > 1 && 
-                       (t.installmentNumber ?? 0) > 0 &&
-                       !t.isDeleted &&
-                       !t.isPaid) {
-                       virtualItems.add(AgendaItem(
-                          tipo: AgendaItemType.PAGAMENTO,
-                          titulo: "${t.description} (${t.installmentNumber}/${t.totalInstallments})",
-                          dataInicio: t.date,
-                          horarioInicio: "08:00",
-                          status: t.isPaid ? ItemStatus.CONCLUIDO : ItemStatus.PENDENTE,
-                          pagamento: PagamentoInfo(
-                             valor: t.amount,
-                             status: t.isPaid ? "PAGO" : "PENDENTE",
-                             dataVencimento: t.date,
-                             descricaoFinanceira: "Parcela ${t.installmentNumber}/${t.totalInstallments}",
-                             transactionId: t.id,
-                          )
-                       ));
-                   }
-                }
-                
-                final now = DateTime.now();
-                final rangeStart = now.subtract(const Duration(days: 2));
-                final rangeEnd = now.add(const Duration(days: 30)); 
-                
-                final allRemedios = _db.getRemedios();
-                for (var r in allRemedios) {
-                   final posologias = _db.getPosologias(r.id);
-                   for (var p in posologias) {
-                       final doses = _medService.calculateNextDoses(p, rangeStart, limit: 100); 
-                       for (var d in doses) {
-                           if (d.isAfter(rangeEnd)) break;
-                           virtualItems.add(_medService.createVirtualAgendaItem(r, p, d));
-                       }
-                   }
-                }
-
-                final allItems = [...manualItems, ...virtualItems]
-                  ..sort((a, b) {
-                    final da = a.dataInicio ?? a.criadoEm;
-                    final db = b.dataInicio ?? b.criadoEm;
-                    return da.compareTo(db);
-                  });
+                final allItems = _getAllItems(); // Uses default range for view
                 
                 final compromissos = <AgendaItem>[];
                 final aniversarios = <AgendaItem>[];
@@ -207,15 +382,22 @@ class _AgendaListPageState extends State<AgendaListPage> {
                       remedios.add(item);
                    } else if (item.tipo == AgendaItemType.PAGAMENTO) {
                       pagamentos.add(item);
-                   } else {
+                  } else {
                       compromissos.add(item);
                    }
                 }
 
+                // Sort anniversaries by next occurrence
+                aniversarios.sort((a, b) {
+                   final nextA = _getNextBirthday(a.dataInicio);
+                   final nextB = _getNextBirthday(b.dataInicio);
+                   return nextA.compareTo(nextB);
+                });
+
                 return TabBarView(
                   children: [
                     _buildList(compromissos, emptyMsg: 'Nenhum compromisso.'),
-                    _buildList(aniversarios, emptyMsg: 'Nenhum aniversário.'),
+                    _buildList(aniversarios, emptyMsg: 'Nenhum aniversário.', useNextAnniversaryDate: true),
                     _buildList(remedios, emptyMsg: 'Nenhum remédio agendado.'),
                     _buildList(pagamentos, emptyMsg: 'Nenhum pagamento agendado.'),
                   ],
@@ -232,7 +414,7 @@ class _AgendaListPageState extends State<AgendaListPage> {
     );
    }
 
-   Widget _buildList(List<AgendaItem> itens, {required String emptyMsg}) {
+   Widget _buildList(List<AgendaItem> itens, {required String emptyMsg, bool useNextAnniversaryDate = false}) {
        if (itens.isEmpty) {
             return Center(child: Text(emptyMsg));
        }
@@ -241,12 +423,20 @@ class _AgendaListPageState extends State<AgendaListPage> {
             padding: const EdgeInsets.only(bottom: 80),
             itemBuilder: (context, index) {
               final item = itens[index];
-              final date = item.dataInicio ?? item.criadoEm;
+              DateTime date = item.dataInicio ?? item.criadoEm;
               
+              if (useNextAnniversaryDate && item.tipo == AgendaItemType.ANIVERSARIO) {
+                 date = _getNextBirthday(date);
+              }
+
               bool showHeader = true;
               if (index > 0) {
                 final prev = itens[index - 1];
-                final prevDate = prev.dataInicio ?? prev.criadoEm;
+                DateTime prevDate = prev.dataInicio ?? prev.criadoEm;
+                if (useNextAnniversaryDate && prev.tipo == AgendaItemType.ANIVERSARIO) {
+                   prevDate = _getNextBirthday(prevDate);
+                }
+                
                 if (_isSameDay(date, prevDate)) showHeader = false;
               }
 
@@ -368,5 +558,16 @@ class _AgendaListPageState extends State<AgendaListPage> {
     if (check.isAtSameMomentAs(today)) return "Hoje";
     if (check.isAtSameMomentAs(tomorrow)) return "Amanhã";
     return DateFormat('EEEE, d MMM', 'pt_BR').format(d);
+  }
+  DateTime _getNextBirthday(DateTime? birthDate) {
+    if (birthDate == null) return DateTime(2100);
+    final now = DateTime.now();
+    DateTime next = DateTime(now.year, birthDate.month, birthDate.day);
+    // Compare date components only
+    final today = DateTime(now.year, now.month, now.day);
+    if (next.isBefore(today)) {
+      next = DateTime(now.year + 1, birthDate.month, birthDate.day);
+    }
+    return next;
   }
 }

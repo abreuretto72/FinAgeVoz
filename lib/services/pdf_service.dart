@@ -10,6 +10,8 @@ import '../models/transaction_model.dart';
 import '../models/event_model.dart';
 import '../utils/localization.dart';
 
+import '../models/agenda_models.dart';
+
 class PdfService {
   static Future<void> generateAndPrint(
     List<Transaction> transactions,
@@ -71,7 +73,10 @@ class PdfService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('Relatório Financeiro', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('FinAgeVoz', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                  pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+                      pw.Text('FinAgeVoz', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                      pw.Text('Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                  ]),
                 ],
               ),
             ),
@@ -167,7 +172,10 @@ class PdfService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('Agenda de Eventos', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('FinAgeVoz', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                  pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+                      pw.Text('FinAgeVoz', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                      pw.Text('Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                  ]),
                 ],
               ),
             ),
@@ -448,7 +456,10 @@ class PdfService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(AppLocalizations.t('transactions_report_title', languageCode), style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                  pw.Text(AppLocalizations.t('app_title', languageCode), style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                  pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+                      pw.Text(AppLocalizations.t('app_title', languageCode), style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                      pw.Text('Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                  ]),
                 ],
               ),
             ),
@@ -567,7 +578,10 @@ class PdfService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(AppLocalizations.t('events_report_title', languageCode), style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('FinAgeVoz', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                  pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+                      pw.Text('FinAgeVoz', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                      pw.Text('Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                  ]),
                 ],
               ),
             ),
@@ -649,6 +663,154 @@ class PdfService {
     return pdf;
   }
 
+  static Future<void> generateAgendaReport(
+    List<AgendaItem> items,
+    DateTime? startDate,
+    DateTime? endDate,
+  ) async {
+    final pdf = _buildAgendaReportPdf(items, startDate, endDate);
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'agenda_inteligente_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
+    );
+  }
+
+  static Future<void> shareAgendaReport(
+    List<AgendaItem> items,
+    DateTime? startDate,
+    DateTime? endDate,
+  ) async {
+    final pdf = _buildAgendaReportPdf(items, startDate, endDate);
+    final fileName = 'agenda_inteligente_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
+    final file = await _savePdfToTemp(pdf, fileName);
+    await Share.shareXFiles([XFile(file.path)], text: 'Relatório Agenda Inteligente - FinAgeVoz');
+  }
+
+  static pw.Document _buildAgendaReportPdf(
+    List<AgendaItem> items,
+    DateTime? startDate,
+    DateTime? endDate,
+  ) {
+    final pdf = pw.Document();
+    final dateFormat = DateFormat('dd/MM/yyyy');
+    final timeFormat = DateFormat('HH:mm');
+
+    // Group items by type
+    final compromissos = items.where((i) => i.tipo == AgendaItemType.COMPROMISSO || i.tipo == AgendaItemType.TAREFA).toList();
+    final aniversarios = items.where((i) => i.tipo == AgendaItemType.ANIVERSARIO).toList();
+    final remedios = items.where((i) => i.tipo == AgendaItemType.REMEDIO).toList();
+    final pagamentos = items.where((i) => i.tipo == AgendaItemType.PAGAMENTO).toList();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return [
+            pw.Header(
+              level: 0,
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                   pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                      pw.Text('Agenda Inteligente', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                      pw.Text('Relatório Detalhado', style: pw.TextStyle(fontSize: 14)),
+                   ]),
+                   pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+                      pw.Text('FinAgeVoz', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                      pw.Text('Gerado em: ${dateFormat.format(DateTime.now())} ${timeFormat.format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                   ]),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Período: ${startDate != null ? dateFormat.format(startDate) : "Início"} - ${endDate != null ? dateFormat.format(endDate) : "Fim"}'),
+                pw.Text('Total de Itens: ${items.length}'),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+            
+            // 1. Compromissos e Tarefas
+            if (compromissos.isNotEmpty) ...[
+               pw.Header(level: 1, text: "Compromissos e Tarefas"),
+               pw.Table.fromTextArray(
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                  headerDecoration: const pw.BoxDecoration(color: PdfColors.blue),
+                  cellAlignment: pw.Alignment.centerLeft,
+                  headers: ['Data/Hora', 'Título', 'Descrição', 'Status'],
+                  data: compromissos.map((i) {
+                     String dh = i.dataInicio != null ? dateFormat.format(i.dataInicio!) : "-";
+                     if (i.horarioInicio != null) dh += " ${i.horarioInicio}";
+                     return [dh, i.titulo, i.descricao ?? '', i.status.toString().split('.').last];
+                  }).toList(),
+               ),
+               pw.SizedBox(height: 15),
+            ],
+
+            // 2. Aniversários
+            if (aniversarios.isNotEmpty) ...[
+               pw.Header(level: 1, text: "Aniversários"),
+               pw.Table.fromTextArray(
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                  headerDecoration: const pw.BoxDecoration(color: PdfColors.pink),
+                  cellAlignment: pw.Alignment.centerLeft,
+                  headers: ['Data', 'Aniversariante', 'Mensagem Padrão'],
+                  data: aniversarios.map((i) {
+                     String dh = i.dataInicio != null ? dateFormat.format(i.dataInicio!) : "-";
+                     return [dh, i.aniversario?.nomePessoa ?? i.titulo, i.aniversario?.mensagemPadrao ?? ''];
+                  }).toList(),
+               ),
+               pw.SizedBox(height: 15),
+            ],
+
+            // 3. Remédios
+            if (remedios.isNotEmpty) ...[
+               pw.Header(level: 1, text: "Medicação"),
+               pw.Table.fromTextArray(
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                  headerDecoration: const pw.BoxDecoration(color: PdfColors.purple),
+                  cellAlignment: pw.Alignment.centerLeft,
+                  headers: ['Remédio', 'Horário', 'Dosagem', 'Status'],
+                  data: remedios.map((i) {
+                     String dh = i.dataInicio != null ? dateFormat.format(i.dataInicio!) : "-";
+                     if (i.horarioInicio != null) dh += " ${i.horarioInicio}";
+                     // Virtual items might have 'created' date as reference if dataInicio is missing, but usually virtual items have specific date
+                     return [
+                        i.remedio?.nome ?? i.titulo,
+                        dh,
+                        i.remedio?.dosagem ?? '-',
+                        i.status.toString().split('.').last
+                     ];
+                  }).toList(),
+               ),
+               pw.SizedBox(height: 15),
+            ],
+
+            // 4. Pagamentos
+            if (pagamentos.isNotEmpty) ...[
+               pw.Header(level: 1, text: "Pagamentos"),
+               pw.Table.fromTextArray(
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                  headerDecoration: const pw.BoxDecoration(color: PdfColors.green),
+                  cellAlignment: pw.Alignment.centerLeft,
+                  headers: ['Vencimento', 'Descrição', 'Valor', 'Status'],
+                  data: pagamentos.map((i) {
+                     String dh = i.dataInicio != null ? dateFormat.format(i.dataInicio!) : "-";
+                     final val = i.pagamento != null ? "R\$ ${i.pagamento!.valor.toStringAsFixed(2)}" : "-";
+                     return [dh, i.titulo, val, i.pagamento?.status ?? 'PENDENTE'];
+                  }).toList(),
+               ),
+               pw.SizedBox(height: 15),
+            ],
+          ];
+        },
+      ),
+    );
+    return pdf;
+  }
+
   static Future<File> _savePdfToTemp(pw.Document pdf, String fileName) async {
     final output = await getTemporaryDirectory();
     final file = File('${output.path}/$fileName');
@@ -656,3 +818,4 @@ class PdfService {
     return file;
   }
 }
+

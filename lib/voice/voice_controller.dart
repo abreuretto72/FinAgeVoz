@@ -3,6 +3,7 @@ import 'package:fin_age_voz/services/voice_service.dart';
 import '../services/agenda_repository.dart';
 import '../models/agenda_models.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 /// Controller that orchestrates Voice -> AI -> Action flow.
 class VoiceController {
@@ -37,6 +38,8 @@ class VoiceController {
 
       if (intent == 'ADD_AGENDA_ITEM') {
         await handleAgendaItem(result['agenda_item']);
+      } else if (intent == 'QUERY') {
+        await handleQuery(result['query']);
       } else if (intent == 'UNKNOWN') {
          await _voiceService.speak("Não entendi o comando. Pode repetir?");
       } else {
@@ -48,6 +51,55 @@ class VoiceController {
       await _voiceService.speak("Erro ao processar comando.");
     } finally {
       onProcessingEnd?.call();
+    }
+  }
+
+  Future<void> handleQuery(Map<String, dynamic>? queryData) async {
+    if (queryData == null) {
+      await _voiceService.speak("Não foi possível entender a pesquisa.");
+      return;
+    }
+
+    final domain = (queryData['domain'] as String?)?.toUpperCase() ?? 'AGENDA';
+    final keywords = queryData['keywords'] as String?;
+    final dateStr = queryData['date'] as String?;
+    
+    // AGENDA SEARCH
+    if (domain == 'AGENDA') {
+       DateTime? date;
+       if (dateStr != null) {
+         try { date = DateTime.parse(dateStr); } catch (_) {}
+       }
+       
+       print("DEBUG searching: keywords=$keywords, date=$date");
+       final results = _agendaRepo.search(texto: keywords, data: date);
+       
+       if (results.isEmpty) {
+         String msg = "Não encontrei nada na agenda";
+         if (keywords != null) msg += " sobre $keywords";
+         if (date != null) msg += " nessa data";
+         msg += ".";
+         await _voiceService.speak(msg);
+       } else {
+         final count = results.length;
+         String msg = count == 1 ? "Encontrei 1 item." : "Encontrei $count itens.";
+         
+         // Describe first item
+         final first = results.first;
+         final dateFormatted = first.dataInicio != null 
+             ? DateFormat('dd/MM').format(first.dataInicio!) 
+             : "";
+         final timeFormatted = first.horarioInicio ?? "";
+         
+         msg += " ${first.titulo}";
+         if (dateFormatted.isNotEmpty) msg += " dia $dateFormatted";
+         if (timeFormatted.isNotEmpty) msg += " às $timeFormatted";
+         msg += ".";
+         
+         await _voiceService.speak(msg);
+       }
+    } else {
+      await _voiceService.speak("Desculpe, ainda não sei buscar informações sobre $domain.");
     }
   }
 

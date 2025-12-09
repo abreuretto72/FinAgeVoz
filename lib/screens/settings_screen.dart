@@ -185,6 +185,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           const SizedBox(height: 30),
           Text(
+            'Ajuda',
+            style: TextStyle(
+              color: Colors.blue,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E1E),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.help_outline, color: Colors.teal),
+                  title: const Text('Ajuda', style: TextStyle(color: Colors.white)),
+                  subtitle: const Text('Fale conosco e tire dúvidas', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const HelpScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 30),
+          Text(
             'Assinatura & Planos',
             style: TextStyle(
               color: Colors.blue,
@@ -242,39 +275,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const SyncSettingsScreen()),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 30),
-          Text(
-            'Ajuda & Suporte',
-            style: TextStyle(
-              color: Colors.blue,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.help_outline, color: Colors.teal),
-                  title: const Text('Ajuda e Contato', style: TextStyle(color: Colors.white)),
-                  subtitle: const Text('Fale conosco e tire dúvidas', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const HelpScreen()),
                     );
                   },
                 ),

@@ -317,6 +317,8 @@ class AIService {
     For requests to SHOW, LIST or SEE installments or future payments visually, return "NAVIGATE" with target "INSTALLMENTS".
     For other reports, return "NAVIGATE" with target "REPORTS".
 
+    For QUERIES (checking/searching for events/transactions), return "intent": "QUERY" and fill the "query" object.
+
     Output JSON format:
     {
       "intent": "ADD_TRANSACTION" | "ADD_EVENT" | "ADD_AGENDA_ITEM" | "NAVIGATE" | "QUERY" | "UNDO" | "CALL_CONTACT" | "UNKNOWN",
@@ -358,6 +360,11 @@ class AIService {
       },
       "contact": {
         "name": "string. The name of the person to call."
+      },
+      "query": {
+        "domain": "AGENDA" | "FINANCE" | "GENERAL",
+        "keywords": "string. Search keywords extracted from the user input.",
+        "date": "ISO 8601 string (optional)."
       }
     }
     
@@ -376,7 +383,7 @@ class AIService {
     "Reunião amanhã às 14h" -> {"intent": "ADD_EVENT", "event": {"title": "Reunião", "date": "$currentYear-11-23T14:00:00", "recurrence": null}}
     "Reunião de equipe toda segunda às 10h" -> {"intent": "ADD_EVENT", "event": {"title": "Reunião de equipe", "date": "$currentYear-11-24T10:00:00", "recurrence": "WEEKLY"}}
     "Pagar conta todo dia 5" -> {"intent": "ADD_EVENT", "event": {"title": "Pagar conta", "date": "$currentYear-12-05T09:00:00", "recurrence": "MONTHLY"}}
-
+    
     Agenda Examples (Smart Agenda):
     "Adicionar uma reunião amanhã às 9 da manhã com o João" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "COMPROMISSO", "title": "Reunião com João", "date": "$currentYear-11-23T09:00:00", "time": "09:00", "description": "Com João"}}
     "Me lembra de tomar remédio às 8" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "REMEDIO", "title": "Tomar remédio", "date": "$currentYear-11-22T20:00:00", "time": "20:00"}}
@@ -404,10 +411,11 @@ class AIService {
     "Ligar para o Pedro" -> {"intent": "CALL_CONTACT", "contact": {"name": "Pedro"}}
 
     Query Examples:
-    "Quanto gastei com gasolina?" -> {"intent": "QUERY"}
-    "Qual meu saldo?" -> {"intent": "QUERY"}
-    "Tenho algum evento hoje?" -> {"intent": "QUERY"}
-    "Quanto gastei este mês?" -> {"intent": "QUERY"}
+    "Quanto gastei com gasolina?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "keywords": "gasolina"}}
+    "Qual meu saldo?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "keywords": "saldo"}}
+    "Tenho algum evento hoje?" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "date": "$currentDate"}}
+    "Tem almoço na casa da Teresa?" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "keywords": "almoço Teresa"}}
+    "Verificar eventos de amanhã" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "date": "$currentYear-11-23T00:00:00"}}
     ''';
   }
 }
