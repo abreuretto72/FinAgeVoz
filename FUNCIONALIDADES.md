@@ -669,27 +669,39 @@ Entenda o significado dos símbolos visuais do app:
 
 
 
+
 | Símbolo (Aproximado) | Nome do Ícone | Função no App |
 | :---: | :--- | :--- |
 | ☰ | **Menu (Hambúrguer)** | Abre o menu lateral esquerdo. |
-| 🔲 / 🏷️ | **Ícone de Categorias** | Acesso rápido ao gerenciamento de categorias (Topo Dir.). |
-| ❓ | **Interrogação** | Acessar tela de Ajuda e Manual. |
+| 🔲 / 🏷️ | **Ícone de Categorias** | Acesso ao gerenciamento de categorias. |
+| ❓ | **Ajuda** | Acessar tela de Ajuda e Manual. |
+| ⚙️ | **Configurações** | Ajustes do app, idioma e chave de API. |
 | 🎤 | **Microfone** | Ativa o reconhecimento de voz. |
+| ✨ | **Brilho (IA)** | Funcionalidades inteligentes (geração de texto). |
 | 🔍 | **Lupa** | Pesquisar transações ou eventos. |
-| 🌪️ / 📋 | **Filtro / Funil** | Exibido para opções de filtro (data, categoria). |
-| 🗑️ / ❎ | **Lixeira / X** | Excluir item ou Limpar filtros ativos. |
+| 📋 / 🌪️ | **Filtro** | Opções de filtro (data, categoria). |
+| 📊 | **Gráfico** | Acesso aos Relatórios e estatísticas. |
+| ☁️ | **Nuvem** | Status de Backup e Sincronização Google Drive. |
+| 📅 | **Calendário** | Seleção de data ou visualização da Agenda. |
+| 👤 / 👥 | **Contatos** | Selecionar contato para chamadas ou mensagens. |
+| 🔒 / 🛡️ | **Cadeado/Escudo** | Privacidade, Segurança e Permissões. |
+| 🔑 | **Chave** | Configuração da chave de API (Groq). |
+| 🌐 | **Globo / Idioma** | Alterar idioma do aplicativo. |
+| 🗑️ | **Lixeira** | Excluir item permanentemente (Longo pressionamento para deletar). |
 | ✅ | **Check / Visto** | Confirmar ação ou Status "Pago". |
-| 🕒 | **Relógio** | Status "Pendente" ou "Agendado". |
-| 💲 | **Cifrão ($)** | Indicador de transações financeiras. |
-| 🔁 | **Setas Circulares** | Indicador de item recorrente. |
-| 🎂 | **Bolo** | Eventos de Aniversário. |
-| 💊 | **Pílula / Frasco** | Gestão de Medicamentos. |
-| 📄 | **Folha / PDF** | Ícone para exportar relatórios. |
-| 📎 | **Clipe** | Anexos (fotos/documentos). |
-| ✏️ | **Lápis** | Editar registro. |
-| ➕ | **Sinal de Mais** | Criar novo (Botão flutuante). |
-| 💾 | **Disquete** | Salvar backup. |
-| 📤 | **Compartilhar** | Enviar para outros aplicativos. |
+| 🕒 | **Relógio** | Status "Pendente", "Agendado" ou Horário. |
+| 💲 / 🧾 / 👛 | **Finanças** | Ícones de Transações, Recibos e Carteira. |
+| 🔁 | **Recorrente** | Indicador de item que se repete automaticamente. |
+| 🎂 | **Bolo** | Eventos de Aniversário e mensagens automáticas. |
+| 💊 | **Pílula / Frasco** | Gestão de Medicamentos e lembretes de saúde. |
+| 📄 | **PDF** | Exportar relatórios para arquivo PDF. |
+| 📎 / 📷 | **Anexo / Câmera** | Adicionar fotos da galeria ou câmera como anexo. |
+| ✏️ | **Lápis** | Editar registro existente. |
+| ➕ | **Sinal de Mais** | Botão flutuante para criar novo registro. |
+| 💾 | **Disquete** | Salvar dados localmente. |
+| 📤 | **Compartilhar** | Enviar comprovantes ou relatórios para outros apps. |
+| 🚪 | **Sair** | Encerrar o aplicativo (Fechar). |
+
 
 
 
