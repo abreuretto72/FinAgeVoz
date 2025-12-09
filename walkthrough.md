@@ -4,7 +4,7 @@
 
 
 
-### 2. Eventos Recorrentes (Completo!)
+### 1. Eventos Recorrentes (Completo!)
 
 Sistema completo de eventos que se repetem ao longo do tempo.
 
@@ -27,7 +27,7 @@ Sistema completo de eventos que se repetem ao longo do tempo.
 - Instâncias virtuais (repetições) não podem ser editadas individualmente
 - Para alterar uma série recorrente, edite o evento original
 
-### 3. Correção do Cálculo de Parcelamento
+### 2. Correção do Cálculo de Parcelamento
 
 **Problema corrigido:**
 Antes, ao dizer "100 reais em 10 vezes", o app dividia 100 por 10, resultando em parcelas de R$10.
@@ -38,7 +38,7 @@ Antes, ao dizer "100 reais em 10 vezes", o app dividia 100 por 10, resultando em
 
 O valor falado é considerado o **valor da parcela**, a menos que você diga explicitamente "**total**".
 
-### 4. Notificação Diária de Eventos (ATUALIZADO!)
+### 3. Notificação Diária de Eventos (ATUALIZADO!)
 
 O app agora verifica automaticamente se há eventos para o dia e **anuncia cada evento individualmente**, do mais cedo ao mais tarde, aguardando confirmação entre cada um.
 
@@ -82,7 +82,7 @@ App: "Esses são todos os eventos de hoje."
 - ✅ **Anuncia um por um com pausa** (NOVO!)
 - ✅ **Informa nome e hora de cada evento** (NOVO!)
 
-### 5. Chamadas via WhatsApp por Voz (NOVO!)
+### 4. Chamadas via WhatsApp por Voz (NOVO!)
 
 Agora você pode pedir para o app ligar para alguém usando comandos de voz.
 
@@ -161,7 +161,7 @@ Agora você pode pedir para o app ligar para alguém usando comandos de voz.
 
 
 
-### Teste 3: Eventos Recorrentes
+### Teste 1: Eventos Recorrentes
 1. Crie um evento com recorrência "Diário"
 2. Vá para a tela de Agenda
 3. Selecione "Esta Semana"
@@ -169,13 +169,13 @@ Agora você pode pedir para o app ligar para alguém usando comandos de voz.
 5. Toque em uma instância
 6. ✅ Deve mostrar o ícone 🔁 e a mensagem sobre editar o original
 
-### Teste 4: Parcelamento Corrigido
+### Teste 2: Parcelamento Corrigido
 1. Diga: "Comprei um celular de 100 reais em 10 vezes"
 2. ✅ Deve criar 10 parcelas de R$100 (total R$1.000)
 3. Diga: "Comprei uma TV total de 1000 reais em 5 vezes"
 4. ✅ Deve criar 5 parcelas de R$200 (total R$1.000)
 
-### Teste 5: Notificação Diária de Eventos (ATUALIZADO!)
+### Teste 3: Notificação Diária de Eventos (ATUALIZADO!)
 1. Crie 3 eventos para hoje:
    - "Café" às 08:00
    - "Reunião" às 14:00
