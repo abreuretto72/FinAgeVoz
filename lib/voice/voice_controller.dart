@@ -4,6 +4,8 @@ import '../services/agenda_repository.dart';
 import '../models/agenda_models.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../services/database_service.dart';
+import '../utils/localization.dart';
 
 /// Controller that orchestrates Voice -> AI -> Action flow.
 class VoiceController {
@@ -25,6 +27,10 @@ class VoiceController {
         _aiService = aiService ?? AIService(),
         _agendaRepo = agendaRepo ?? AgendaRepository();
 
+  String t(String key) {
+    return AppLocalizations.t(key, DatabaseService().getLanguage());
+  }
+
   Future<void> processVoiceCommand(String text) async {
     if (text.isEmpty) return;
     onProcessingStart?.call();
@@ -41,14 +47,14 @@ class VoiceController {
       } else if (intent == 'QUERY') {
         await handleQuery(result['query']);
       } else if (intent == 'UNKNOWN') {
-         await _voiceService.speak("Não entendi o comando. Pode repetir?");
+         await _voiceService.speak(t('voice_not_understood'));
       } else {
-         await _voiceService.speak("Comando recebido: $intent");
+         await _voiceService.speak("${t('voice_cmd_received')}$intent");
       }
 
     } catch (e) {
       print('Voice processing error: $e');
-      await _voiceService.speak("Erro ao processar comando.");
+      await _voiceService.speak(t('voice_process_error'));
     } finally {
       onProcessingEnd?.call();
     }
@@ -56,7 +62,7 @@ class VoiceController {
 
   Future<void> handleQuery(Map<String, dynamic>? queryData) async {
     if (queryData == null) {
-      await _voiceService.speak("Não foi possível entender a pesquisa.");
+      await _voiceService.speak(t('voice_search_error'));
       return;
     }
 
@@ -75,14 +81,14 @@ class VoiceController {
        final results = _agendaRepo.search(texto: keywords, data: date);
        
        if (results.isEmpty) {
-         String msg = "Não encontrei nada na agenda";
-         if (keywords != null) msg += " sobre $keywords";
-         if (date != null) msg += " nessa data";
+         String msg = t('voice_search_empty');
+         if (keywords != null) msg += "${t('voice_search_about')}$keywords";
+         if (date != null) msg += t('voice_search_date');
          msg += ".";
          await _voiceService.speak(msg);
        } else {
          final count = results.length;
-         String msg = count == 1 ? "Encontrei 1 item." : "Encontrei $count itens.";
+         String msg = count == 1 ? t('voice_found_one') : "${t('voice_found_many')}$count${t('voice_found_many_suffix')}";
          
          // Describe first item
          final first = results.first;
@@ -92,14 +98,14 @@ class VoiceController {
          final timeFormatted = first.horarioInicio ?? "";
          
          msg += " ${first.titulo}";
-         if (dateFormatted.isNotEmpty) msg += " dia $dateFormatted";
-         if (timeFormatted.isNotEmpty) msg += " às $timeFormatted";
+         if (dateFormatted.isNotEmpty) msg += "${t('voice_day')}$dateFormatted";
+         if (timeFormatted.isNotEmpty) msg += "${t('voice_at')}$timeFormatted";
          msg += ".";
          
          await _voiceService.speak(msg);
        }
     } else {
-      await _voiceService.speak("Desculpe, ainda não sei buscar informações sobre $domain.");
+      await _voiceService.speak("${t('voice_search_unknown_domain')}$domain.");
     }
   }
 
@@ -189,7 +195,7 @@ class VoiceController {
          item.titulo = name.isNotEmpty ? "Aniversário de $name" : "Novo Aniversário";
 
          // Trigger Navigation & Stop
-         await _voiceService.speak("Confirme o nome e a data e informe o grau de parentesco do aniversariante antes de salvar.");
+         await _voiceService.speak(t('voice_confirm_birthday'));
          onNavigateToForm?.call(item);
          return; 
       }
@@ -197,15 +203,15 @@ class VoiceController {
       await _agendaRepo.addItem(item);
       
       // Feedback
-      String feedback = "$title agendado.";
+      String feedback = "$title${t('voice_scheduled')}";
       if (recurrence != null) {
-         feedback += " Com repetição.";
+         feedback += t('voice_recurrency');
       }
       await _voiceService.speak(feedback);
 
     } catch (e) {
       print("Item creation error: $e");
-      await _voiceService.speak("Erro ao criar item na agenda.");
+      await _voiceService.speak(t('voice_create_error'));
     }
   }
 }

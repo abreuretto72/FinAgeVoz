@@ -219,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       );
 
-      final count = await _importService.importTransactions();
+      final count = await _importService.importTransactions(_currentLanguage);
       
       // Close loading indicator
       if (mounted) Navigator.pop(context);
@@ -649,8 +649,8 @@ class _HomeScreenState extends State<HomeScreen> {
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
-          title: const Text('Restaurar Dados?'),
-          content: const Text('Detectamos dados na nuvem. Deseja restaurá-los neste aparelho?'),
+          title: Text(t('restore_data_title')),
+          content: Text(t('restore_data_msg')),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -664,7 +664,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Or trigger sync directly:
                 // await CloudSyncService().sync();
               },
-              child: const Text('Restaurar'),
+              child: Text(t('restore_button')),
             ),
           ],
         ),
@@ -724,7 +724,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.history),
-              title: const Text('Histórico de Atividades'),
+              title: Text(t('menu_activity_log')),
               onTap: () {
                 Navigator.pop(context);
                 _navigate(const ActivityLogScreen());
@@ -1243,7 +1243,7 @@ class _HomeScreenState extends State<HomeScreen> {
           transactionIds: [],
           eventId: event.id,
         ));
-        await _voiceService.speak('Evento $title agendado para ${DateFormat('dd/MM HH:mm').format(date)}.');
+        await _voiceService.speak('Evento $title agendado para ${DateFormat.Md(_currentLanguage).add_Hm().format(date)}.');
       }
     } else if (intent == 'ADD_AGENDA_ITEM') {
       final data = result['agenda_item'];
@@ -1692,7 +1692,7 @@ class _HomeScreenState extends State<HomeScreen> {
           barrierDismissible: false,
           builder: (context) => AlertDialog(
             title: const Text('Confirmar Pagamento'),
-            content: Text('${t.description}\nValor: R\$ ${t.amount.toStringAsFixed(2)}\nVencimento: ${DateFormat('dd/MM/yyyy').format(t.date)}\n\nJá efetuou este pagamento?'),
+            content: Text('${t.description}\nValor: ${NumberFormat.simpleCurrency(locale: _currentLanguage).format(t.amount)}\nVencimento: ${DateFormat.yMd(_currentLanguage).format(t.date)}\n\nJá efetuou este pagamento?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),

@@ -1,0 +1,304 @@
+{
+  "@@locale": "en",
+  
+  "camera": "Camera",
+  "@camera": {
+    "description": "Camera option in attachment picker"
+  },
+  "gallery": "Gallery (JPG)",
+  "@gallery": {
+    "description": "Gallery option for JPG images"
+  },
+  "file": "File (PDF/JPG)",
+  "@file": {
+    "description": "File picker option for PDF or JPG"
+  },
+  "attachments": "Attachments",
+  "@attachments": {
+    "description": "Attachments dialog title"
+  },
+  "add": "Add",
+  "@add": {
+    "description": "Add button label"
+  },
+  "close": "Close",
+  "@close": {
+    "description": "Close button label"
+  },
+  "myMedicines": "My Medicines",
+  "@myMedicines": {
+    "description": "Medicine list screen title"
+  },
+  "noMedicinesRegistered": "No medicines registered.",
+  "@noMedicinesRegistered": {
+    "description": "Empty state message"
+  },
+  "registerMedicine": "Register Medicine",
+  "@registerMedicine": {
+    "description": "Button to add new medicine"
+  },
+  "markAsTaken": "Mark as Taken",
+  "@markAsTaken": {
+    "description": "Action to mark medicine as taken"
+  },
+  "comingSoonMarkTaken": "Coming soon: Mark as taken",
+  "@comingSoonMarkTaken": {
+    "description": "Placeholder message for future feature"
+  },
+  "editMedicine": "Edit Medicine",
+  "@editMedicine": {
+    "description": "Action to edit medicine details"
+  },
+  "managePosology": "Manage Posology",
+  "@managePosology": {
+    "description": "Action to manage medicine dosage schedule"
+  },
+  "discardChanges": "Discard changes?",
+  "@discardChanges": {
+    "description": "Confirmation dialog title"
+  },
+  "unsavedChangesMessage": "You have unsaved changes. Do you want to exit?",
+  "@unsavedChangesMessage": {
+    "description": "Confirmation dialog message"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button"
+  },
+  "exit": "Exit",
+  "@exit": {
+    "description": "Exit button"
+  },
+  "dose": "Dose",
+  "@dose": {
+    "description": "Dosage label"
+  },
+  "frequency": "Frequency",
+  "@frequency": {
+    "description": "Frequency label"
+  },
+  "definedTimes": "Defined times:",
+  "@definedTimes": {
+    "description": "Label for scheduled times list"
+  },
+  "addAtLeastOneTime": "Add at least one time",
+  "@addAtLeastOneTime": {
+    "description": "Validation error message"
+  },
+  "treatmentDuration": "Treatment Duration",
+  "@treatmentDuration": {
+    "description": "Treatment duration section title"
+  },
+  "start": "Start",
+  "@start": {
+    "description": "Start date label"
+  },
+  "continuousUse": "Continuous Use",
+  "@continuousUse": {
+    "description": "Checkbox for ongoing treatment"
+  },
+  "endOptional": "End (Optional)",
+  "@endOptional": {
+    "description": "End date label"
+  },
+  "others": "Others",
+  "@others": {
+    "description": "Other settings section"
+  },
+  "takeWithFood": "Take with food?",
+  "@takeWithFood": {
+    "description": "Checkbox for food requirement"
+  },
+  "requireConfirmation": "Require confirmation?",
+  "@requireConfirmation": {
+    "description": "Checkbox for confirmation prompt"
+  },
+  "requireConfirmationSubtitle": "I will ask if you took it",
+  "@requireConfirmationSubtitle": {
+    "description": "Subtitle explaining confirmation"
+  },
+  "attachmentsPrescriptions": "Attachments (Prescriptions, Instructions)",
+  "@attachmentsPrescriptions": {
+    "description": "Attachments section title"
+  },
+  "smartAgenda": "Smart Agenda",
+  "@smartAgenda": {
+    "description": "Agenda screen title"
+  },
+  "noEventsThisDay": "No events this day",
+  "@noEventsThisDay": {
+    "description": "Empty state for calendar day"
+  },
+  "confirmPayment": "Confirm Payment",
+  "@confirmPayment": {
+    "description": "Action to confirm payment"
+  },
+  "viewDetails": "View Details",
+  "@viewDetails": {
+    "description": "Action to view item details"
+  },
+  "sharePdf": "Share PDF",
+  "@sharePdf": {
+    "description": "Action to share PDF report"
+  },
+  "print": "Print",
+  "@print": {
+    "description": "Action to print"
+  },
+  "noItemsFoundForFilters": "No items found for the selected filters.",
+  "@noItemsFoundForFilters": {
+    "description": "Empty state message for filtered results"
+  },
+  "loginWithGoogle": "Login with Google",
+  "@loginWithGoogle": {
+    "description": "Google sign-in button"
+  },
+  "syncNow": "Sync Now",
+  "@syncNow": {
+    "description": "Manual sync button"
+  },
+  "automaticSync": "Automatic Sync",
+  "@automaticSync": {
+    "description": "Auto-sync toggle title"
+  },
+  "automaticSyncSubtitle": "Sync data every 5 minutes when connected",
+  "@automaticSyncSubtitle": {
+    "description": "Auto-sync toggle subtitle"
+  },
+  "howItWorks": "How does it work?",
+  "@howItWorks": {
+    "description": "FAQ section title"
+  },
+  "mySubscription": "My Subscription",
+  "@mySubscription": {
+    "description": "Subscription screen title"
+  },
+  "upgradeNow": "UPGRADE NOW",
+  "@upgradeNow": {
+    "description": "Upgrade button"
+  },
+  "manageSubscription": "Manage Subscription",
+  "@manageSubscription": {
+    "description": "Manage subscription button"
+  },
+  "restore": "Restore",
+  "@restore": {
+    "description": "Restore purchases button"
+  },
+  "cmdPayBill": "pay bill",
+  "@cmdPayBill": {
+    "description": "Voice command to pay a bill"
+  },
+  "cmdMakePayment": "make payment",
+  "@cmdMakePayment": {
+    "description": "Voice command synonym for payment"
+  },
+  "cmdAddExpense": "add expense",
+  "@cmdAddExpense": {
+    "description": "Voice command to add expense"
+  },
+  "cmdAddIncome": "add income",
+  "@cmdAddIncome": {
+    "description": "Voice command to add income"
+  },
+  "cmdShowBalance": "show balance",
+  "@cmdShowBalance": {
+    "description": "Voice command to display balance"
+  },
+  "cmdStop": "stop",
+  "@cmdStop": {
+    "description": "Voice command to stop listening"
+  },
+  "cmdDone": "done",
+  "@cmdDone": {
+    "description": "Voice command synonym for stop"
+  },
+  "cmdOk": "ok",
+  "@cmdOk": {
+    "description": "Voice command to confirm"
+  },
+  "unsavedPosologyMessage": "There is unsaved posology data. Do you want to exit?",
+  "@unsavedPosologyMessage": {
+    "description": "Posology form unsaved changes warning"
+  },
+  "noAttachments": "No attachments.",
+  "@noAttachments": {
+    "description": "Empty state for attachments list"
+  },
+  "save": "Save",
+  "@save": {
+    "description": "Save button"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button"
+  },
+  "newPosology": "New Posology",
+  "@newPosology": {
+    "description": "Title for new posology screen"
+  },
+  "editPosology": "Edit Posology",
+  "@editPosology": {
+    "description": "Title for edit posology screen"
+  },
+  "quantity": "Quantity",
+  "@quantity": {
+    "description": "Quantity label"
+  },
+  "unit": "Unit",
+  "@unit": {
+    "description": "Unit label"
+  },
+  "frequencyType": "Frequency Type",
+  "@frequencyType": {
+    "description": "Frequency type label"
+  },
+  "intervalHours": "Interval of Hours (e.g., every 8h)",
+  "@intervalHours": {
+    "description": "Interval frequency option"
+  },
+  "fixedTimes": "Fixed Times (e.g., 08:00, 20:00)",
+  "@fixedTimes": {
+    "description": "Fixed times frequency option"
+  },
+  "timesPerDay": "N times per day",
+  "@timesPerDay": {
+    "description": "Times per day frequency option"
+  },
+  "asNeeded": "As needed (SOS)",
+  "@asNeeded": {
+    "description": "As needed frequency option"
+  },
+  "everyHowManyHours": "Every how many hours?",
+  "@everyHowManyHours": {
+    "description": "Interval hours question"
+  },
+  "hours": "hours",
+  "@hours": {
+    "description": "Hours suffix"
+  },
+  "howManyTimesPerDay": "How many times per day?",
+  "@howManyTimesPerDay": {
+    "description": "Times per day question"
+  },
+  "invalid": "Invalid",
+  "@invalid": {
+    "description": "Validation error"
+  },
+  "required": "Required",
+  "@required": {
+    "description": "Required field validation"
+  },
+  "noEndDate": "No end date",
+  "@noEndDate": {
+    "description": "No end date set"
+  },
+  "extraInstructions": "Extra Instructions (e.g., empty stomach)",
+  "@extraInstructions": {
+    "description": "Extra instructions field"
+  },
+  "addTimes": "Add times",
+  "@addTimes": {
+    "description": "Snackbar message to add times"
+  }
+}

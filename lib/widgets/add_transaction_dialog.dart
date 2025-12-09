@@ -36,6 +36,8 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
   String? _selectedSubcategory;
   List<Category> _categories = [];
   String _currentLanguage = 'pt_BR';
+  String _currencySymbol = 'R\$';
+  late NumberFormat _numberFormat;
 
   @override
   void initState() {
@@ -48,6 +50,16 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
     final language = _dbService.getLanguage();
     setState(() {
       _currentLanguage = language;
+      
+      // Normalize locale
+      String locale = language;
+      if (locale == 'en') locale = 'en_US';
+      else if (locale == 'pt_BR') locale = 'pt_BR';
+      else if (locale == 'pt_PT') locale = 'pt_PT';
+      else if (locale == 'es') locale = 'es_ES';
+      
+      _currencySymbol = NumberFormat.simpleCurrency(locale: locale).currencySymbol;
+      _numberFormat = NumberFormat.decimalPattern(locale);
     });
     _loadCategories();
   }
@@ -72,10 +84,19 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
 
   double _calculateTotal() {
     if (!_isInstallment) return 0.0;
-    final downPayment = double.tryParse(_downPaymentController.text.replaceAll(',', '.')) ?? 0.0;
+    final downPayment = _parseLocalizedAmount(_downPaymentController.text);
     final count = int.tryParse(_installmentsCountController.text) ?? 0;
-    final amount = double.tryParse(_installmentAmountController.text.replaceAll(',', '.')) ?? 0.0;
+    final amount = _parseLocalizedAmount(_installmentAmountController.text);
     return downPayment + (count * amount);
+  }
+
+  double _parseLocalizedAmount(String text) {
+    if (text.isEmpty) return 0.0;
+    try {
+      return _numberFormat.parse(text).toDouble();
+    } catch (e) {
+      return 0.0;
+    }
   }
 
   @override
@@ -98,11 +119,11 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
               }
 
               if (_isInstallment) {
-                final downPayment = double.tryParse(_downPaymentController.text.replaceAll(',', '.')) ?? 0.0;
+                final downPayment = _parseLocalizedAmount(_downPaymentController.text);
                 final count = int.tryParse(_installmentsCountController.text);
-                final amount = double.tryParse(_installmentAmountController.text.replaceAll(',', '.'));
+                final amount = _parseLocalizedAmount(_installmentAmountController.text);
 
-                if (count == null || count < 2 || amount == null || amount <= 0) {
+                if (count == null || count < 2 || amount <= 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Dados de parcelamento inválidos')),
                   );
@@ -133,8 +154,8 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                   await _dbService.addTransaction(transaction);
                 }
               } else {
-                final amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
-                if (amount == null) {
+                final amount = _parseLocalizedAmount(_amountController.text);
+                if (amount <= 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(t('invalid_data'))),
                   );
@@ -207,7 +228,7 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                       decoration: InputDecoration(
                         labelText: t('down_payment'),
                         border: const OutlineInputBorder(),
-                        prefixText: 'R\$ ',
+                        prefixText: '$_currencySymbol ',
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       onChanged: (_) => setState(() {}),
@@ -233,14 +254,14 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                 decoration: InputDecoration(
                   labelText: t('installment_amount'),
                   border: const OutlineInputBorder(),
-                  prefixText: 'R\$ ',
+                  prefixText: '$_currencySymbol ',
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 8),
               Text(
-                '${t('total_calculated')} R\$ ${_calculateTotal().toStringAsFixed(2)}',
+                '${t('total_calculated')} $_currencySymbol ${_calculateTotal().toStringAsFixed(2)}',
                 style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
               ),
             ] else
@@ -249,7 +270,7 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                 decoration: InputDecoration(
                   labelText: t('amount'),
                   border: const OutlineInputBorder(),
-                  prefixText: 'R\$ ',
+                  prefixText: '$_currencySymbol ',
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
@@ -272,7 +293,7 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
             Card(
               child: ListTile(
                 title: Text(t('date')),
-                subtitle: Text(DateFormat('dd/MM/yyyy HH:mm', _currentLanguage).format(_selectedDate)),
+                subtitle: Text(DateFormat.yMd(_currentLanguage).add_Hm().format(_selectedDate)),
                 trailing: const Icon(Icons.calendar_today),
                 onTap: () async {
                   final date = await showDatePicker(

@@ -17,8 +17,9 @@ class PdfService {
     List<Transaction> transactions,
     DateTime? startDate,
     DateTime? endDate,
+    String languageCode,
   ) async {
-    final pdf = _buildTransactionsReportPdf(transactions, startDate, endDate);
+    final pdf = _buildTransactionsReportPdf(transactions, startDate, endDate, languageCode);
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
       name: 'relatorio_financeiro_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
@@ -29,21 +30,32 @@ class PdfService {
     List<Transaction> transactions,
     DateTime? startDate,
     DateTime? endDate,
+    String languageCode,
   ) async {
-    final pdf = _buildTransactionsReportPdf(transactions, startDate, endDate);
+    final pdf = _buildTransactionsReportPdf(transactions, startDate, endDate, languageCode);
     final fileName = 'relatorio_financeiro_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
     final file = await _savePdfToTemp(pdf, fileName);
-    await Share.shareXFiles([XFile(file.path)], text: 'Relatório Financeiro - FinAgeVoz');
+    await Share.shareXFiles([XFile(file.path)], text: AppLocalizations.t('financial_report_title', languageCode));
   }
 
   static pw.Document _buildTransactionsReportPdf(
     List<Transaction> transactions,
     DateTime? startDate,
     DateTime? endDate,
+    String languageCode,
   ) {
     final pdf = pw.Document();
-    final currencyFormat = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    final dateFormat = DateFormat('dd/MM/yyyy');
+    
+    // Normalize locale for formatting
+    String locale = languageCode;
+    if (locale == 'en') locale = 'en_US';
+    else if (locale == 'pt_BR') locale = 'pt_BR';
+    else if (locale == 'pt_PT') locale = 'pt_PT';
+    else if (locale == 'es') locale = 'es_ES';
+    
+    final currencyFormat = NumberFormat.simpleCurrency(locale: locale);
+    final dateFormat = DateFormat.yMd(locale);
+    final dateTimeFormat = DateFormat.yMd(locale).add_Hm();
 
     // Calculate totals
     double totalIncome = 0;
@@ -72,10 +84,10 @@ class PdfService {
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Relatório Financeiro', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(AppLocalizations.t('financial_report_title', languageCode), style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
                   pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
-                      pw.Text('FinAgeVoz', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
-                      pw.Text('Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                      pw.Text(AppLocalizations.t('app_title', languageCode), style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                      pw.Text('${AppLocalizations.t('generated_on', languageCode)}${dateTimeFormat.format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
                   ]),
                 ],
               ),
@@ -87,16 +99,16 @@ class PdfService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Período: ${startDate != null ? dateFormat.format(startDate) : "Início"} - ${endDate != null ? dateFormat.format(endDate) : "Hoje"}'),
-                    pw.Text('Total Transações: ${transactions.length}'),
+                    pw.Text('${AppLocalizations.t('period_label', languageCode)}${startDate != null ? dateFormat.format(startDate) : AppLocalizations.t('period_start', languageCode)} - ${endDate != null ? dateFormat.format(endDate) : AppLocalizations.t('period_end', languageCode)}'),
+                    pw.Text('${AppLocalizations.t('total_transactions', languageCode)}${transactions.length}'),
                   ],
                 ),
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
-                    pw.Text('Receitas: ${currencyFormat.format(totalIncome)}', style: const pw.TextStyle(color: PdfColors.green)),
-                    pw.Text('Despesas: ${currencyFormat.format(totalExpense)}', style: const pw.TextStyle(color: PdfColors.red)),
-                    pw.Text('Saldo: ${currencyFormat.format(balance)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Text('${AppLocalizations.t('total_income', languageCode)}${currencyFormat.format(totalIncome)}', style: const pw.TextStyle(color: PdfColors.green)),
+                    pw.Text('${AppLocalizations.t('total_expense', languageCode)}${currencyFormat.format(totalExpense)}', style: const pw.TextStyle(color: PdfColors.red)),
+                    pw.Text('${AppLocalizations.t('balance_label', languageCode)}${currencyFormat.format(balance)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                   ],
                 ),
               ],
@@ -113,7 +125,12 @@ class PdfService {
                 2: pw.Alignment.centerLeft,
                 3: pw.Alignment.centerRight,
               },
-              headers: ['Data', 'Descrição', 'Categoria', 'Valor'],
+              headers: [
+                AppLocalizations.t('table_date', languageCode),
+                AppLocalizations.t('table_description', languageCode),
+                AppLocalizations.t('table_category', languageCode),
+                AppLocalizations.t('table_value', languageCode)
+              ],
               data: transactions.map((t) {
                 return [
                   dateFormat.format(t.date),
@@ -134,8 +151,9 @@ class PdfService {
     List<Event> events,
     DateTime? startDate,
     DateTime? endDate,
+    String languageCode,
   ) async {
-    final pdf = _buildEventsReportPdf(events, startDate, endDate);
+    final pdf = _buildEventsReportPdf(events, startDate, endDate, languageCode);
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
       name: 'agenda_eventos_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
@@ -146,20 +164,31 @@ class PdfService {
     List<Event> events,
     DateTime? startDate,
     DateTime? endDate,
+    String languageCode,
   ) async {
-    final pdf = _buildEventsReportPdf(events, startDate, endDate);
+    final pdf = _buildEventsReportPdf(events, startDate, endDate, languageCode);
     final fileName = 'agenda_eventos_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
     final file = await _savePdfToTemp(pdf, fileName);
-    await Share.shareXFiles([XFile(file.path)], text: 'Relatório de Eventos - FinAgeVoz');
+    await Share.shareXFiles([XFile(file.path)], text: AppLocalizations.t('events_report_title', languageCode));
   }
 
   static pw.Document _buildEventsReportPdf(
     List<Event> events,
     DateTime? startDate,
     DateTime? endDate,
+    String languageCode,
   ) {
     final pdf = pw.Document();
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    
+    // Normalize locale
+    String locale = languageCode;
+    if (locale == 'en') locale = 'en_US';
+    else if (locale == 'pt_BR') locale = 'pt_BR';
+    else if (locale == 'pt_PT') locale = 'pt_PT';
+    else if (locale == 'es') locale = 'es_ES';
+    
+    final dateFormat = DateFormat.yMd(locale).add_Hm();
+    final shortDate = DateFormat.yMd(locale);
 
     pdf.addPage(
       pw.MultiPage(
@@ -171,10 +200,10 @@ class PdfService {
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Agenda de Eventos', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(AppLocalizations.t('events_report_title', languageCode), style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
                   pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
-                      pw.Text('FinAgeVoz', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
-                      pw.Text('Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                      pw.Text(AppLocalizations.t('app_title', languageCode), style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                      pw.Text('${AppLocalizations.t('generated_on', languageCode)}${dateFormat.format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
                   ]),
                 ],
               ),
@@ -183,8 +212,8 @@ class PdfService {
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('Período: ${startDate != null ? DateFormat('dd/MM/yyyy').format(startDate) : "Início"} - ${endDate != null ? DateFormat('dd/MM/yyyy').format(endDate) : "Hoje"}'),
-                pw.Text('Total Eventos: ${events.length}'),
+                pw.Text('${AppLocalizations.t('period_label', languageCode)}${startDate != null ? shortDate.format(startDate) : AppLocalizations.t('period_start', languageCode)} - ${endDate != null ? shortDate.format(endDate) : AppLocalizations.t('period_end', languageCode)}'),
+                pw.Text('${AppLocalizations.t('total_events', languageCode)}${events.length}'),
               ],
             ),
             pw.SizedBox(height: 20),
@@ -199,13 +228,18 @@ class PdfService {
                 2: pw.Alignment.centerLeft,
                 3: pw.Alignment.center,
               },
-              headers: ['Data/Hora', 'Título', 'Descrição', 'Status'],
+              headers: [
+                AppLocalizations.t('table_time', languageCode), 
+                AppLocalizations.t('table_title', languageCode), 
+                AppLocalizations.t('table_description', languageCode), 
+                AppLocalizations.t('status', languageCode)
+              ],
               data: events.map((e) {
                 return [
                   dateFormat.format(e.date),
                   e.title,
                   e.description,
-                  e.isCancelled ? 'Cancelado' : 'Ativo',
+                  e.isCancelled ? AppLocalizations.t('cancelled', languageCode) : AppLocalizations.t('active_events', languageCode).replaceAll(':', ''),
                 ];
               }).toList(),
             ),
@@ -247,7 +281,7 @@ class PdfService {
     final pdf = _buildFinancialChartsPdf(imageBytes, transactions, languageCode);
     final fileName = 'relatorio_graficos_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
     final file = await _savePdfToTemp(pdf, fileName);
-    await Share.shareXFiles([XFile(file.path)], text: 'Relatório Gráfico - FinAgeVoz');
+    await Share.shareXFiles([XFile(file.path)], text: AppLocalizations.t('financial_report_title', languageCode));
   }
 
   static pw.Document _buildFinancialChartsPdf(Uint8List imageBytes, List<Transaction> transactions, String languageCode) {
@@ -268,8 +302,16 @@ class PdfService {
 
     // Subsequent Pages: Transaction List Grouped by Category
     if (transactions.isNotEmpty) {
-      final currencyFormat = NumberFormat.simpleCurrency(locale: languageCode);
-      final dateFormat = DateFormat('dd/MM/yyyy');
+      
+      // Normalize locale
+      String locale = languageCode;
+      if (locale == 'en') locale = 'en_US';
+      else if (locale == 'pt_BR') locale = 'pt_BR';
+      else if (locale == 'pt_PT') locale = 'pt_PT';
+      else if (locale == 'es') locale = 'es_ES';
+
+      final currencyFormat = NumberFormat.simpleCurrency(locale: locale);
+      final dateFormat = DateFormat.yMd(locale);
 
       // Group by category
       final Map<String, List<Transaction>> groupedTransactions = {};
@@ -346,11 +388,6 @@ class PdfService {
                     1: pw.Alignment.centerLeft,
                     2: pw.Alignment.centerRight,
                   },
-                  columnWidths: {
-                    0: const pw.FixedColumnWidth(80),
-                    1: const pw.FlexColumnWidth(),
-                    2: const pw.FixedColumnWidth(100),
-                  },
                   headers: [
                     AppLocalizations.t('table_date', languageCode),
                     AppLocalizations.t('table_description', languageCode),
@@ -420,7 +457,7 @@ class PdfService {
     final pdf = _buildDetailedTransactionsPdf(transactions, currencyFormat, dateFormat, balance, languageCode);
     final fileName = 'transacoes_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
     final file = await _savePdfToTemp(pdf, fileName);
-    await Share.shareXFiles([XFile(file.path)], text: 'Relatório de Transações - FinAgeVoz');
+    await Share.shareXFiles([XFile(file.path)], text: AppLocalizations.t('transactions_report_title', languageCode));
   }
 
   static pw.Document _buildDetailedTransactionsPdf(
@@ -458,7 +495,7 @@ class PdfService {
                   pw.Text(AppLocalizations.t('transactions_report_title', languageCode), style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
                   pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
                       pw.Text(AppLocalizations.t('app_title', languageCode), style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
-                      pw.Text('Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                      pw.Text('${AppLocalizations.t('generated_on', languageCode)}${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
                   ]),
                 ],
               ),
@@ -667,8 +704,9 @@ class PdfService {
     List<AgendaItem> items,
     DateTime? startDate,
     DateTime? endDate,
+    String languageCode,
   ) async {
-    final pdf = _buildAgendaReportPdf(items, startDate, endDate);
+    final pdf = _buildAgendaReportPdf(items, startDate, endDate, languageCode);
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
       name: 'agenda_inteligente_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
@@ -679,21 +717,32 @@ class PdfService {
     List<AgendaItem> items,
     DateTime? startDate,
     DateTime? endDate,
+    String languageCode,
   ) async {
-    final pdf = _buildAgendaReportPdf(items, startDate, endDate);
+    final pdf = _buildAgendaReportPdf(items, startDate, endDate, languageCode);
     final fileName = 'agenda_inteligente_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
     final file = await _savePdfToTemp(pdf, fileName);
-    await Share.shareXFiles([XFile(file.path)], text: 'Relatório Agenda Inteligente - FinAgeVoz');
+    await Share.shareXFiles([XFile(file.path)], text: AppLocalizations.t('agenda_smart_title', languageCode));
   }
 
   static pw.Document _buildAgendaReportPdf(
     List<AgendaItem> items,
     DateTime? startDate,
     DateTime? endDate,
+    String languageCode,
   ) {
     final pdf = pw.Document();
-    final dateFormat = DateFormat('dd/MM/yyyy');
-    final timeFormat = DateFormat('HH:mm');
+    
+    // Normalize locale for formatting
+    String locale = languageCode;
+    if (locale == 'en') locale = 'en_US';
+    else if (locale == 'pt_BR') locale = 'pt_BR';
+    else if (locale == 'pt_PT') locale = 'pt_PT';
+    else if (locale == 'es') locale = 'es_ES';
+
+    final dateFormat = DateFormat('dd/MM/yyyy', locale);
+    final timeFormat = DateFormat('HH:mm', locale);
+    final currencyFormat = NumberFormat.simpleCurrency(locale: locale);
 
     // Group items by type
     final compromissos = items.where((i) => i.tipo == AgendaItemType.COMPROMISSO || i.tipo == AgendaItemType.TAREFA).toList();
@@ -712,12 +761,12 @@ class PdfService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                    pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                      pw.Text('Agenda Inteligente', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                      pw.Text('Relatório Detalhado', style: pw.TextStyle(fontSize: 14)),
+                      pw.Text(AppLocalizations.t('agenda_smart_title', languageCode), style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                      pw.Text(AppLocalizations.t('detailed_report', languageCode), style: pw.TextStyle(fontSize: 14)),
                    ]),
                    pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
-                      pw.Text('FinAgeVoz', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
-                      pw.Text('Gerado em: ${dateFormat.format(DateTime.now())} ${timeFormat.format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                      pw.Text(AppLocalizations.t('app_title', languageCode), style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                      pw.Text('${AppLocalizations.t('generated_on', languageCode)}${dateFormat.format(DateTime.now())} ${timeFormat.format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
                    ]),
                 ],
               ),
@@ -726,20 +775,25 @@ class PdfService {
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('Período: ${startDate != null ? dateFormat.format(startDate) : "Início"} - ${endDate != null ? dateFormat.format(endDate) : "Fim"}'),
-                pw.Text('Total de Itens: ${items.length}'),
+                pw.Text('${AppLocalizations.t('period_label', languageCode)}${startDate != null ? dateFormat.format(startDate) : AppLocalizations.t('period_start', languageCode)} - ${endDate != null ? dateFormat.format(endDate) : AppLocalizations.t('period_end', languageCode)}'),
+                pw.Text('${AppLocalizations.t('total_items', languageCode)}${items.length}'),
               ],
             ),
             pw.SizedBox(height: 20),
             
             // 1. Compromissos e Tarefas
             if (compromissos.isNotEmpty) ...[
-               pw.Header(level: 1, text: "Compromissos e Tarefas"),
+               pw.Header(level: 1, text: AppLocalizations.t('section_appointments', languageCode)),
                pw.Table.fromTextArray(
                   headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
                   headerDecoration: const pw.BoxDecoration(color: PdfColors.blue),
                   cellAlignment: pw.Alignment.centerLeft,
-                  headers: ['Data/Hora', 'Título', 'Descrição', 'Status'],
+                  headers: [
+                    AppLocalizations.t('table_date', languageCode), 
+                    AppLocalizations.t('table_title', languageCode), 
+                    AppLocalizations.t('table_description', languageCode), 
+                    AppLocalizations.t('status', languageCode)
+                  ],
                   data: compromissos.map((i) {
                      String dh = i.dataInicio != null ? dateFormat.format(i.dataInicio!) : "-";
                      if (i.horarioInicio != null) dh += " ${i.horarioInicio}";
@@ -751,12 +805,16 @@ class PdfService {
 
             // 2. Aniversários
             if (aniversarios.isNotEmpty) ...[
-               pw.Header(level: 1, text: "Aniversários"),
+               pw.Header(level: 1, text: AppLocalizations.t('section_birthdays', languageCode)),
                pw.Table.fromTextArray(
                   headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
                   headerDecoration: const pw.BoxDecoration(color: PdfColors.pink),
                   cellAlignment: pw.Alignment.centerLeft,
-                  headers: ['Data', 'Aniversariante', 'Mensagem Padrão'],
+                  headers: [
+                    AppLocalizations.t('table_date', languageCode), 
+                    AppLocalizations.t('birthday_person', languageCode), 
+                    AppLocalizations.t('default_message', languageCode)
+                  ],
                   data: aniversarios.map((i) {
                      String dh = i.dataInicio != null ? dateFormat.format(i.dataInicio!) : "-";
                      return [dh, i.aniversario?.nomePessoa ?? i.titulo, i.aniversario?.mensagemPadrao ?? ''];
@@ -767,12 +825,17 @@ class PdfService {
 
             // 3. Remédios
             if (remedios.isNotEmpty) ...[
-               pw.Header(level: 1, text: "Medicação"),
+               pw.Header(level: 1, text: AppLocalizations.t('section_medication', languageCode)),
                pw.Table.fromTextArray(
                   headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
                   headerDecoration: const pw.BoxDecoration(color: PdfColors.purple),
                   cellAlignment: pw.Alignment.centerLeft,
-                  headers: ['Remédio', 'Horário', 'Dosagem', 'Status'],
+                  headers: [
+                    AppLocalizations.t('medicine_label', languageCode), 
+                    AppLocalizations.t('table_time', languageCode), 
+                    AppLocalizations.t('dosage_label', languageCode), 
+                    AppLocalizations.t('status', languageCode)
+                  ],
                   data: remedios.map((i) {
                      String dh = i.dataInicio != null ? dateFormat.format(i.dataInicio!) : "-";
                      if (i.horarioInicio != null) dh += " ${i.horarioInicio}";
@@ -790,15 +853,20 @@ class PdfService {
 
             // 4. Pagamentos
             if (pagamentos.isNotEmpty) ...[
-               pw.Header(level: 1, text: "Pagamentos"),
+               pw.Header(level: 1, text: AppLocalizations.t('section_payments', languageCode)),
                pw.Table.fromTextArray(
                   headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
                   headerDecoration: const pw.BoxDecoration(color: PdfColors.green),
                   cellAlignment: pw.Alignment.centerLeft,
-                  headers: ['Vencimento', 'Descrição', 'Valor', 'Status'],
+                  headers: [
+                    AppLocalizations.t('due_date', languageCode), 
+                    AppLocalizations.t('table_description', languageCode), 
+                    AppLocalizations.t('table_value', languageCode), 
+                    AppLocalizations.t('status', languageCode)
+                  ],
                   data: pagamentos.map((i) {
                      String dh = i.dataInicio != null ? dateFormat.format(i.dataInicio!) : "-";
-                     final val = i.pagamento != null ? "R\$ ${i.pagamento!.valor.toStringAsFixed(2)}" : "-";
+                     final val = i.pagamento != null ? currencyFormat.format(i.pagamento!.valor) : "-";
                      return [dh, i.titulo, val, i.pagamento?.status ?? 'PENDENTE'];
                   }).toList(),
                ),

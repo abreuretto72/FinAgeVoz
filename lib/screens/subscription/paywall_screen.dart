@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/subscription/subscription_service.dart';
 
 class PaywallScreen extends StatefulWidget {
@@ -215,9 +216,64 @@ class _PaywallScreenState extends State<PaywallScreen> {
                                 ),
                               
                               const SizedBox(height: 20),
+                              
+                              // ✅ CORREÇÃO: Links obrigatórios conforme Google Play Payments Policy 3.2
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  TextButton(
+                                    onPressed: () async {
+                                      final url = Uri.parse('https://abreuretto72.github.io/FinAgeVoz/web_pages/privacy-policy-pt.html');
+                                      if (await canLaunchUrl(url)) {
+                                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                                      } else {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Erro ao abrir link')),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    child: const Text(
+                                      'Política de Privacidade',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                  const Text(' | ', style: TextStyle(color: Colors.white54)),
+                                  TextButton(
+                                    onPressed: () async {
+                                      final url = Uri.parse('https://abreuretto72.github.io/FinAgeVoz/web_pages/terms-of-service-pt.html');
+                                      if (await canLaunchUrl(url)) {
+                                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                                      } else {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Erro ao abrir link')),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    child: const Text(
+                                      'Termos de Uso',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
                               const Text(
-                                'Gerenciado pela Google Play / App Store.',
-                                style: TextStyle(color: Colors.white54, fontSize: 12),
+                                'Assinatura com renovação automática. Cancele a qualquer momento.\n'
+                                'Gerenciado pela Google Play Store.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.white54, fontSize: 11),
                               ),
                               const SizedBox(height: 20),
                             ],

@@ -1523,4 +1523,43 @@ class DatabaseService {
   Future<void> deleteHistoricoTomada(String id) async {
     await _historicoTomadaBox.delete(id);
   }
+
+  // ===== PRIVACY & COMPLIANCE METHODS =====
+  
+  /// Verifica se o usuário aceitou a política de privacidade
+  /// Conforme Google Play Privacy Policy Requirements
+  bool hasAcceptedPrivacy() {
+    return _settingsBox.get('privacy_accepted', defaultValue: false);
+  }
+
+  /// Marca que o usuário aceitou a política de privacidade
+  Future<void> setPrivacyAccepted(bool value) async {
+    await _settingsBox.put('privacy_accepted', value);
+  }
+
+  /// Deleta TODOS os dados do usuário (transações, eventos, medicamentos, etc.)
+  /// Usado para exclusão de conta conforme Google Play Account Deletion Policy
+  /// ATENÇÃO: Esta ação é IRREVERSÍVEL!
+  Future<void> deleteAllData() async {
+    print("DEBUG: Iniciando exclusão completa de dados...");
+    
+    // Limpar todas as boxes
+    await _transactionBox.clear();
+    await _eventBox.clear();
+    await _categoryBox.clear();
+    await _historyBox.clear();
+    await _remedioBox.clear();
+    await _posologiaBox.clear();
+    await _historicoTomadaBox.clear();
+    
+    // Limpar settings (mas manter configuração de idioma se desejar)
+    final currentLanguage = getLanguage();
+    await _settingsBox.clear();
+    await setLanguage(currentLanguage); // Restaurar idioma
+    
+    // Re-seed categorias padrão
+    await _seedCategories();
+    
+    print("DEBUG: Todos os dados foram excluídos.");
+  }
 }

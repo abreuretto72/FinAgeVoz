@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../../models/medicine_model.dart';
 import '../../services/database_service.dart';
 import '../../services/medicine_service.dart';
 import 'medicine_form_screen.dart';
 
+/// Tela de listagem de medicamentos
+/// 
+/// ✅ REFATORADO: Todas as strings agora usam AppLocalizations
 class MedicineListScreen extends StatefulWidget {
   const MedicineListScreen({super.key});
 
@@ -32,9 +36,12 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Obter localizations
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Meus Remédios'),
+        title: Text(l10n.myMedicines),  // ✅ INTERNACIONALIZADO
       ),
       body: _remedios.isEmpty
           ? Center(
@@ -43,11 +50,11 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                 children: [
                    const Icon(Icons.medication_outlined, size: 64, color: Colors.grey),
                    const SizedBox(height: 16),
-                   const Text("Nenhum remédio cadastrado."),
+                   Text(l10n.noMedicinesRegistered),  // ✅ INTERNACIONALIZADO
                    const SizedBox(height: 16),
                    ElevatedButton(
                      onPressed: _navigateToAdd,
-                     child: const Text("Cadastrar Remédio"),
+                     child: Text(l10n.registerMedicine),  // ✅ INTERNACIONALIZADO
                    )
                 ],
               ),
@@ -67,10 +74,6 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
   }
 
   Widget _buildRemedioCard(Remedio remedio) {
-    // Get next dose info
-    // We need to iterate posologias
-    // This might be async or expensive, ideally cache or calculate in loadData
-    // For now simple UI
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
@@ -95,7 +98,6 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
   }
 
   void _navigateToDetail(Remedio remedio) async {
-    // Navigate to detail/edit
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => MedicineFormScreen(remedio: remedio)),

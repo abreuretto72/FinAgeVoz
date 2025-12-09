@@ -222,7 +222,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         break;
       case 'CUSTOM':
         if (_currentFilter.startDate != null && _currentFilter.endDate != null) {
-          filters.add('${DateFormat('dd/MM/yy').format(_currentFilter.startDate!)} - ${DateFormat('dd/MM/yy').format(_currentFilter.endDate!)}');
+          filters.add('${DateFormat.yMd(_currentLanguage).format(_currentFilter.startDate!)} - ${DateFormat.yMd(_currentLanguage).format(_currentFilter.endDate!)}');
         }
         break;
     }
@@ -765,7 +765,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   children: [
                     const SizedBox(height: 4),
                     Text(
-                      '${DateFormat('dd/MM/yyyy').format(transaction.date)} • ${transaction.category}',
+                      '${DateFormat.yMd(_currentLanguage).format(transaction.date)} • ${transaction.category}',
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                     if (transaction.subcategory != null)

@@ -1,0 +1,68 @@
+Privacy Policy - FinAgeVoz
+Last updated: December 09, 2025
+
+Your privacy is our priority. This Privacy Policy describes how the FinAgeVoz application, developed by Multiverso Digital ("we", "our"), collects, uses, and protects your information.
+
+FinAgeVoz operates on a "Freemium" model (free and paid features), without displaying third-party advertising.
+
+1. Information We Collect
+A. Account Data (Synchronization)
+To allow you to access your data across multiple devices, we may collect:
+
+Name and Email Address (via Google Sign-In or Apple ID).
+
+Unique user identifier (User ID).
+
+B. Financial and Health Data (Your Private Data)
+This data is essential for the app's functionality:
+
+Financial: Records of expenses, income, budgets, and categories.
+
+Health: Medication names, dosage schedules, and intake history.
+
+Storage: This data is securely stored in the cloud (Google Firebase) and encrypted in transit. We do not sell, rent, or share this data with third parties for marketing purposes.
+
+C. Voice Data
+The application uses the microphone strictly to convert your voice commands into actions (Speech-to-Text).
+
+Audio is processed and discarded immediately after conversion. No voice recordings are permanently stored on our servers.
+
+D. Technical and Usage Data (Analytics)
+We use Google Firebase Analytics and Crashlytics to improve app stability.
+
+What is collected: Device model, operating system, crash reports, and anonymous usage metrics (e.g., "average time on agenda screen").
+
+Purpose: Identify technical errors and improve usability.
+
+2. Subscriptions and Payments
+FinAgeVoz offers Premium subscriptions.
+
+Processing: All transactions are processed directly by Google Play Store or Apple App Store.
+
+Security: We do not have access to or store your credit card numbers. We only receive technical confirmation that the subscription is active.
+
+3. Your Rights (GDPR and LGPD)
+You have full control over your data:
+
+Right of Access and Correction: You can view and edit your data directly in the application.
+
+Right to Deletion (Right to be Forgotten): You can request complete deletion of your account and all associated data at any time through Settings > Profile > Delete Account.
+
+Consent Revocation: You can revoke access to the microphone or notifications in your device settings.
+
+4. Data Sharing
+We share strictly necessary data only with our secure infrastructure providers:
+
+Google Firebase: For database and authentication.
+
+Google Play/Apple: For subscription management.
+
+5. Children's Privacy
+FinAgeVoz is not directed at children under 13 years of age. We do not intentionally collect data from children.
+
+6. Contact
+For privacy-related questions or to exercise your rights:
+
+Responsible: Belisario Retto de Abreu
+
+Email: abreu@multiversodigital.com.br

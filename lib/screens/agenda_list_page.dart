@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
+import '../utils/localization.dart';
 
 import '../models/agenda_models.dart';
 import '../models/medicine_model.dart';
@@ -25,6 +26,8 @@ class _AgendaListPageState extends State<AgendaListPage> {
   final repo = AgendaRepository();
   final MedicineService _medService = MedicineService();
   final DatabaseService _db = DatabaseService();
+
+  String get _currentLanguage => Localizations.localeOf(context).toString();
 
   void _handleMedicineAction(AgendaItem item) {
     if (item.remedio == null || item.remedio!.id == null) return;
@@ -85,7 +88,7 @@ class _AgendaListPageState extends State<AgendaListPage> {
             ListTile(
               leading: const Icon(Icons.check_circle, color: Colors.green),
               title: const Text('Confirmar Pagamento'),
-              subtitle: Text('R\$ ${item.pagamento!.valor.toStringAsFixed(2)}'),
+              subtitle: Text(NumberFormat.simpleCurrency(locale: Localizations.localeOf(context).toString()).format(item.pagamento!.valor)),
               onTap: () async {
                  Navigator.pop(ctx);
                  await _db.markTransactionAsPaid(item.pagamento!.transactionId!, DateTime.now());
@@ -212,7 +215,7 @@ class _AgendaListPageState extends State<AgendaListPage> {
                     // Date Range
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text("Início: ${DateFormat('dd/MM/yyyy').format(startDate!)}"),
+                      title: Text("Início: ${DateFormat.yMd(Localizations.localeOf(context).toString()).format(startDate!)}"),
                       trailing: const Icon(Icons.calendar_today, size: 20),
                       onTap: () async {
                          final d = await showDatePicker(context: context, initialDate: startDate!, firstDate: DateTime(2020), lastDate: DateTime(2030));
@@ -221,7 +224,7 @@ class _AgendaListPageState extends State<AgendaListPage> {
                     ),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text("Fim: ${DateFormat('dd/MM/yyyy').format(endDate!)}"),
+                      title: Text("Fim: ${DateFormat.yMd(Localizations.localeOf(context).toString()).format(endDate!)}"),
                       trailing: const Icon(Icons.calendar_today, size: 20),
                       onTap: () async {
                          final d = await showDatePicker(context: context, initialDate: endDate!, firstDate: DateTime(2020), lastDate: DateTime(2030));
@@ -304,7 +307,7 @@ class _AgendaListPageState extends State<AgendaListPage> {
                                     title: const Text('Compartilhar PDF'),
                                     onTap: () async {
                                        Navigator.pop(ctx);
-                                       await PdfService.shareAgendaReport(items, start, end);
+                                       await PdfService.shareAgendaReport(items, start, end, _currentLanguage);
                                     },
                                   ),
                                   ListTile(
@@ -312,7 +315,7 @@ class _AgendaListPageState extends State<AgendaListPage> {
                                     title: const Text('Imprimir'),
                                     onTap: () async {
                                        Navigator.pop(ctx);
-                                       await PdfService.generateAgendaReport(items, start, end);
+                                       await PdfService.generateAgendaReport(items, start, end, _currentLanguage);
                                     },
                                   )
                                ]
@@ -447,7 +450,7 @@ class _AgendaListPageState extends State<AgendaListPage> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
                       child: Text(
-                        _getDateHeader(date),
+                        _getDateHeader(date, _currentLanguage),
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
                       ),
                     ),
@@ -519,7 +522,7 @@ class _AgendaListPageState extends State<AgendaListPage> {
 
     if (item.dataInicio != null) {
       final d = item.dataInicio!;
-      buffer.write('${d.day}/${d.month}/${d.year}');
+      buffer.write(DateFormat.yMd(Localizations.localeOf(context).toString()).format(d));
     }
 
     if (item.horarioInicio != null) {
@@ -529,8 +532,8 @@ class _AgendaListPageState extends State<AgendaListPage> {
 
     if (item.tipo == AgendaItemType.PAGAMENTO && item.pagamento != null) {
       if (buffer.isNotEmpty) buffer.write(' • ');
-      buffer.write(
-          'R\$ ${item.pagamento!.valor.toStringAsFixed(2)} (${item.pagamento!.status})');
+      final currency = NumberFormat.simpleCurrency(locale: Localizations.localeOf(context).toString()).format(item.pagamento!.valor);
+      buffer.write('$currency (${item.pagamento!.status})');
     }
 
     if (item.remedio != null) {
@@ -549,15 +552,15 @@ class _AgendaListPageState extends State<AgendaListPage> {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
-  String _getDateHeader(DateTime d) {
+  String _getDateHeader(DateTime d, String locale) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = today.add(const Duration(days: 1));
     final check = DateTime(d.year, d.month, d.day);
 
-    if (check.isAtSameMomentAs(today)) return "Hoje";
-    if (check.isAtSameMomentAs(tomorrow)) return "Amanhã";
-    return DateFormat('EEEE, d MMM', 'pt_BR').format(d);
+    if (check.isAtSameMomentAs(today)) return AppLocalizations.t('today', locale);
+    if (check.isAtSameMomentAs(tomorrow)) return AppLocalizations.t('tomorrow', locale);
+    return DateFormat('EEEE, d MMM', locale).format(d);
   }
   DateTime _getNextBirthday(DateTime? birthDate) {
     if (birthDate == null) return DateTime(2100);

@@ -26,17 +26,31 @@ class _AdvancedFiltersDialogState extends State<AdvancedFiltersDialog> {
   final TextEditingController _minValueController = TextEditingController();
   final TextEditingController _maxValueController = TextEditingController();
 
+  String _currencySymbol = 'R\$';
+  late NumberFormat _numberFormat;
+
   @override
   void initState() {
     super.initState();
     _filter = widget.initialFilter;
+
+    // Normalize locale
+    String locale = widget.currentLanguage;
+    if (locale == 'en') locale = 'en_US';
+    else if (locale == 'pt_BR') locale = 'pt_BR';
+    else if (locale == 'pt_PT') locale = 'pt_PT';
+    else if (locale == 'es') locale = 'es_ES';
+    
+    _currencySymbol = NumberFormat.simpleCurrency(locale: locale).currencySymbol;
+    _numberFormat = NumberFormat.decimalPattern(locale);
+
     _loadCategories();
     
     if (_filter.minValue != null) {
-      _minValueController.text = _filter.minValue!.toStringAsFixed(2);
+      _minValueController.text = _numberFormat.format(_filter.minValue);
     }
     if (_filter.maxValue != null) {
-      _maxValueController.text = _filter.maxValue!.toStringAsFixed(2);
+      _maxValueController.text = _numberFormat.format(_filter.maxValue);
     }
   }
 
@@ -49,6 +63,15 @@ class _AdvancedFiltersDialogState extends State<AdvancedFiltersDialog> {
   }
 
   String t(String key) => AppLocalizations.t(key, widget.currentLanguage);
+
+  double? _parseLocalizedAmount(String text) {
+    if (text.isEmpty) return null;
+    try {
+      return _numberFormat.parse(text).toDouble();
+    } catch (e) {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +201,7 @@ class _AdvancedFiltersDialogState extends State<AdvancedFiltersDialog> {
                   title: Text(t('start_date'), style: const TextStyle(fontSize: 12)),
                   subtitle: Text(
                     _filter.startDate != null
-                        ? DateFormat('dd/MM/yyyy').format(_filter.startDate!)
+                        ? DateFormat.yMd(widget.currentLanguage).format(_filter.startDate!)
                         : t('select'),
                   ),
                   trailing: const Icon(Icons.calendar_today, size: 20),
@@ -202,7 +225,7 @@ class _AdvancedFiltersDialogState extends State<AdvancedFiltersDialog> {
                   title: Text(t('end_date'), style: const TextStyle(fontSize: 12)),
                   subtitle: Text(
                     _filter.endDate != null
-                        ? DateFormat('dd/MM/yyyy').format(_filter.endDate!)
+                        ? DateFormat.yMd(widget.currentLanguage).format(_filter.endDate!)
                         : t('select'),
                   ),
                   trailing: const Icon(Icons.calendar_today, size: 20),
@@ -360,12 +383,12 @@ class _AdvancedFiltersDialogState extends State<AdvancedFiltersDialog> {
                 controller: _minValueController,
                 decoration: InputDecoration(
                   labelText: t('min_value'),
-                  prefixText: 'R\$ ',
+                  prefixText: '$_currencySymbol ',
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (value) {
-                  final parsed = double.tryParse(value.replaceAll(',', '.'));
+                  final parsed = _parseLocalizedAmount(value);
                   _filter = _filter.copyWith(minValue: parsed);
                 },
               ),
@@ -376,12 +399,12 @@ class _AdvancedFiltersDialogState extends State<AdvancedFiltersDialog> {
                 controller: _maxValueController,
                 decoration: InputDecoration(
                   labelText: t('max_value'),
-                  prefixText: 'R\$ ',
+                  prefixText: '$_currencySymbol ',
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (value) {
-                  final parsed = double.tryParse(value.replaceAll(',', '.'));
+                  final parsed = _parseLocalizedAmount(value);
                   _filter = _filter.copyWith(maxValue: parsed);
                 },
               ),

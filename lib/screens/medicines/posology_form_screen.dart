@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/medicine_model.dart';
@@ -104,14 +105,15 @@ class _PosologyFormScreenState extends State<PosologyFormScreen> {
       onPopInvoked: (didPop) async {
         if (didPop) return;
         if (_hasUnsavedChanges()) {
+           final l10n = AppLocalizations.of(context)!;
            final confirm = await showDialog<bool>(
               context: context,
               builder: (ctx) => AlertDialog(
-                 title: const Text('Descartar alterações?'),
-                 content: const Text('Existem dados não salvos da posologia. Deseja sair?'),
+                 title: Text(l10n.discardChanges),
+                 content: Text(l10n.unsavedPosologyMessage),
                  actions: [
-                    TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.pop(ctx, false)),
-                    TextButton(child: const Text('Sair'), onPressed: () => Navigator.pop(ctx, true)),
+                    TextButton(child: Text(l10n.cancel), onPressed: () => Navigator.pop(ctx, false)),
+                    TextButton(child: Text(l10n.exit), onPressed: () => Navigator.pop(ctx, true)),
                  ]
               )
            );
@@ -122,7 +124,7 @@ class _PosologyFormScreenState extends State<PosologyFormScreen> {
       },
       child: Scaffold(
       appBar: AppBar(
-        title: Text(widget.posologia == null ? 'Nova Posologia' : 'Editar Posologia'),
+        title: Text(widget.posologia == null ? AppLocalizations.of(context)!.newPosology : AppLocalizations.of(context)!.editPosology),
         actions: [
           IconButton(icon: const Icon(Icons.save), onPressed: _save)
         ],
@@ -135,25 +137,31 @@ class _PosologyFormScreenState extends State<PosologyFormScreen> {
             padding: const EdgeInsets.only(bottom: 80),
             child: Column(
              crossAxisAlignment: CrossAxisAlignment.start,
-             children: [
-               const Text("Dose", style: TextStyle(fontWeight: FontWeight.bold)),
+              children: [
+               Builder(
+                 builder: (context) => Text(AppLocalizations.of(context)!.dose, style: const TextStyle(fontWeight: FontWeight.bold))
+               ),
                Row(
                  children: [
                     Expanded(
-                      child: TextFormField(
-                        controller: _qtdController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Quantidade'),
-                        validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+                      child: Builder(
+                        builder: (context) => TextFormField(
+                          controller: _qtdController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(labelText: AppLocalizations.of(context)!.quantity),
+                          validator: (v) => v!.isEmpty ? AppLocalizations.of(context)!.required : null,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _unidadeDose,
-                        items: _unidades.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
-                        onChanged: (v) => setState(() => _unidadeDose = v!),
-                        decoration: const InputDecoration(labelText: 'Unidade'),
+                      child: Builder(
+                        builder: (context) => DropdownButtonFormField<String>(
+                          value: _unidadeDose,
+                          items: _unidades.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                          onChanged: (v) => setState(() => _unidadeDose = v!),
+                          decoration: InputDecoration(labelText: AppLocalizations.of(context)!.unit),
+                        ),
                       ),
                     )
                  ],

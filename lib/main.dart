@@ -4,12 +4,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'l10n/app_localizations.dart';
 import 'models/transaction_model.dart';
 import 'models/event_model.dart';
 import 'models/category_model.dart';
 import 'models/operation_history.dart';
 import 'models/medicine_model.dart';
 import 'services/database_service.dart';
+import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/auth_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -70,7 +72,7 @@ void main() async {
   } catch(e) { print("DEBUG: Env load failed: $e"); }
   
   // Initialize Date Formatting
-  await initializeDateFormatting('pt_BR', null);
+  await initializeDateFormatting(null, null);
   print("DEBUG: Date formatting initialized");
 
   // Initialize External Services with Timeout Protection
@@ -131,6 +133,7 @@ class FinAgeVozApp extends StatelessWidget {
             Locale('bn', ''),
           ],
           localizationsDelegates: const [
+            AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
@@ -146,9 +149,8 @@ class FinAgeVozApp extends StatelessWidget {
             scaffoldBackgroundColor: const Color(0xFF121212),
             fontFamily: 'Roboto',
           ),
-          home: DatabaseService().getAppLockEnabled() 
-              ? const AuthScreen() 
-              : const HomeScreen(),
+          // ✅ Usar SplashScreen para verificar privacidade
+          home: const SplashScreen(),
         );
       },
     );

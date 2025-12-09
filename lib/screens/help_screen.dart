@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/localization.dart';
 
-class HelpScreen extends StatelessWidget {
+class HelpScreen extends StatefulWidget {
   const HelpScreen({super.key});
+
+  @override
+  State<HelpScreen> createState() => _HelpScreenState();
+}
+
+class _HelpScreenState extends State<HelpScreen> {
+
+  String get _currentLanguage => Localizations.localeOf(context).toString();
+
+  String t(String key) => AppLocalizations.t(key, _currentLanguage);
 
   Future<void> _openWhatsApp(BuildContext context) async {
     const phoneNumber = '5511999999999'; 
-    const message = 'Olá, preciso de ajuda com o FinAgeVoz.';
+    final message = t('whatsapp_message');
     final url = Uri.parse('https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}');
     
     try {
@@ -15,14 +26,14 @@ class HelpScreen extends StatelessWidget {
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Não foi possível abrir o WhatsApp.')),
+             SnackBar(content: Text(t('whatsapp_error'))),
           );
         }
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao abrir WhatsApp: $e')),
+          SnackBar(content: Text('${t('error')}: $e')),
         );
       }
     }
@@ -34,22 +45,22 @@ class HelpScreen extends StatelessWidget {
       length: 5,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Manual do Usuário'),
+          title: Text(t('help_manual_title')),
           actions: [
             IconButton(
               icon: const Icon(Icons.support_agent),
               onPressed: () => _openWhatsApp(context),
-              tooltip: "Falar com Suporte",
+              tooltip: t('help_support_tooltip'),
             )
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
             tabs: [
-              Tab(text: "Comandos"),
-              Tab(text: "Transações"),
-              Tab(text: "Agenda"),
-              Tab(text: "API"),
-              Tab(text: "Limites"),
+              Tab(text: t('help_tab_commands')),
+              Tab(text: t('help_tab_transactions')),
+              Tab(text: t('help_tab_agenda')),
+              Tab(text: t('help_tab_api')),
+              Tab(text: t('help_tab_limits')),
             ],
           ),
         ),
@@ -72,26 +83,26 @@ class HelpScreen extends StatelessWidget {
        padding: const EdgeInsets.fromLTRB(16, 16, 16, 150),
        children: [
           _buildInfoCard(
-            "Como falar?", 
-            "Toque no botão de microfone na tela inicial e fale naturalmente. O app usa Inteligência Artificial para entender sua intenção.",
+            t('help_how_to_speak_title'), 
+            t('help_how_to_speak_desc'),
             icon: Icons.mic
           ),
-          _buildSectionHeader("Exemplos Práticos"),
+          _buildSectionHeader(t('help_section_examples')),
           _buildHelpItem(
-            "Adicionar Finanças", 
-            "• 'Gastei 50 reais na padaria'\n• 'Recebi 1000 reais de aluguel'\n• 'Compra parcelada em 3x de 200 reais no cartão'",
+            t('help_add_finance_title'), 
+            t('help_add_finance_desc'),
           ),
           _buildHelpItem(
-            "Adicionar Eventos", 
-            "• 'Consulta médica dia 15 às 14 horas'\n• 'Almoço com a mãe domingo'\n• 'Lembrete de tomar remédio todo dia às 8 da manhã'",
+            t('help_add_event_title'), 
+            t('help_add_event_desc'),
           ),
           _buildHelpItem(
-            "Consultas (Query)", 
-            "• 'Quanto gastei com mercado este mês?'\n• 'Tenho algum médico marcado esta semana?'\n• 'Qual meu saldo atual?'",
+            t('help_queries_title'), 
+            t('help_queries_desc'),
           ),
           _buildHelpItem(
-            "Navegação e Ações", 
-            "• 'Ligar para João'\n• 'Abrir Agenda'\n• 'Ir para Finanças'",
+            t('help_nav_actions_title'), 
+            t('help_nav_actions_desc'),
           ),
        ],
      );
@@ -103,26 +114,26 @@ class HelpScreen extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 150),
       children: [
         _buildInfoCard(
-            "Gestão Financeira", 
-            "Controle completo de suas receitas e despesas com suporte a categorias, parcelamentos e relatórios.",
+            t('help_finance_mgmt_title'), 
+            t('help_finance_mgmt_desc'),
             icon: Icons.attach_money
         ),
-        _buildSectionHeader("Funcionalidades"),
+        _buildSectionHeader(t('help_section_features')),
         _buildHelpItem(
-          "Lançamentos", 
-          "Registre gastos e ganhos. Você pode categorizar cada item (Alimentação, Transporte, Saúde, etc).",
+          t('help_entries_title'), 
+          t('help_entries_desc'),
         ),
         _buildHelpItem(
-          "Parcelamentos Inteligentes", 
-          "Ao lançar uma despesa parcelada (ex: 'Compra de TV em 10x'), o app cria automaticamente as previsões futuras. O saldo é ajustado mês a mês.",
+          t('help_smart_installments_title'), 
+          t('help_smart_installments_desc'),
         ),
         _buildHelpItem(
-          "Imobilizado", 
-          "Use a categoria 'Imobilizado' para registrar bens de valor durável, como compra e venda de imóveis ou veículos.",
+          t('help_fixed_assets_title'), 
+          t('help_fixed_assets_desc'),
         ),
         _buildHelpItem(
-          "Relatórios Gráficos", 
-          "Na tela de Finanças, toque em 'Relatórios' para ver gráficos de pizza e evolução mensal, além de exportar extratos em PDF.",
+          t('help_graphic_reports_title'), 
+          t('help_graphic_reports_desc'),
         ),
       ],
     );
@@ -134,33 +145,37 @@ class HelpScreen extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 150),
       children: [
         _buildInfoCard(
-            "Agenda Inteligente", 
-            "Sua agenda reúne 4 tipos de itens: Compromissos, Aniversários, Remédios e Pagamentos.",
+            t('help_smart_agenda_title'), 
+            t('help_smart_agenda_desc'),
             icon: Icons.calendar_month
         ),
-        _buildSectionHeader("Funcionalidades de Agenda"),
+        _buildSectionHeader(t('help_section_agenda_features')),
         _buildHelpItem(
-          "Abas Organizadoras", 
-          "Navegue pelas abas no topo para ver listas específicas (ex: só Aniversários ou só Pagamentos).",
+          t('help_tabs_organization_title'), 
+          t('help_tabs_organization_desc'),
         ),
         _buildHelpItem(
-          "Relatórios PDF", 
-          "Toque no ícone PDF no topo da agenda. Você pode filtrar por data e tipo de item para gerar relatórios detalhados.",
+          t('help_pdf_reports_title'), 
+          t('help_pdf_reports_desc'),
         ),
         _buildHelpItem(
-          "Eventos Virtuais", 
-          "Parcelas de compras e horários de remédios são gerados automaticamente na agenda para visualização diária.",
+          t('help_virtual_events_title'), 
+          t('help_virtual_events_desc'),
         ),
         
         const Divider(height: 40),
-        _buildSectionHeader("Sáude & Remédios"),
+        _buildSectionHeader(t('help_section_health')),
         _buildHelpItem(
-          "Cadastro e Controle", 
-          "Cadastre remédios com foto, dosagem e estoque. O app avisa quando o remédio estiver acabando.",
+          t('help_health_control_title'), 
+          t('help_health_control_desc'),
         ),
         _buildHelpItem(
-          "Posologia", 
-          "Defina intervalos (ex: 8 em 8 horas). O app calcula e notifica todos os horários futuros.",
+          t('help_posology_title'), 
+          t('help_posology_desc'),
+        ),
+        _buildHelpItem(
+          t('help_medication_reminders_title'), 
+          t('help_medication_reminders_desc'),
         ),
       ],
     );
@@ -172,22 +187,22 @@ class HelpScreen extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 150),
       children: [
         _buildInfoCard(
-            "Integração IA", 
-            "O FinAgeVoz utiliza a poderosa API da Groq para entender seus comandos de voz com precisão.",
+            t('help_ai_integration_title'), 
+            t('help_ai_integration_desc'),
             icon: Icons.api
         ),
-        _buildSectionHeader("Configuração"),
+        _buildSectionHeader(t('help_section_config')),
         _buildHelpItem(
-          "Chave de API (API Key)", 
-          "Para o funcionamento dos comandos de voz inteligentes, é necessário configurar uma chave da Groq API nas Configurações do app.",
+          t('help_api_key_config_title'), 
+          t('help_api_key_config_desc'),
         ),
         _buildHelpItem(
-          "Privacidade", 
-          "Seus comandos de texto são enviados para a API apenas para processamento de linguagem natural. Nenhum dado financeiro sensível é armazenado nos servidores da IA.",
+          t('help_privacy_title'), 
+          t('help_privacy_desc'),
         ),
         _buildHelpItem(
-          "Backup na Nuvem", 
-          "Usuários Premium têm seus dados sincronizados de forma segura na nuvem (Firebase), permitindo acesso em múltiplos dispositivos.",
+          t('help_cloud_backup_title'), 
+          t('help_cloud_backup_desc'),
         ),
       ],
     );
@@ -199,51 +214,51 @@ class HelpScreen extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 150),
       children: [
         _buildInfoCard(
-            "Planos e Limites", 
-            "Entenda as diferenças entre o uso Gratuito e o Plano Premium.",
+            t('help_plans_limits_title'), 
+            t('help_plans_limits_desc'),
             icon: Icons.lock_open
         ),
-        _buildSectionHeader("Comparativo"),
+        _buildSectionHeader(t('help_section_compare')),
         Card(
           child: Table(
             border: TableBorder.all(color: Colors.grey.shade300),
-            children: const [
+            children: [
                TableRow(
-                 decoration: BoxDecoration(color: Colors.grey),
+                 decoration: const BoxDecoration(color: Colors.grey),
                  children: [
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Recurso", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Gratuito", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Premium", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amberAccent))),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_resource'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_free'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_premium'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amberAccent))),
                  ]
                ),
                TableRow(children: [
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Comandos de Voz")),
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Limitado (50/mês)")),
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Ilimitado")),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_voice_cmds'))),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_voice_limit'))),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_unlimited'))),
                ]),
                TableRow(children: [
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Backup Nuvem")),
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Não")),
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Sim")),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_cloud_backup'))),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_no'))),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_yes'))),
                ]),
                TableRow(children: [
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Relatórios PDF")),
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Básico")),
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Avançado")),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_pdf_reports'))),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_basic'))),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_advanced'))),
                ]),
                TableRow(children: [
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Anexos")),
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("50 MB")),
-                   Padding(padding: EdgeInsets.all(8.0), child: Text("Ilimitado")),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_attachments'))),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_50mb'))),
+                   Padding(padding: const EdgeInsets.all(8.0), child: Text(t('help_table_unlimited'))),
                ]),
             ],
           ),
         ),
         const SizedBox(height: 20),
-        const Center(
+        Center(
           child: Text(
-            'Versão 1.2.0',
-            style: TextStyle(color: Colors.grey),
+            t('about_version'),
+            style: const TextStyle(color: Colors.grey),
           ),
         ),
       ],

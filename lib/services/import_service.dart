@@ -22,7 +22,7 @@ class ImportService {
     tz.initializeTimeZones();
   }
 
-  Future<int> importTransactions() async {
+  Future<int> importTransactions(String languageCode) async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -63,7 +63,7 @@ class ImportService {
           final valueStr = row[4].toString();
 
           final date = _parseDate(dateStr);
-          final amount = _parseAmount(valueStr);
+          final amount = _parseAmount(valueStr, languageCode);
 
           if (date != null && amount != null) {
             final transaction = Transaction(
@@ -108,14 +108,40 @@ class ImportService {
     return null;
   }
 
-  double? _parseAmount(String valueStr) {
+  double? _parseAmount(String valueStr, String languageCode) {
     try {
-      // Remove currency symbols and fix decimal separator
-      String cleanValue = valueStr
-          .replaceAll('R\$', '')
-          .replaceAll(' ', '')
-          .replaceAll('.', '') // Remove thousands separator
-          .replaceAll(',', '.'); // Replace decimal separator
+      // Normalize locale
+      String locale = languageCode;
+      if (locale == 'en') locale = 'en_US';
+      else if (locale == 'pt_BR') locale = 'pt_BR';
+      else if (locale == 'pt_PT') locale = 'pt_PT';
+      else if (locale == 'es') locale = 'es_ES';
+
+      final format = NumberFormat.simpleCurrency(locale: locale);
+      final decimalPattern = NumberFormat.decimalPattern(locale);
+
+      // Clean string
+      String cleanValue = valueStr.trim().replaceAll(format.currencySymbol, '').trim();
+      
+      // Attempt 1: Use NumberFormat directly
+      try {
+        return format.parse(cleanValue).toDouble();
+      } catch (_) {}
+
+      try {
+         return decimalPattern.parse(cleanValue).toDouble();
+      } catch (_) {}
+      
+      // Attempt 2: Heuristic cleanup if standard parse fails (e.g. weird spaces or non-standard formats)
+      // This fallback logic mimics the manual replacement but might be safer if we check the locale first.
+      
+      if (locale.startsWith('pt') || locale.startsWith('es') || locale.startsWith('de') || locale.startsWith('it') || locale.startsWith('fr')) {
+          // Comma as decimal
+          cleanValue = cleanValue.replaceAll('.', '').replaceAll(',', '.');
+      } else {
+          // Dot as decimal (remove commas)
+          cleanValue = cleanValue.replaceAll(',', '');
+      }
       
       return double.tryParse(cleanValue);
     } catch (e) {

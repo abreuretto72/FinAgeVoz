@@ -28,13 +28,21 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
   late String _selectedCategory;
   String? _selectedSubcategory;
   List<Category> _categories = [];
+  late NumberFormat _numberFormat;
 
   @override
   void initState() {
     super.initState();
+    String locale = widget.currentLanguage;
+    if (locale == 'en') locale = 'en_US';
+    else if (locale == 'pt_BR') locale = 'pt_BR';
+    else if (locale == 'pt_PT') locale = 'pt_PT';
+    else if (locale == 'es') locale = 'es_ES';
+    _numberFormat = NumberFormat.decimalPattern(locale);
+
     _descriptionController = TextEditingController(text: widget.transaction.description);
     // Show absolute amount for editing, handle sign on save
-    _amountController = TextEditingController(text: widget.transaction.amount.abs().toString());
+    _amountController = TextEditingController(text: _numberFormat.format(widget.transaction.amount.abs()));
     _isExpense = widget.transaction.isExpense;
     _selectedDate = widget.transaction.date;
     _selectedCategory = widget.transaction.category;
@@ -43,6 +51,15 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
   }
 
   String t(String key) => AppLocalizations.t(key, widget.currentLanguage);
+
+  double? _parseLocalizedAmount(String text) {
+    if (text.isEmpty) return null;
+    try {
+      return _numberFormat.parse(text).toDouble();
+    } catch (e) {
+      return null;
+    }
+  }
 
   Future<void> _loadCategories() async {
     await widget.dbService.init();
@@ -85,7 +102,7 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
           const SizedBox(height: 16),
           ListTile(
             title: Text(t('date')),
-            subtitle: Text(DateFormat('dd/MM/yyyy HH:mm', widget.currentLanguage).format(_selectedDate)),
+            subtitle: Text(DateFormat.yMd(widget.currentLanguage).add_Hm().format(_selectedDate)),
             trailing: const Icon(Icons.calendar_today),
             onTap: () async {
               final date = await showDatePicker(
@@ -156,7 +173,7 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
         ),
         TextButton(
           onPressed: () {
-            final amount = double.tryParse(_amountController.text);
+            final amount = _parseLocalizedAmount(_amountController.text);
             if (amount == null || _descriptionController.text.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(t('invalid_data'))),

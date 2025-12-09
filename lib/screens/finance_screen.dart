@@ -227,8 +227,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
     buffer.writeln("");
 
     double total = 0;
-    final dateFormat = DateFormat('dd/MM/yyyy');
-    final currencyFormat = NumberFormat.simpleCurrency(locale: 'pt_BR');
+    final dateFormat = DateFormat.yMd(_currentLanguage);
+    final currencyFormat = NumberFormat.simpleCurrency(locale: _currentLanguage);
 
     for (var t in selectedTransactions) {
       buffer.writeln("📅 ${dateFormat.format(t.date)}");
@@ -280,7 +280,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
     else if (locale == 'id') locale = 'id_ID';
 
     final currencyFormat = NumberFormat.simpleCurrency(locale: locale);
-    final dateFormat = DateFormat('dd/MM/yyyy', locale);
+    final dateFormat = DateFormat.yMd(locale);
 
     return Scaffold(
       appBar: AppBar(

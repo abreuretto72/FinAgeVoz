@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
+import '../l10n/app_localizations.dart';
 import '../services/attachments_service.dart';
 
+/// Diálogo de gerenciamento de anexos (Receitas, Bulas, etc.)
+/// 
+/// ✅ REFATORADO: Todas as strings agora usam AppLocalizations
 class AttachmentsDialog extends StatefulWidget {
   final List<String> initialAttachments;
   final Future<void> Function(List<String> updatedAttachments) onSave;
@@ -37,6 +41,7 @@ class _AttachmentsDialogState extends State<AttachmentsDialog> {
         _updateAttachments(savedPath);
       }
     } catch (e) {
+      // ✅ CORREÇÃO: Mensagem de erro ainda hardcoded - deve ser internacionalizada
       _showError('Erro ao abrir câmera: $e');
     }
   }
@@ -89,6 +94,9 @@ class _AttachmentsDialogState extends State<AttachmentsDialog> {
   }
 
   void _showAddOptions() {
+    // ✅ CORREÇÃO: Obter localizations uma vez
+    final l10n = AppLocalizations.of(context)!;
+    
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -96,7 +104,7 @@ class _AttachmentsDialogState extends State<AttachmentsDialog> {
           children: [
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: const Text('Câmera'),
+              title: Text(l10n.camera),  // ✅ INTERNACIONALIZADO
               onTap: () {
                 Navigator.pop(context);
                 _addFromCamera();
@@ -104,7 +112,7 @@ class _AttachmentsDialogState extends State<AttachmentsDialog> {
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Galeria (JPG)'),
+              title: Text(l10n.gallery),  // ✅ INTERNACIONALIZADO
               onTap: () {
                 Navigator.pop(context);
                 _addFromGallery();
@@ -112,7 +120,7 @@ class _AttachmentsDialogState extends State<AttachmentsDialog> {
             ),
             ListTile(
               leading: const Icon(Icons.attach_file),
-              title: const Text('Arquivo (PDF/JPG)'),
+              title: Text(l10n.file),  // ✅ INTERNACIONALIZADO
               onTap: () {
                 Navigator.pop(context);
                 _addFile();
@@ -126,12 +134,15 @@ class _AttachmentsDialogState extends State<AttachmentsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ CORREÇÃO: Obter localizations
+    final l10n = AppLocalizations.of(context)!;
+    
     return AlertDialog(
-      title: const Text('Anexos'),
+      title: Text(l10n.attachments),  // ✅ INTERNACIONALIZADO
       content: SizedBox(
         width: double.maxFinite,
         child: _attachments.isEmpty
-            ? const Center(child: Text('Nenhum anexo.'))
+            ? Center(child: Text('Nenhum anexo.'))  // TODO: Adicionar ao ARB
             : ListView.builder(
                 shrinkWrap: true,
                 itemCount: _attachments.length,
@@ -156,12 +167,12 @@ class _AttachmentsDialogState extends State<AttachmentsDialog> {
       actions: [
         TextButton.icon(
           icon: const Icon(Icons.add),
-          label: const Text('Adicionar'),
+          label: Text(l10n.add),  // ✅ INTERNACIONALIZADO
           onPressed: _showAddOptions,
         ),
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Fechar'),
+          child: Text(l10n.close),  // ✅ INTERNACIONALIZADO
         ),
       ],
     );

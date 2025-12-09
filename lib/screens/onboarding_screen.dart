@@ -7,6 +7,7 @@ import '../services/database_service.dart';
 import '../services/voice_service.dart';
 import 'home_screen.dart';
 import '../utils/localization.dart';
+import '../widgets/permission_rationale_dialog.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final bool isSettings;
@@ -180,7 +181,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 GestureDetector(
                   onTap: () async {
                     FocusScope.of(context).unfocus(); // Close keyboard
-                    var status = await Permission.microphone.request();
+                    
+                    // ✅ CORREÇÃO: Usar rationale dialog conforme Google Play Policy
+                    var status = await PermissionRationaleDialog.requestMicrophoneWithRationale(context);
+                    
                     if (status.isGranted) {
                       if (_isListening) {
                         await _voiceService.stop();
@@ -196,9 +200,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                            }
                         }
                       }
-                    } else {
-                       openAppSettings();
                     }
+                    // Não precisa mais do else com openAppSettings - o dialog já trata isso
                   },
                   child: CircleAvatar(
                     radius: 40,

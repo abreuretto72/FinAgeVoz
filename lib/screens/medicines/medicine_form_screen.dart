@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/attachments_service.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/medicine_model.dart';
@@ -102,14 +103,15 @@ class _MedicineFormScreenState extends State<MedicineFormScreen> {
         if (didPop) return;
         final navigator = Navigator.of(context);
         if (_hasUnsavedChanges()) {
+           final l10n = AppLocalizations.of(context)!;
            final bool? confirm = await showDialog(
               context: context,
               builder: (ctx) => AlertDialog(
-                 title: const Text('Descartar alterações?'),
-                 content: const Text('Você tem alterações não salvas. Deseja sair?'),
+                 title: Text(l10n.discardChanges),
+                 content: Text(l10n.unsavedChangesMessage),
                  actions: [
-                    TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.pop(ctx, false)),
-                    TextButton(child: const Text('Sair'), onPressed: () => Navigator.pop(ctx, true)),
+                    TextButton(child: Text(l10n.cancel), onPressed: () => Navigator.pop(ctx, false)),
+                    TextButton(child: Text(l10n.exit), onPressed: () => Navigator.pop(ctx, true)),
                  ],
               )
            );
@@ -192,20 +194,30 @@ class _MedicineFormScreenState extends State<MedicineFormScreen> {
               ),
               
               const SizedBox(height: 16),
-              const Text("Anexos (Receitas, Bulas)", style: TextStyle(fontWeight: FontWeight.bold)),
-              Wrap(
-                 spacing: 8,
-                 children: [
-                    ..._attachments.map((path) => Chip(
-                       label: Text(path.split(RegExp(r'[/\\]')).last),
-                       onDeleted: () => _deleteAttachment(path),
-                    )),
-                    ActionChip(
-                       avatar: const Icon(Icons.attach_file),
-                       label: const Text("Adicionar"),
-                       onPressed: _pickAttachment,
-                    )
-                 ],
+              Builder(
+                builder: (context) {
+                  final l10n = AppLocalizations.of(context)!;
+                  return Text(l10n.attachmentsPrescriptions, style: const TextStyle(fontWeight: FontWeight.bold));
+                }
+              ),
+              Builder(
+                builder: (context) {
+                  final l10n = AppLocalizations.of(context)!;
+                  return Wrap(
+                     spacing: 8,
+                     children: [
+                        ..._attachments.map((path) => Chip(
+                           label: Text(path.split(RegExp(r'[/\\]')).last),
+                           onDeleted: () => _deleteAttachment(path),
+                        )),
+                        ActionChip(
+                           avatar: const Icon(Icons.attach_file),
+                           label: Text(l10n.add),
+                           onPressed: _pickAttachment,
+                        )
+                     ],
+                  );
+                }
               ),
               
               const SizedBox(height: 24),

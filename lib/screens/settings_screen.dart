@@ -6,6 +6,8 @@ import '../utils/localization.dart';
 import 'sync_settings_screen.dart';
 import 'subscription/subscription_status_screen.dart';
 import 'help_screen.dart';
+import 'settings/privacy_policy_screen.dart';
+import 'settings/delete_account_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -156,10 +158,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                   activeColor: Colors.blue,
                 ),
-                SwitchListTile(
+                  SwitchListTile(
                   secondary: const Icon(Icons.lock, color: Colors.white),
-                  title: const Text('Bloqueio por Biometria', style: TextStyle(color: Colors.white)),
-                  subtitle: const Text('Exigir autenticação ao abrir o app', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  title: Text(t('settings_biometrics'), style: const TextStyle(color: Colors.white)),
+                  subtitle: Text(t('settings_biometrics_desc'), style: const TextStyle(color: Colors.grey, fontSize: 12)),
                   value: _dbService.getAppLockEnabled(),
                   onChanged: (bool value) async {
                     if (value) {
@@ -168,7 +170,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       if (!available) {
                          if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Biometria não disponível neste dispositivo.')),
+                            SnackBar(content: Text(t('biometrics_unavailable'))),
                           );
                         }
                         return;
@@ -185,7 +187,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           const SizedBox(height: 30),
           Text(
-            'Ajuda',
+            t('settings_help_section'),
             style: TextStyle(
               color: Colors.blue,
               fontSize: 14,
@@ -202,13 +204,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 ListTile(
                   leading: const Icon(Icons.help_outline, color: Colors.teal),
-                  title: const Text('Ajuda', style: TextStyle(color: Colors.white)),
-                  subtitle: const Text('Fale conosco e tire dúvidas', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  title: Text(t('settings_help_section'), style: const TextStyle(color: Colors.white)),
+                  subtitle: Text(t('settings_help_contact_subtitle'), style: const TextStyle(color: Colors.grey, fontSize: 12)),
                   trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const HelpScreen()),
+                    );
+                  },
+                ),
+                const Divider(color: Colors.grey, height: 1),
+                ListTile(
+                  leading: const Icon(Icons.privacy_tip, color: Colors.blue),
+                  title: const Text('Política de Privacidade', style: TextStyle(color: Colors.white)),
+                  subtitle: const Text('Veja como protegemos seus dados', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+                    );
+                  },
+                ),
+                const Divider(color: Colors.grey, height: 1),
+                ListTile(
+                  leading: const Icon(Icons.delete_forever, color: Colors.red),
+                  title: const Text('Excluir Conta', style: TextStyle(color: Colors.red)),
+                  subtitle: const Text('Remover permanentemente todos os dados', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const DeleteAccountScreen()),
                     );
                   },
                 ),
@@ -218,8 +246,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 30),
           Text(
-            'Assinatura & Planos',
-            style: TextStyle(
+            t('settings_subscription'),
+            style: const TextStyle(
               color: Colors.blue,
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -235,8 +263,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 ListTile(
                   leading: const Icon(Icons.star, color: Colors.amber),
-                  title: const Text('Minha Assinatura', style: TextStyle(color: Colors.white)),
-                  subtitle: const Text('Gerenciar plano e pagamentos', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  title: Text(t('settings_my_subscription'), style: const TextStyle(color: Colors.white)),
+                  subtitle: Text(t('settings_my_subscription_desc'), style: const TextStyle(color: Colors.grey, fontSize: 12)),
                   trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
                   onTap: () {
                     Navigator.push(
@@ -251,8 +279,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           const SizedBox(height: 30),
           Text(
-            'Nuvem & Sincronização',
-            style: TextStyle(
+            t('settings_cloud'),
+            style: const TextStyle(
               color: Colors.blue,
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -268,8 +296,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 ListTile(
                   leading: const Icon(Icons.cloud_sync, color: Colors.blue),
-                  title: const Text('Sincronização na Nuvem', style: TextStyle(color: Colors.white)),
-                  subtitle: const Text('Backup e sincronização entre dispositivos', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  title: Text(t('settings_cloud_sync'), style: const TextStyle(color: Colors.white)),
+                  subtitle: Text(t('settings_cloud_sync_desc'), style: const TextStyle(color: Colors.grey, fontSize: 12)),
                   trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
                   onTap: () {
                     Navigator.push(

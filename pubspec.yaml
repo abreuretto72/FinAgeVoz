@@ -48,6 +48,8 @@ dependencies:
   connectivity_plus: ^7.0.0
   shared_preferences: ^2.5.3
   purchases_flutter: ^9.9.10
+  google_fonts: ^6.2.1
+  font_awesome_flutter: ^10.7.0
   purchases_ui_flutter: ^9.9.10
   table_calendar: ^3.2.0
 
@@ -69,6 +71,9 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+  generate: true  # ✅ Habilita geração de AppLocalizations
 
   assets:
     - .env
+    - assets/privacy_policy_pt.txt
+    - assets/privacy_policy_en.txt

@@ -27,7 +27,16 @@ class QueryService {
                          t.subcategory?.toLowerCase() == 'gasolina'))
            .fold(0.0, (sum, t) => sum + t.amount);
            
-       return "Você gastou ${total.toStringAsFixed(2)} reais com combustível este mês.";
+       // Normalize locale
+       String locale = language;
+       if (locale == 'en') locale = 'en_US';
+       else if (locale == 'pt_BR') locale = 'pt_BR';
+       else if (locale == 'pt_PT') locale = 'pt_PT';
+       else if (locale == 'es') locale = 'es_ES';
+
+       final currencyFormat = NumberFormat.simpleCurrency(locale: locale);
+           
+       return "Você gastou ${currencyFormat.format(total)} com combustível este mês.";
     }
     
     return "Desculpe, não tenho essa informação no momento.";
@@ -47,10 +56,17 @@ class QueryService {
           .where((t) => t.date.isAfter(twelveMonthsAgo))
           .toList();
       
+      // Normalize locale
+      String locale = language;
+      if (locale == 'en') locale = 'en_US';
+      else if (locale == 'pt_BR') locale = 'pt_BR';
+      else if (locale == 'pt_PT') locale = 'pt_PT';
+      else if (locale == 'es') locale = 'es_ES';
+
       // Prepare context data
-      final transactionsSummary = _prepareTransactionsSummary(recentTransactions);
+      final transactionsSummary = _prepareTransactionsSummary(recentTransactions, language);
       final eventsSummary = _prepareEventsSummary(events);
-      final currentDate = DateFormat('dd/MM/yyyy').format(now);
+      final currentDate = DateFormat.yMd(locale).format(now);
       
       return """
 Baseado nos dados financeiros do usuário, responda a pergunta de forma concisa e natural.
@@ -68,7 +84,7 @@ Pergunta do usuário: "$question"
 Instruções:
 - Responda em português brasileiro de forma natural e conversacional
 - Seja conciso (máximo 2-3 frases)
-- Use valores em reais (R\$) quando aplicável
+- Use a formatação de moeda e valores exatos fornecidos no resumo acima
 - Ao listar transações, SEMPRE mencione a descrição (o que foi comprado) e o valor.
 - Sempre forneça o valor total do grupo de transações solicitado (ex: total do mês, total de gasolina, etc).
 - Para perguntas sobre 'total de parcelas' ou 'compras parceladas', use EXATAMENTE o valor de 'Total de despesas parceladas este mês'.
@@ -87,10 +103,19 @@ Instruções:
     }
   }
 
-  String _prepareTransactionsSummary(List<Transaction> transactions) {
+  String _prepareTransactionsSummary(List<Transaction> transactions, String language) {
     if (transactions.isEmpty) {
       return "Nenhuma transação registrada.";
     }
+
+    // Normalize locale
+    String locale = language;
+    if (locale == 'en') locale = 'en_US';
+    else if (locale == 'pt_BR') locale = 'pt_BR';
+    else if (locale == 'pt_PT') locale = 'pt_PT';
+    else if (locale == 'es') locale = 'es_ES';
+
+    final currencyFormat = NumberFormat.simpleCurrency(locale: locale);
 
     final now = DateTime.now();
     final startOfThisMonth = DateTime(now.year, now.month, 1);
@@ -204,23 +229,23 @@ Instruções:
 
     // Build summary
     final buffer = StringBuffer();
-    buffer.writeln("Saldo Anterior (Final do mês passado): R\$ ${previousBalance.toStringAsFixed(2)}");
+    buffer.writeln("Saldo Anterior (Final do mês passado): ${currencyFormat.format(previousBalance)}");
     
     buffer.writeln("Movimentações deste mês (Realizado até agora):");
-    buffer.writeln("- Receitas Realizadas: R\$ ${thisMonthIncome.toStringAsFixed(2)}");
-    buffer.writeln("- Despesas Realizadas: R\$ ${thisMonthExpenses.toStringAsFixed(2)}");
-    buffer.writeln("- Resultado do Mês (Realizado): R\$ ${(thisMonthIncome + thisMonthExpenses).toStringAsFixed(2)}");
+    buffer.writeln("- Receitas Realizadas: ${currencyFormat.format(thisMonthIncome)}");
+    buffer.writeln("- Despesas Realizadas: ${currencyFormat.format(thisMonthExpenses)}");
+    buffer.writeln("- Resultado do Mês (Realizado): ${currencyFormat.format(thisMonthIncome + thisMonthExpenses)}");
     
     buffer.writeln("\nSaldos:");
-    buffer.writeln("Saldo Atual (Considera TUDO, inclusive parcelas futuras): R\$ ${totalBalance.toStringAsFixed(2)}");
-    buffer.writeln("Saldo do Fluxo de Caixa (Realizado hoje - CORRIGIDO): R\$ ${cashFlowBalance.toStringAsFixed(2)}");
+    buffer.writeln("Saldo Atual (Considera TUDO, inclusive parcelas futuras): ${currencyFormat.format(totalBalance)}");
+    buffer.writeln("Saldo do Fluxo de Caixa (Realizado hoje - CORRIGIDO): ${currencyFormat.format(cashFlowBalance)}");
     
     // List installments included in balance for transparency
     buffer.writeln("\nDetalhamento COMPLETO do Saldo Realizado (Todas as transações somadas no Fluxo de Caixa):");
     // Sort by date
     validCashFlowTransactions.sort((a, b) => a.date.compareTo(b.date));
     for (var t in validCashFlowTransactions) {
-       buffer.writeln("- ${DateFormat('dd/MM/yyyy').format(t.date)}: ${t.description} (R\$ ${t.amount.toStringAsFixed(2)}) [Installment: ${t.installmentNumber}/${t.totalInstallments}]");
+       buffer.writeln("- ${DateFormat.yMd(locale).format(t.date)}: ${t.description} (${currencyFormat.format(t.amount)}) [Installment: ${t.installmentNumber}/${t.totalInstallments}]");
     }
     
     // Group by category
@@ -256,16 +281,16 @@ Instruções:
         
         if (incomeAmount > 0) {
           final netAmount = expenseAmount - incomeAmount;
-          buffer.writeln("- $category: R\$ ${expenseAmount.toStringAsFixed(2)} (Reembolsos/Receitas: R\$ ${incomeAmount.toStringAsFixed(2)} -> Líquido: R\$ ${netAmount.toStringAsFixed(2)})");
+          buffer.writeln("- $category: ${currencyFormat.format(expenseAmount)} (Reembolsos/Receitas: ${currencyFormat.format(incomeAmount)} -> Líquido: ${currencyFormat.format(netAmount)})");
         } else {
-          buffer.writeln("- $category: R\$ ${expenseAmount.toStringAsFixed(2)}");
+          buffer.writeln("- $category: ${currencyFormat.format(expenseAmount)}");
         }
         
         if (expensesBySubcategory.containsKey(category)) {
           final subcats = expensesBySubcategory[category]!.entries.toList()
             ..sort((a, b) => b.value.compareTo(a.value));
           for (var subcat in subcats.take(3)) {
-            buffer.writeln("  • ${subcat.key}: R\$ ${subcat.value.toStringAsFixed(2)}");
+            buffer.writeln("  • ${subcat.key}: ${currencyFormat.format(subcat.value)}");
           }
         }
       }
@@ -274,16 +299,16 @@ Instruções:
     if (thisMonthTransactions.isNotEmpty) {
       buffer.writeln("\nLista de transações deste mês:");
       for (var t in thisMonthTransactions) {
-        final dateStr = DateFormat('dd/MM').format(t.date);
+        final dateStr = DateFormat.Md(locale).format(t.date);
         final typeStr = t.isExpense ? "Despesa" : "Receita";
         final installmentStr = t.isInstallment ? " (${t.installmentText})" : "";
-        buffer.writeln("- [$dateStr] ${t.description}: R\$ ${t.amount.toStringAsFixed(2)} ($typeStr, ${t.category})$installmentStr");
+        buffer.writeln("- [$dateStr] ${t.description}: ${currencyFormat.format(t.amount)} ($typeStr, ${t.category})$installmentStr");
       }
     }
     
     buffer.writeln("\nMês passado:");
-    buffer.writeln("- Despesas: R\$ ${lastMonthExpenses.toStringAsFixed(2)}");
-    buffer.writeln("- Receitas: R\$ ${lastMonthIncome.toStringAsFixed(2)}");
+    buffer.writeln("- Despesas: ${currencyFormat.format(lastMonthExpenses)}");
+    buffer.writeln("- Receitas: ${currencyFormat.format(lastMonthIncome)}");
     
     // Add Installment Summary Section
     if (installmentGroups.isNotEmpty) {
@@ -327,13 +352,13 @@ Instruções:
                .where((t) => !t.date.isBefore(now))
                .fold(0.0, (sum, t) => sum + t.amount);
            
-           buffer.writeln("- ${group.first.description}: Total da compra R\$ ${totalAmount.toStringAsFixed(2)}");
-           buffer.writeln("  - Restam $remainingCount parcelas para pagar no valor total de R\$ ${remainingAmount.toStringAsFixed(2)}.");
+           buffer.writeln("- ${group.first.description}: Total da compra ${currencyFormat.format(totalAmount)}");
+           buffer.writeln("  - Restam $remainingCount parcelas para pagar no valor total de ${currencyFormat.format(remainingAmount)}.");
            if (downPaymentCount > 0) {
               buffer.writeln("  - (Entrada já foi paga).");
            }
            if (nextInstallment != null) {
-              buffer.writeln("  - Próxima parcela: ${DateFormat('dd/MM/yyyy').format(nextInstallment.date)} (R\$ ${nextInstallment.amount.toStringAsFixed(2)})");
+              buffer.writeln("  - Próxima parcela: ${DateFormat.yMd(locale).format(nextInstallment.date)} (${currencyFormat.format(nextInstallment.amount)})");
            }
        });
     }
