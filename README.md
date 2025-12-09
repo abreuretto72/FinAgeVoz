@@ -19,27 +19,26 @@
 
 
 ### 💰 Gestão Financeira
-- ✅ **Pagamentos e Recebimentos**: Controle total de Contas a Pagar e Receber
-- ✅ **Status Inteligente**: Diferenciação automática entre PAGO (Realizado) e PENDENTE (Futuro)
-- ✅ Adicionar transações por voz ou manualmente
-- ✅ Categorias e subcategorias personalizáveis
-- ✅ **Parcelamento inteligente** (compras divididas em múltiplas parcelas)
-- ✅ Relatórios com gráficos e exportação em PDF
-- ✅ Anexos (imagens, documentos)
+- ✅ **Pagamentos e Recebimentos**: Controle total de fluxo de caixa. O sistema diferencia automaticamente lançamentos **Realizados (Pagos)** de **Futuros (Pendentes)**.
+- ✅ **Parcelamento Inteligente**: Ao lançar uma compra parcelada, o app gera todas as parcelas futuras como "Pendentes", permitindo baixa manual mês a mês.
+- ✅ **Relatórios Completos**: Gráficos de categorias, evolução de gastos e exportação para PDF.
 
-### 📅 Agenda e Aniversários Smart
-- ✅ **Aniversários Inteligentes**: Cadastro eterno com IA generativa
-- ✅ **mensagens Automáticas**: A IA cria mensagens personalizadas (baseadas no parentesco) para envio via **WhatsApp, E-mail ou SMS**
-- ✅ Criar eventos comuns por voz ou manualmente
-- ✅ **Eventos recorrentes** (diário, semanal, mensal, anual)
-- ✅ **Notificações diárias** com anúncio por voz
-- ✅ Integração com calendário (.ics)
+### 🎂 Aniversários e Mensagens IA
+- ✅ **Cadastro Eterno**: Registre a data uma vez e o sistema lembrará para sempre.
+- ✅ **Mensagens Geradas por IA**: Informe o **grau de parentesco** (Mãe, Cliente, Amigo) e a IA escreverá uma mensagem personalizada e adequada para a ocasião.
+- ✅ **Envio Direto**: Envie a mensagem gerada via **WhatsApp**, **SMS** ou **E-mail** sem sair do app.
 
-### 💊 Gestão de Saúde
-- ✅ **Controle de Medicamentos**: Cadastro de remédios, dosagem e forma
-- ✅ **Posologia Flexível**: Intervalos, Horários fixos, Jejum
-- ✅ **Lembretes de Dose**: Notificações precisas para tomar o remédio
-- ✅ **Histórico de Tomada**: Confirmação e registro de aderência
+### 💊 Gestão de Saúde e Medicamentos
+- ✅ **Cadastro Detalhado**: Nome, dosagem, forma farmacêutica e finalidade.
+- ✅ **Posologia Flexível**: Configure intervalos (ex: a cada 8 horas), horários fixos ou uso contínuo.
+- ✅ **Controle de Estoque**: O sistema alerta quando o remédio está acabando.
+- ✅ **Histórico de Tomada**: Marque cada dose como tomada para manter um registro de aderência ao tratamento.
+- ✅ **Anexos**: Guarde fotos de receitas e bulas junto ao medicamento.
+
+### 📅 Agenda de Eventos
+- ✅ Criação rápida de compromissos por voz.
+- ✅ Eventos recorrentes (Diário, Semanal, Mensal, Anual).
+- ✅ Notificações faladas: O app anuncia sua agenda do dia ao abrir.
 
 
 ### 🤖 Inteligência Artificial
