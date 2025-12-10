@@ -382,19 +382,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.share, color: Colors.green),
-            tooltip: 'Compartilhar no WhatsApp',
-            onPressed: _captureAndSharePdf,
-          ),
-          IconButton(
             icon: const Icon(Icons.picture_as_pdf),
             tooltip: t('export_pdf'),
             onPressed: _captureAndExportPdf,
-          ),
-          IconButton(
-            icon: const Icon(Icons.share),
-            tooltip: t('share'),
-            onPressed: _captureAndSharePdf,
           ),
         ],
       ),

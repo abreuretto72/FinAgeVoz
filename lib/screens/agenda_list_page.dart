@@ -136,7 +136,14 @@ class _AgendaListPageState extends State<AgendaListPage> {
 
   /// Centralized method to fetch all items (manual + virtual)
   List<AgendaItem> _getAllItems({DateTime? rangeStart, DateTime? rangeEnd}) {
-      final manualItems = agendaBox.values.toList();
+      // Filter: Exclude Paid items (Visual Safety Net)
+      // The user strictly wants only PENDING items in this list.
+      final manualItems = agendaBox.values.where((i) {
+         if (i.status == ItemStatus.CONCLUIDO) return false;
+         if (i.pagamento != null && (i.pagamento!.status == 'PAGO' || i.pagamento!.status == 'CONCLUIDO')) return false;
+         return true;
+      }).toList();
+      
       final virtualItems = <AgendaItem>[];
 
       // Transactions -> Agenda

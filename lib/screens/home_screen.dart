@@ -1176,6 +1176,33 @@ class _HomeScreenState extends State<HomeScreen> {
           final isTodayOrPast = date.isBefore(now) || 
                                (date.year == now.year && date.month == now.month && date.day == now.day);
 
+          // Hybrid Logic: Trust AI 'isPaid', BUT apply common sense overrides for Today/Past items.
+          // Problem: AI might say "Buy Umbrella" is Pending, but if date is Today, it's likely Paid.
+          // Exception: "Bill", "Invoice", "To Pay" explicitly mentioned.
+          
+          bool finalIsPaid = isTodayOrPast;
+          
+          if (data['isPaid'] != null && data['isPaid'] is bool) {
+             bool aiSaysPaid = data['isPaid'];
+             
+             if (!aiSaysPaid && isTodayOrPast) {
+                 // Conflict: AI says Pending, but Time is Now/Past.
+                 // Only verify Pending if it looks like a Bill/Obligation.
+                 final descLower = description.toLowerCase();
+                 final obligationKeywords = ['boleto', 'conta', 'fatura', 'aluguel', 'condominio', 'pagar', 'vence', 'cartão', 'ipva', 'iptu', 'darf', 'agendar'];
+                 
+                 bool isObligation = obligationKeywords.any((k) => descLower.contains(k));
+                 
+                 if (isObligation) {
+                    finalIsPaid = false; // Trust AI (It's a bill due today)
+                 } else {
+                    finalIsPaid = true; // Override AI. "Umbrella" bought today is Paid.
+                 }
+             } else {
+                 finalIsPaid = aiSaysPaid;
+             }
+          }
+
           final transaction = Transaction(
             id: const Uuid().v4(),
             description: description,
@@ -1184,15 +1211,15 @@ class _HomeScreenState extends State<HomeScreen> {
             date: date,
             category: category,
             subcategory: subcategory,
-            isPaid: isTodayOrPast,
-            paymentDate: isTodayOrPast ? date : null,
+            isPaid: finalIsPaid,
+            paymentDate: finalIsPaid ? date : null,
           );
           await _dbService.addTransaction(transaction);
 
           await _voiceService.speak(
             isExpense
-                ? 'Gasto de $description no valor de ${amount.toStringAsFixed(2)} reais registrado.'
-                : 'Receita de $description no valor de ${amount.toStringAsFixed(2)} reais registrada.',
+                ? 'Gasto de $description de ${amount.toStringAsFixed(2)} registrado como ${finalIsPaid ? "PAGO" : "PENDENTE"}.'
+                : 'Receita de $description de ${amount.toStringAsFixed(2)} registrada como ${finalIsPaid ? "RECEBIDO" : "PENDENTE"}.',
           );
         }
       }

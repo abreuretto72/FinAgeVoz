@@ -316,74 +316,58 @@ class AIService {
     2. Determine 'isPaid' and 'status' (CRITICAL RULESET):
        
        A. REALIZED EXPENSES (ALREADY PAID) -> isPaid: TRUE
-          - User says: "Gastei", "Comprei", "Paguei hoje", "Tive uma despesa", "Já paguei", "Saiu um débito", "Acabei de pagar".
-          - Interpretation: Action completed.
-          - Result: isPaid: true.
+          - User explicitly says past tense verbs: "Gastei", "Comprei", "Paguei", "Já paguei", "Acabei de pagar", "Tive uma despesa".
+          - Examples: "Gastei 150 no mercado", "Comprei um tênis", "Paguei a conta de luz", "Já paguei o condomínio".
+          - RULE: If user says "Gastei" or "Comprei", it is DONE. Set isPaid: TRUE.
+          - DO NOT set isPaid: false for these unless user adds "para pagar depois".
        
        B. FUTURE EXPENSES (TO PAY) -> isPaid: FALSE
-          - User says: "Registrar conta para pagar", "Boleto para pagar", "Agendar", "Para o dia X", "Mês que vem", "Vai vencer", "Tenho que pagar".
-          - Interpretation: Future obligation.
+          - User explicitly mentions future payment or scheduling: "Vou pagar", "Para pagar", "Agendar", "Vence", "Boleto", "Fatura", "Conta para pagar".
+          - Examples: "Registrar conta para pagar dia 15", "Adicionar boleto", "Agendar aluguel", "Lanchar no cartão para pagar depois".
           - Result: isPaid: false.
        
        C. INSTALLMENTS (PURCHASES) cases:
           - "Comprei em X vezes" -> The purchase happened, but payments are future.
           - Rule: If installments > 1, set isPaid: false (Treat as a debt to be paid in installments).
-          - Exception: If explicit "Dei entrada", the Down Payment is paid, but the AI should output the global transaction as Pending (isPaid: false) so the system generates pending installments. The system handles the down payment logic.
+          - Exception: If explicit "Dei entrada", the Down Payment is paid, but the AI should output the global transaction as Pending (isPaid: false).
        
-       D. REALIZED INCOME (RECEIVED) -> isPaid: TRUE
-          - User says: "Recebi", "Entrou", "Me pagou", "Caiu na conta", "Recebimento de hoje".
-          - Interpretation: Money is in the pocket.
-          - Result: isPaid: true.
+       D. INCOME:
+          - "Recebi", "Entrou", "Caiu na conta" -> isPaid: TRUE.
+          - "Vou receber", "Para receber", "Agendar recebimento" -> isPaid: FALSE.
        
-       E. FUTURE INCOME (TO RECEIVE) -> isPaid: FALSE
-          - User says: "Vou receber", "Para receber", "Agendar recebimento", "Receita futura", "Aluguel para dia 10".
-          - Interpretation: Expectation of money.
-          - Result: isPaid: false.
-       
-       F. AMBIGUITY RESOLUTION (When no clear verb is present):
+       E. AMBIGUITY RESOLUTION (When no clear verb is present):
           - If date is FUTURE -> isPaid: false.
           - If date is PAST -> isPaid: true.
           - If date is TODAY -> 
              - If "Conta", "Boleto", "Fatura" -> isPaid: false (implies bill to pay).
-             - If "Almoço", "Mercado", "Uber", "Gasolina" (Consumables) -> isPaid: true (implies immediate consumption).
+             - If "Almoço", "Mercado", "Uber", "Gasolina", "Farmácia" -> isPaid: true (implies immediate consumption).
 
     3. Determine 'recurrence' and 'installments':
        - "Parcelado em X vezes" -> installments: X.
        - "Todo mês", "Mensal", "Aluguel mensal" -> recurrence: 'MONTHLY'.
        - IMPORTANT: For 'amount' in installments:
          - If user says "10x of 100", amount should be 100.
-         - If user says "Total 1000 in 10x", amount should be 100 (1000/10). ALWAYS return the INSTALLMENT VALUE in 'amount', not the total.
+         - If user says "Total 1000 in 10x", amount should be 100 (TOTAL/X). ALWAYS return the INSTALLMENT VALUE in 'amount'.
 
     Transaction Examples (Strict Adherence):
     
-    // TYPE A: Realized Expenses (isPaid: true)
-    "Gastei 150 no supermercado" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Supermercado", "amount": 150.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
-    "Comprei um remédio por 80 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Remédio", "amount": 80.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
-    "Paguei minha conta de luz hoje" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Conta de Luz", "amount": 0.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
-    "Já paguei o condomínio" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Condomínio", "amount": 0.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
+    // TYPE A: Realized Expenses (isPaid: true) - DO NOT SEND TO PAYMENTS TAB
+    "Gastei 150 no mercado" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Mercado", "amount": 150.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
+    "Comprei um tênis hoje" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Tênis", "amount": 0.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
+    "Paguei a conta de luz" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Conta de Luz", "amount": 0.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
+    "Tive uma despesa de 80 com táxi" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Táxi", "amount": 80.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
     
-    // TYPE B: Future Expenses (isPaid: false)
-    "Registrar conta de luz de 200 para pagar dia 15" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Conta de Luz", "amount": 200.0, "isExpense": true, "isPaid": false, "date": "$currentYear-MM-15T00:00:00"}}
-    "Adicionar boleto para pagar amanhã" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Boleto", "amount": 0.0, "isExpense": true, "isPaid": false, "date": "tomorrow"}}
-    "Tenho que pagar aluguel dia 10" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Aluguel", "amount": 0.0, "isExpense": true, "isPaid": false, "date": "$currentYear-MM-10T00:00:00"}}
+    // TYPE B: Future Expenses (isPaid: false) - YES, SEND TO PAYMENTS TAB
+    "Registrar conta de luz para pagar dia 15" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Conta de Luz", "amount": 0.0, "isExpense": true, "isPaid": false, "date": "$currentYear-MM-15T00:00:00"}}
+    "Adicionar boleto de 300 para pagar amanhã" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Boleto", "amount": 300.0, "isExpense": true, "isPaid": false, "date": "tomorrow"}}
+    "Agendar o aluguel para pagar dia 10" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Aluguel", "amount": 0.0, "isExpense": true, "isPaid": false, "date": "$currentYear-MM-10T00:00:00"}}
     
-    // TYPE C: Installments (isPaid: false for the series)
-    "Fiz uma compra parcelada em 10 vezes de 100 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Compra Parcelada", "amount": 100.0, "isExpense": true, "isPaid": false, "installments": 10}}
-    "Comprei celular em 4 vezes" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Celular", "amount": 0.0, "isExpense": true, "isPaid": false, "installments": 4}}
+    // TYPE C: Installments (isPaid: false)
+    "Fiz uma compra parcelada em 10 vezes" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Compra Parcelada", "amount": 0.0, "isExpense": true, "isPaid": false, "installments": 10}}
     
-    // TYPE D: Realized Income (isPaid: true)
-    "Recebi o aluguel hoje" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Aluguel", "amount": 0.0, "isExpense": false, "isPaid": true, "date": "$currentDate"}}
-    "Entrou um PIX de 500 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "PIX", "amount": 500.0, "isExpense": false, "isPaid": true, "date": "$currentDate"}}
-    "Caiu o salário na conta" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Salário", "amount": 0.0, "isExpense": false, "isPaid": true, "date": "$currentDate"}}
-    
-    // TYPE E: Future Income (isPaid: false)
-    "Registrar aluguel de 3000 para receber dia 10" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Aluguel", "amount": 3000.0, "isExpense": false, "isPaid": false, "date": "$currentYear-MM-10T00:00:00"}}
-    "Vou receber 500 reais amanhã" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Recebimento", "amount": 500.0, "isExpense": false, "isPaid": false, "date": "tomorrow"}}
-    "Aluguel mensal por 12 meses" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Aluguel", "amount": 0.0, "isExpense": false, "isPaid": false, "date": "$currentDate", "installments": 12, "recurrence": "MONTHLY"}}
-
-    // TYPE F: Ambiguity
-    "Registrar despesa de 100 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Despesa", "amount": 100.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
-    "Conta de 100 reais para dia 20" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Conta", "amount": 100.0, "isExpense": true, "isPaid": false, "date": "$currentYear-MM-20T00:00:00"}}
+    // TYPE D: Income
+    "Recebi 500 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Recebimento", "amount": 500.0, "isExpense": false, "isPaid": true, "date": "$currentDate"}}
+    "Aluguel para receber dia 10" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Aluguel", "amount": 0.0, "isExpense": false, "isPaid": false, "date": "$currentYear-MM-10T00:00:00"}}
     
     Agenda Examples (Smart Agenda):
     "Adicionar uma reunião amanhã às 9 da manhã com o João" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "COMPROMISSO", "title": "Reunião com João", "date": "$currentYear-11-23T09:00:00", "time": "09:00", "description": "Com João"}}

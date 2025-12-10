@@ -11,6 +11,7 @@ import '../models/event_model.dart';
 import '../utils/localization.dart';
 
 import '../models/agenda_models.dart';
+import '../models/category_model.dart';
 
 class PdfService {
   static Future<void> generateAndPrint(
@@ -77,6 +78,7 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
+        footer: (context) => _buildFooter(context, languageCode),
         build: (pw.Context context) {
           return [
             pw.Header(
@@ -193,6 +195,7 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
+        footer: (context) => _buildFooter(context, languageCode),
         build: (pw.Context context) {
           return [
             pw.Header(
@@ -328,6 +331,7 @@ class PdfService {
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
+          footer: (context) => _buildFooter(context, languageCode),
           build: (pw.Context context) {
             final List<pw.Widget> widgets = [];
             
@@ -485,6 +489,7 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
+        footer: (context) => _buildFooter(context, languageCode),
         build: (pw.Context context) {
           return [
             pw.Header(
@@ -607,6 +612,7 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
+        footer: (context) => _buildFooter(context, languageCode),
         build: (pw.Context context) {
           return [
             pw.Header(
@@ -885,5 +891,113 @@ class PdfService {
     await file.writeAsBytes(await pdf.save());
     return file;
   }
+
+  static Future<void> generateCategoriesPdf(List<Category> categories, String languageCode) async {
+    final pdf = _buildCategoriesPdf(categories, languageCode);
+    await Printing.layoutPdf(onLayout: (format) => pdf.save(), name: 'categorias.pdf');
+  }
+
+  static Future<void> shareCategoriesPdf(List<Category> categories, String languageCode) async {
+    final pdf = _buildCategoriesPdf(categories, languageCode);
+    final fileName = 'categorias_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+    final file = await _savePdfToTemp(pdf, fileName);
+    await Share.shareXFiles([XFile(file.path)], text: AppLocalizations.t('categories_title', languageCode));
+  }
+
+  static Future<Uint8List> generateCategoriesPdfBytes(List<Category> categories, String languageCode) async {
+    final pdf = _buildCategoriesPdf(categories, languageCode);
+    return pdf.save();
+  }
+
+  static pw.Document _buildCategoriesPdf(List<Category> categories, String languageCode) {
+    final pdf = pw.Document();
+    
+    // Group
+    final expenses = categories.where((c) => c.type == 'expense').toList();
+    final income = categories.where((c) => c.type == 'income').toList();
+    
+    // Helper to get locale for DateFormat (simple fallback)
+    String locale = languageCode;
+    if (locale == 'en') locale = 'en_US';
+    else if (locale == 'pt_BR') locale = 'pt_BR';
+    else if (locale == 'pt_PT') locale = 'pt_PT';
+    
+    final dateFormat = DateFormat.yMd(locale).add_Hm();
+
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      footer: (context) => _buildFooter(context, languageCode),
+      build: (context) => [
+        pw.Header(
+          level: 0,
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(AppLocalizations.t('categories_title', languageCode), style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+              pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+                  pw.Text(AppLocalizations.t('app_title', languageCode), style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                  pw.Text('${AppLocalizations.t('generated_on', languageCode)}${dateFormat.format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+              ]),
+            ],
+          ),
+        ),
+        pw.SizedBox(height: 20),
+        
+        pw.Header(level: 1, child: pw.Text(AppLocalizations.t('tab_expense', languageCode), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.red))),
+        ...expenses.map((c) => _buildCategoryRow(c, languageCode)),
+        
+        pw.SizedBox(height: 20),
+        
+        pw.Header(level: 1, child: pw.Text(AppLocalizations.t('tab_income', languageCode), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.green))),
+        ...income.map((c) => _buildCategoryRow(c, languageCode)),
+      ],
+    ));
+    
+    return pdf;
+  }
+
+  static pw.Widget _buildCategoryRow(Category c, String lang) {
+     return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.Container(
+          padding: const pw.EdgeInsets.symmetric(vertical: 5),
+          child: pw.Text(AppLocalizations.tCategory(c.name, lang), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+        ),
+        if (c.subcategories.isNotEmpty)
+          ...c.subcategories.map((s) => pw.Padding(
+             padding: const pw.EdgeInsets.only(left: 15, bottom: 2),
+             child: pw.Bullet(text: AppLocalizations.tCategory(s, lang)),
+          )).toList(),
+        if (c.subcategories.isEmpty)
+           pw.Padding(
+             padding: const pw.EdgeInsets.only(left: 15),
+             child: pw.Text(AppLocalizations.t('no_subcategories', lang), style: const pw.TextStyle(color: PdfColors.grey, fontStyle: pw.FontStyle.italic, fontSize: 10)),
+           ),
+        pw.SizedBox(height: 10),
+        pw.Divider(thickness: 0.5, color: PdfColors.grey300),
+     ]);
+  }
+
+  static pw.Widget _buildFooter(pw.Context context, String languageCode) {
+    return pw.Container(
+      decoration: const pw.BoxDecoration(
+        border: pw.Border(top: pw.BorderSide(color: PdfColors.grey300, width: 0.5)),
+      ),
+      padding: const pw.EdgeInsets.only(top: 10),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+           pw.Text(
+             '${AppLocalizations.t('app_title', languageCode)} © ${DateTime.now().year} ${AppLocalizations.t('about_company', languageCode)}', 
+             style: const pw.TextStyle(color: PdfColors.grey600, fontSize: 10)
+           ),
+           pw.Row(children: [
+              pw.Text('📧 ${AppLocalizations.t('about_email', languageCode)}', style: const pw.TextStyle(color: PdfColors.grey600, fontSize: 10)),
+           ]),
+        ],
+      ),
+    );
+  }
 }
+
+
 

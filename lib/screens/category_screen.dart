@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../models/category_model.dart';
 import '../services/database_service.dart';
 import '../services/import_service.dart';
+import '../services/pdf_service.dart';
 import '../utils/localization.dart';
+import 'pdf_preview_screen.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({super.key});
@@ -254,6 +256,21 @@ class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProvid
       appBar: AppBar(
         title: Text(t('categories_title')),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: t('export_pdf'),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PdfPreviewScreen(
+                    title: t('categories_title'),
+                    buildPdf: (format) => PdfService.generateCategoriesPdfBytes(_categories, _currentLanguage),
+                  ),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.file_download),
             tooltip: t('export_csv'),

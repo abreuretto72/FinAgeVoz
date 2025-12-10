@@ -428,6 +428,8 @@ class DatabaseService {
             attachments: transaction.attachments,
             updatedAt: DateTime.now().toUtc(),
             isSynced: false,
+            isPaid: transaction.isPaid,
+            paymentDate: transaction.paymentDate,
           )
         : transaction;
 
@@ -1504,11 +1506,10 @@ class DatabaseService {
      int count = 0;
      
      for (var t in transactions) {
-        bool isRelevant = (!t.isPaid || t.isInstallment);
-        // Ignore apenas Receitas Realizadas Não-Parceladas (Histórico puro)
-        if (!isRelevant && !t.isExpense) continue; 
-        
-        // Se for despesa paga à vista e não parcelada, também ignorar (opcional, mas mantém consistência)
+        // STRICT RULE: Only Pending items.
+        // Paid items (Expenses or Income) are history, not agenda/to-do.
+        bool isRelevant = !t.isPaid; 
+
         if (!isRelevant) continue;
 
         if (!existingIds.contains(t.id)) {
@@ -1521,20 +1522,12 @@ class DatabaseService {
 
   Future<void> _syncAdd(Transaction t) async {
     // Sincronizar se for relevante para Agenda:
-    // 1. Despesa Pendente ou Parcelada.
-    // 2. Receita Pendente ou Parcelada/Recorrente.
-    // 3. Qualquer transação futura.
-    // Ignorar: Receita à vista já realizada (histórico puro).
+    // Apenas PENDENTES (A Pagar / A Receber).
+    // Realizados (Pagos) NÃO vão para agenda.
     
-    bool isRelevant = (!t.isPaid || t.isInstallment);
-    if (!isRelevant && !t.isExpense) {
-       // Se for receita realizada à vista, não poluir a agenda por enquanto
-       // (Exceto se o usuário quiser histórico completo, mas o foco é 'Lembretes')
-       return;
-    }
-    // Nota: Despesa realizada à vista pode ser interessante manter se o usuário quiser ver o gasto do dia na agenda.
-    // Mas vamos focar em PENDÊNCIAS e PARCELAMENTOS conforme pedido.
-    if (!isRelevant) return; // Se está pago e não é parcelado, ignora (para simplificar)
+    bool isRelevant = !t.isPaid;
+    
+    if (!isRelevant) return;
 
     await ensureAgendaBoxOpen();
     final box = agendaBox;
@@ -1569,42 +1562,59 @@ class DatabaseService {
   }
 
   Future<void> _syncUpdate(Transaction t) async {
-    // Se deixou de ser relevante (ex: apagou?), deletar? Não, update.
-    // Se marcou como pago à vista, vira CONCLUIDO.
-    
     await ensureAgendaBoxOpen();
     final box = agendaBox;
-    
+
+    // RELEVANCE RULE: Only Pending items go to Agenda/Payments Tab.
+    // If it is PAID (Realized), it must NOT be in the Agenda.
+    // This applies to single transactions and paid installments.
+    bool isRelevant = !t.isPaid;
+
+    AgendaItem? item;
     try {
-      final item = box.values.firstWhere((i) => i.pagamento?.transactionId == t.id);
-      
+      item = box.values.firstWhere((i) => i.pagamento?.transactionId == t.id);
+    } catch (_) {}
+
+    if (!isRelevant) {
+       // If transaction is Paid, REMOVE from Agenda if it exists.
+       if (item != null) {
+          await item.delete();
+          print("DEBUG: Deleted agenda item for transaction ${t.id} because it is Paid.");
+       }
+       return;
+    }
+
+    // If Relevant (Pending): Update or Create
+    if (item == null) {
+       await _syncAdd(t);
+       return;
+    }
+    
+    // Update existing item
+    try {
       final prefix = t.isExpense ? "Pagar: " : "Receber: ";
-      // Evitar duplo prefixo se já tiver
-      // Mas cuidado, a descrição original 't.description' vem limpa do DB? Sim.
       final fullTitle = "$prefix${t.description}";
 
       item.titulo = fullTitle;
       item.descricao = t.installmentText.isNotEmpty ? t.installmentText : "Gerado pelo Financeiro";
       item.dataInicio = t.date;
       item.horarioInicio = "${t.date.hour}:${t.date.minute.toString().padLeft(2,'0')}";
-      item.status = t.isPaid ? ItemStatus.CONCLUIDO : ItemStatus.PENDENTE;
+      
+      // Since it is relevant, it is Pending.
+      item.status = ItemStatus.PENDENTE;
       item.atualizadoEm = DateTime.now();
       
       if (item.pagamento != null) {
         item.pagamento!.valor = t.amount.abs();
-        item.pagamento!.status = t.isPaid ? 'PAGO' : 'PENDENTE';
+        item.pagamento!.status = 'PENDENTE';
         item.pagamento!.dataVencimento = t.date;
-        item.pagamento!.dataPagamento = t.paymentDate;
+        item.pagamento!.dataPagamento = null;
       }
 
       await item.save();
       print("DEBUG: Updated synced agenda item for ${t.id}");
     } catch (e) {
-      // Not found, create it if relevant
-       bool isRelevant = (!t.isPaid || t.isInstallment);
-       if (isRelevant) {
-          await _syncAdd(t);
-       }
+       print("Error updating agenda item: $e");
     }
   }
 
