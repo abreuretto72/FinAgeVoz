@@ -65,13 +65,14 @@ class PagamentoInfoAdapter extends TypeAdapter<PagamentoInfo> {
       recorrente: fields[5] as bool,
       forma: fields[6] as String?,
       descricaoFinanceira: fields[7] as String?,
+      transactionId: fields[8] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PagamentoInfo obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.valor)
       ..writeByte(1)
@@ -87,7 +88,9 @@ class PagamentoInfoAdapter extends TypeAdapter<PagamentoInfo> {
       ..writeByte(6)
       ..write(obj.forma)
       ..writeByte(7)
-      ..write(obj.descricaoFinanceira);
+      ..write(obj.descricaoFinanceira)
+      ..writeByte(8)
+      ..write(obj.transactionId);
   }
 
   @override
@@ -125,13 +128,15 @@ class RemedioInfoAdapter extends TypeAdapter<RemedioInfo> {
       status: fields[10] as String,
       proximaDose: fields[11] as DateTime?,
       ultimaDoseTomada: fields[12] as DateTime?,
+      id: fields[13] as String?,
+      posologiaId: fields[14] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, RemedioInfo obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.nome)
       ..writeByte(1)
@@ -157,7 +162,11 @@ class RemedioInfoAdapter extends TypeAdapter<RemedioInfo> {
       ..writeByte(11)
       ..write(obj.proximaDose)
       ..writeByte(12)
-      ..write(obj.ultimaDoseTomada);
+      ..write(obj.ultimaDoseTomada)
+      ..writeByte(13)
+      ..write(obj.id)
+      ..writeByte(14)
+      ..write(obj.posologiaId);
   }
 
   @override
@@ -322,6 +331,7 @@ class AgendaItemAdapter extends TypeAdapter<AgendaItem> {
       remedio: fields[11] as RemedioInfo?,
       aniversario: fields[12] as AniversarioInfo?,
       anexos: (fields[13] as List?)?.cast<Anexo>(),
+      googleEventId: fields[16] as String?,
     )
       ..criadoEm = fields[14] as DateTime
       ..atualizadoEm = fields[15] as DateTime;
@@ -330,7 +340,7 @@ class AgendaItemAdapter extends TypeAdapter<AgendaItem> {
   @override
   void write(BinaryWriter writer, AgendaItem obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.tipo)
       ..writeByte(1)
@@ -362,7 +372,9 @@ class AgendaItemAdapter extends TypeAdapter<AgendaItem> {
       ..writeByte(14)
       ..write(obj.criadoEm)
       ..writeByte(15)
-      ..write(obj.atualizadoEm);
+      ..write(obj.atualizadoEm)
+      ..writeByte(16)
+      ..write(obj.googleEventId);
   }
 
   @override

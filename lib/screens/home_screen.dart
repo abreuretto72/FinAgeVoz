@@ -42,11 +42,15 @@ import 'data_management_screen.dart';
 import 'settings_screen.dart';
 import 'help_screen.dart';
 
+
 import '../services/query_service.dart';
 import '../services/sync/cloud_sync_service.dart';
 import 'sync_settings_screen.dart';
 import '../services/subscription/feature_gate.dart';
 import '../services/subscription/subscription_service.dart';
+import '../widgets/app_drawer.dart';
+import 'import_export_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -66,6 +70,12 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isListening = false;
   bool _isProcessing = false;
   String _statusText = "";
+  
+  // State for multi-turn conversations (missing amount)
+  bool _isWaitingForAmount = false;
+  Map<String, dynamic>? _pendingTransactionData;
+  Map<String, dynamic>? _pendingAgendaData; // State for missing agenda details (person_name)
+  String? _missingField;
   
   
   String get _currentLanguage {
@@ -684,129 +694,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: const Color(0xFF121212),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(color: Colors.blue),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  const CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person, color: Colors.blue),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'FinAgeVoz',
-                    style: TextStyle(color: Colors.white, fontSize: 24),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: Text(t('menu_settings')),
-              onTap: () {
-                Navigator.pop(context);
-                _navigate(const SettingsScreen());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.storage),
-              title: Text(t('menu_manage_data')),
-              onTap: () {
-                Navigator.pop(context);
-                _navigate(const DataManagementScreen());
-              },
-            ),
-
-            ListTile(
-              leading: const Icon(Icons.file_upload),
-              title: Text(t('menu_import_transactions')),
-              onTap: () {
-                Navigator.pop(context);
-                _importTransactions();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_month),
-              title: Text(t('menu_import_calendar')),
-              onTap: () {
-                Navigator.pop(context);
-                _importCalendarEvents();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.file_download),
-              title: Text(t('menu_export_transactions')),
-              onTap: () {
-                Navigator.pop(context);
-                _exportTransactions();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.event_available),
-              title: Text(t('menu_export_calendar')),
-              onTap: () {
-                Navigator.pop(context);
-                _exportCalendarEvents();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.category),
-              title: Text(t('nav_categories')),
-              onTap: () {
-                Navigator.pop(context);
-                _navigate(const CategoryScreen());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.info),
-              title: Text(t('menu_about')),
-              onTap: () {
-                Navigator.pop(context);
-                showDialog(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: Text(t('about_title')),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(t('about_version')),
-                        const SizedBox(height: 10),
-                        Text(t('about_description')),
-                        const SizedBox(height: 20),
-                        Text(t('about_developed_by'), style: const TextStyle(fontWeight: FontWeight.bold)),
-                        Text(t('about_company')),
-                        const SizedBox(height: 5),
-                        Text(t('about_email_label'), style: const TextStyle(fontWeight: FontWeight.bold)),
-                        Text(t('about_email')),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(t('close')),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.exit_to_app, color: Colors.red),
-              title: Text(t('menu_exit'), style: const TextStyle(color: Colors.red)),
-              onTap: () {
-                Navigator.pop(context);
-                SystemNavigator.pop();
-              },
-            ),
-          ],
-        ),
+      drawer: AppDrawer(
+        navigate: _navigate,
+        onImportExportTap: () => _navigate(const ImportExportScreen()),
+        currentLanguage: _currentLanguage,
       ),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -1059,6 +950,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _processCommand(String text) async {
   if (text.isEmpty) return;
 
+  // Slot Filling Check (New)
+  if (_missingField != null && (_pendingTransactionData != null || _pendingAgendaData != null)) {
+      await _handleMissingInput(text);
+      return;
+  }
+
   setState(() {
     _isProcessing = true;
     _statusText = t('status_processing');
@@ -1099,7 +996,8 @@ class _HomeScreenState extends State<HomeScreen> {
       print('DEBUG: Full AI response: $result');
 
     if (intent == 'ADD_AGENDA_ITEM') {
-        await _voiceController.handleAgendaItem(result['agenda_item']);
+        // await _voiceController.handleAgendaItem(result['agenda_item']);
+        await _initiateAgendaItem(result['agenda_item']);
         return;
     } else if (intent == 'QUERY') {
         await _voiceController.handleQuery(result['query']);
@@ -1107,122 +1005,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } 
 
     if (intent == 'ADD_TRANSACTION') {
-      final data = result['transaction'];
-      if (data != null) {
-        final description = data['description'] ?? 'Despesa';
-        final amount = (data['amount'] as num?)?.toDouble();
-        
-        // Fix: isExpense matches 'EXPENSE' or 'INCOME'. AI might return 'isExpense' boolean or 'type' string.
-        bool isExpense = true;
-        if (data['type'] != null && data['type'] is String) {
-           isExpense = (data['type'] as String).toUpperCase() == 'EXPENSE';
-        } else if (data['isExpense'] != null && data['isExpense'] is bool) {
-           isExpense = data['isExpense'];
-        }
-        
-        final dateStr = data['date'];
-        final date = dateStr != null ? DateTime.parse(dateStr) : DateTime.now();
-        final category = data['category'] ?? 'Outras Despesas';
-        final subcategory = data['subcategory'];
-        final installments = data['installments'] as int? ?? 1;
-        final downPayment = (data['downPayment'] as num?)?.toDouble() ?? 0.0;
-        final installmentAmount = (data['installmentAmount'] as num?)?.toDouble();
-
-        if (installments > 1) {
-          if (amount == null && installmentAmount == null) {
-            await _voiceService.speak('Não entendi os valores do parcelamento.');
-            return;
-          }
-          DateTime firstInstallmentDate = date;
-          if (downPayment > 0) {
-            firstInstallmentDate = DateTime(date.year, date.month + 1, date.day, date.hour, date.minute);
-          }
-          final transactions = InstallmentHelper.createInstallments(
-            description: description,
-            totalAmount: amount,
-            installments: installments,
-            firstInstallmentDate: firstInstallmentDate,
-            category: category,
-            subcategory: subcategory,
-            isExpense: isExpense,
-            downPayment: downPayment,
-            downPaymentDate: date,
-            installmentValue: installmentAmount,
-          );
-          final transactionIds = <String>[];
-          for (final t in transactions) {
-            await _dbService.addTransaction(t);
-            transactionIds.add(t.id);
-          }
-
-          double totalFeedback = amount ?? 0.0;
-          if (installmentAmount != null) {
-            totalFeedback = downPayment + (installmentAmount * installments);
-          } else if (amount != null) {
-            totalFeedback = amount;
-          }
-          final installmentVal = installmentAmount ?? ((totalFeedback - downPayment) / installments);
-          await _voiceService.speak(
-            isExpense
-                ? 'Compra de $description registrada. ${downPayment > 0 ? 'Entrada de ${downPayment.toStringAsFixed(2)} e ' : ''}$installments parcelas de ${installmentVal.toStringAsFixed(2)} reais.'
-                : 'Receita de $description registrada. ${downPayment > 0 ? 'Entrada de ${downPayment.toStringAsFixed(2)} e ' : ''}$installments parcelas de ${installmentVal.toStringAsFixed(2)} reais.',
-          );
-        } else {
-          if (amount == null) {
-            await _voiceService.speak('Não entendi o valor da transação.');
-            return;
-          }
-          final now = DateTime.now();
-          final isTodayOrPast = date.isBefore(now) || 
-                               (date.year == now.year && date.month == now.month && date.day == now.day);
-
-          // Hybrid Logic: Trust AI 'isPaid', BUT apply common sense overrides for Today/Past items.
-          // Problem: AI might say "Buy Umbrella" is Pending, but if date is Today, it's likely Paid.
-          // Exception: "Bill", "Invoice", "To Pay" explicitly mentioned.
-          
-          bool finalIsPaid = isTodayOrPast;
-          
-          if (data['isPaid'] != null && data['isPaid'] is bool) {
-             bool aiSaysPaid = data['isPaid'];
-             
-             if (!aiSaysPaid && isTodayOrPast) {
-                 // Conflict: AI says Pending, but Time is Now/Past.
-                 // Only verify Pending if it looks like a Bill/Obligation.
-                 final descLower = description.toLowerCase();
-                 final obligationKeywords = ['boleto', 'conta', 'fatura', 'aluguel', 'condominio', 'pagar', 'vence', 'cartão', 'ipva', 'iptu', 'darf', 'agendar'];
-                 
-                 bool isObligation = obligationKeywords.any((k) => descLower.contains(k));
-                 
-                 if (isObligation) {
-                    finalIsPaid = false; // Trust AI (It's a bill due today)
-                 } else {
-                    finalIsPaid = true; // Override AI. "Umbrella" bought today is Paid.
-                 }
-             } else {
-                 finalIsPaid = aiSaysPaid;
-             }
-          }
-
-          final transaction = Transaction(
-            id: const Uuid().v4(),
-            description: description,
-            amount: amount,
-            isExpense: isExpense,
-            date: date,
-            category: category,
-            subcategory: subcategory,
-            isPaid: finalIsPaid,
-            paymentDate: finalIsPaid ? date : null,
-          );
-          await _dbService.addTransaction(transaction);
-
-          await _voiceService.speak(
-            isExpense
-                ? 'Gasto de $description de ${amount.toStringAsFixed(2)} registrado como ${finalIsPaid ? "PAGO" : "PENDENTE"}.'
-                : 'Receita de $description de ${amount.toStringAsFixed(2)} registrada como ${finalIsPaid ? "RECEBIDO" : "PENDENTE"}.',
-          );
-        }
-      }
+      await _initiateTransaction(result['transaction']);
     } else if (intent == 'ADD_EVENT') {
       final data = result['event'];
       if (data != null) {
@@ -1404,6 +1187,315 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+  // SLOT FILLING LOGIC ----------------------------------------------------------------
+  Future<void> _initiateTransaction(Map<String, dynamic>? data) async {
+    if (data == null) return;
+    
+    // Normalize data structure for storage
+    bool isExpense = true;
+    if (data['type'] != null && data['type'] is String) {
+       isExpense = (data['type'] as String).toUpperCase() == 'EXPENSE';
+    } else if (data['isExpense'] != null && data['isExpense'] is bool) {
+       isExpense = data['isExpense'];
+    }
+    data['isExpense'] = isExpense;
+
+    _pendingTransactionData = data; // Store as pending
+    
+    await _validateAndFinalizeTransaction();
+  }
+
+  // AGENDA SLOT FILLING
+  Future<void> _initiateAgendaItem(Map<String, dynamic>? data) async {
+      if (data == null) return;
+      _pendingAgendaData = data;
+      await _validateAndFinalizeAgendaItem();
+  }
+
+  Future<void> _validateAndFinalizeAgendaItem() async {
+      if (_pendingAgendaData == null) return;
+      final data = _pendingAgendaData!;
+
+      // Check if it's a meeting (COMPROMISSO)
+      final typeStr = (data['type'] as String?)?.toUpperCase();
+      final isCompromisso = typeStr == 'COMPROMISSO'; // Only enforce for Compromisso if needed? 
+      // Rule 4: "Se o usuário disser 'Registrar uma reunião...'" -> Missing person
+      
+      // Check for explicit "missing_person" flag from AI
+      bool missingPerson = data['missing_person'] == true;
+      
+      // Fallback: If title is exactly "Reunião" or "Encontro" or "Consulta" without "com"
+      String title = (data['title'] as String?) ?? "";
+      if (!title.toLowerCase().contains(" com ")) {
+          // Check if it is a social event type
+          if (['reunião', 'encontro', 'consulta', 'almoço', 'jantar', 'café'].contains(title.toLowerCase())) {
+             missingPerson = true;
+          }
+      }
+
+      if (missingPerson) {
+          _missingField = 'person_name';
+          setState(() { _statusText = "Com quem?"; });
+          await _voiceService.speak("Com quem é essa reunião?");
+          _startListeningAfterSpeech();
+          return;
+      }
+
+      // All good
+      _missingField = null;
+      _pendingAgendaData = null;
+      await _voiceController.handleAgendaItem(data);
+  }
+
+  Future<void> _validateAndFinalizeTransaction() async {
+     if (_pendingTransactionData == null) return;
+     final data = _pendingTransactionData!;
+     
+     // 1. Check Description (ITEM)
+     if (data['description'] == null || (data['description'] as String).isEmpty) {
+        _missingField = 'description';
+        setState(() { _statusText = "Aguardando item..."; });
+        await _voiceService.speak("Você não informou o que foi. Qual é o item ou descrição da transação?");
+        _startListeningAfterSpeech();
+        return;
+     }
+     
+     // 2. Check Amount (VALOR)
+     final amount = (data['amount'] as num?)?.toDouble();
+     final installments = data['installments'] as int? ?? 1;
+     final installmentAmount = (data['installmentAmount'] as num?)?.toDouble();
+
+     // Rule: Simple transactions MUST have amount.
+     // Installments MUST have Total OR (Down + Chunk).
+     bool hasValidAmount = (amount != null && amount > 0);
+     
+     if (installments > 1) {
+         // Case C: User provided explicit Installment Value (e.g. "5 parcelas de 100").
+         // TRUST THIS. Ignore 'amount' (Total) calculation nuances.
+         if (installmentAmount != null && installmentAmount > 0) {
+             // We have enough info. Proceed.
+         } else {
+             // Case A/B: User provided Total and Count (and maybe Entry).
+             // We need valid Total ('amount') to calculate splits.
+             if (!hasValidAmount) {
+                 _missingField = 'amount';
+                 setState(() { _statusText = "Aguardando valor..."; });
+                 await _voiceService.speak("Você não informou o valor total ou das parcelas. Qual o valor?");
+                 _startListeningAfterSpeech();
+                 return; 
+             }
+             
+             // Sanity Check
+             final downPayment = (data['downPayment'] as num?)?.toDouble() ?? 0.0;
+             if (amount! <= downPayment) {
+                  _missingField = 'amount';
+                  setState(() { _statusText = "Valor inconsistente"; });
+                  await _voiceService.speak("O valor total é menor que a entrada. Por favor, diga o valor total da compra.");
+                  _startListeningAfterSpeech();
+                  return;
+             }
+         }
+     } else {
+         if (!hasValidAmount) {
+             _missingField = 'amount';
+             setState(() { _statusText = "Aguardando valor..."; });
+             await _voiceService.speak("Você não informou o valor. Qual o valor da transação?");
+             _startListeningAfterSpeech();
+             return;
+         }
+     }
+
+     // All good!
+     _missingField = null;
+     _pendingTransactionData = null; // Clear state
+     await _finalizeTransaction(data);
+  }
+
+  Future<void> _handleMissingInput(String text) async {
+     // Transaction Logic
+     if (_pendingTransactionData != null) {
+         await _handleMissingTransactionInput(text);
+         return;
+     }
+
+     // Agenda Logic
+     if (_pendingAgendaData != null && _missingField == 'person_name') {
+         // Update title
+         String name = text.trim();
+         // Capitalize
+         if (name.isNotEmpty) name = name[0].toUpperCase() + name.substring(1);
+         
+         // If user says "Com João", remove "Com "
+         if (name.toLowerCase().startsWith("com ")) {
+             name = name.substring(4).trim();
+              if (name.isNotEmpty) name = name[0].toUpperCase() + name.substring(1);
+         }
+
+         // Construct title
+         String currentTitle = _pendingAgendaData!['title'] ?? 'Reunião';
+         
+         // If generic "Reunião" or "Encontro", strip it if needed, or just append
+         // Actually, let's just append "com $name" to the type if the current title is generic
+         // Or just ensure the Format "Title com Person".
+         
+         if (!currentTitle.toLowerCase().contains("com ")) {
+            _pendingAgendaData!['title'] = "$currentTitle com $name";
+         } else {
+             // Already has "com", maybe replaced placeholder?
+             _pendingAgendaData!['title'] = "$currentTitle $name";
+         }
+         
+         // Update description for context
+         String currentDesc = _pendingAgendaData!['description'] ?? '';
+         _pendingAgendaData!['description'] = "$currentDesc (com $name)".trim();
+
+         _pendingAgendaData!['missing_person'] = false; // clear flag
+         
+         _missingField = null;
+         final data = _pendingAgendaData;
+         _pendingAgendaData = null;
+         
+         await _voiceController.handleAgendaItem(data);
+         return;
+     }
+  }
+
+  Future<void> _handleMissingTransactionInput(String text) async {
+     if (_pendingTransactionData == null) return;
+     
+     bool handled = false;
+     
+     if (_missingField == 'description') {
+         // User provided description directly
+         _pendingTransactionData!['description'] = text.trim();
+         handled = true;
+     } else if (_missingField == 'amount') {
+         // Extract number
+         double? val;
+         String clean = text.replaceAll(RegExp(r'[^\d.,]'), '').replaceAll(',', '.');
+         try { val = double.parse(clean); } catch(_) {}
+         
+         if (val == null) {
+            // Ask AI to extract amount from text
+            final json = await _aiService.processCommand("O valor é $text");
+             if (json['transaction'] != null) {
+                val = (json['transaction']['amount'] as num?)?.toDouble();
+             }
+         }
+         
+         if (val != null && val > 0) {
+            _pendingTransactionData!['amount'] = val;
+            handled = true;
+         } else {
+            await _voiceService.speak("Não entendi o valor. Diga apenas o número, por exemplo, 50.");
+            _startListeningAfterSpeech();
+            return;
+         }
+     }
+     
+     if (handled) {
+        await _validateAndFinalizeTransaction();
+     }
+  }
+
+  void _startListeningAfterSpeech() {
+     Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) _voiceService.startListening();
+     });
+  }
+
+  Future<void> _finalizeTransaction(Map<String, dynamic> data) async {
+        final description = data['description'] ?? 'Despesa';
+        final amount = (data['amount'] as num?)?.toDouble();
+        final isExpense = data['isExpense'] ?? true;
+        
+        final dateStr = data['date'];
+        final date = dateStr != null ? DateTime.parse(dateStr) : DateTime.now();
+        final category = data['category'] ?? 'Outras Despesas';
+        final subcategory = data['subcategory'];
+        final installments = data['installments'] as int? ?? 1;
+        final downPayment = (data['downPayment'] as num?)?.toDouble() ?? 0.0;
+        final installmentAmount = (data['installmentAmount'] as num?)?.toDouble();
+
+        if (installments > 1) {
+          if (amount == null && installmentAmount == null) {
+            await _voiceService.speak('Não entendi os valores do parcelamento.');
+            return;
+          }
+          DateTime firstInstallmentDate = date;
+          if (downPayment > 0) {
+            firstInstallmentDate = DateTime(date.year, date.month + 1, date.day, date.hour, date.minute);
+          }
+          final transactions = InstallmentHelper.createInstallments(
+            description: description,
+            totalAmount: amount,
+            installments: installments,
+            firstInstallmentDate: firstInstallmentDate,
+            category: category,
+            subcategory: subcategory,
+            isExpense: isExpense,
+            downPayment: downPayment,
+            downPaymentDate: date,
+            installmentValue: installmentAmount,
+          );
+          for (final t in transactions) {
+            await _dbService.addTransaction(t);
+          }
+
+          double totalFeedback = amount ?? 0.0;
+          if (installmentAmount != null) {
+            totalFeedback = downPayment + (installmentAmount * installments);
+          } else if (amount != null) totalFeedback = amount;
+          
+          final installmentVal = installmentAmount ?? ((totalFeedback - downPayment) / installments);
+          await _voiceService.speak(
+            isExpense
+                ? 'Compra de $description registrada. ${downPayment > 0 ? 'Entrada de ${downPayment.toStringAsFixed(2)} e ' : ''}$installments parcelas de ${installmentVal.toStringAsFixed(2)} reais.'
+                : 'Receita de $description registrada. ${downPayment > 0 ? 'Entrada de ${downPayment.toStringAsFixed(2)} e ' : ''}$installments parcelas de ${installmentVal.toStringAsFixed(2)} reais.',
+          );
+        } else {
+          final now = DateTime.now();
+          final isTodayOrPast = date.isBefore(now) || 
+                               (date.year == now.year && date.month == now.month && date.day == now.day);
+          
+          bool finalIsPaid = isTodayOrPast;
+          if (data['isPaid'] != null) {
+             bool aiSaysPaid = data['isPaid'];
+             if (!aiSaysPaid && isTodayOrPast) {
+                 final descLower = description.toLowerCase();
+                 final obligationKeywords = ['boleto', 'conta', 'fatura', 'aluguel', 'condominio', 'pagar', 'vence', 'cartão', 'ipva', 'iptu', 'darf', 'agendar'];
+                 bool isObligation = obligationKeywords.any((k) => descLower.contains(k));
+                 if (isObligation) finalIsPaid = false; 
+                 else finalIsPaid = true;
+             } else {
+                 finalIsPaid = aiSaysPaid;
+             }
+          }
+
+          final transaction = Transaction(
+            id: const Uuid().v4(),
+            description: description,
+            amount: amount ?? 0.0,
+            isExpense: isExpense,
+            date: date,
+            category: category,
+            subcategory: subcategory,
+            isPaid: finalIsPaid,
+            paymentDate: finalIsPaid ? date : null,
+          );
+          await _dbService.addTransaction(transaction);
+
+          // Force update UI state if needed
+          setState(() { _statusText = t('status_idle'); _isProcessing = false; });
+
+          await _voiceService.speak(
+            isExpense
+                ? 'Gasto de $description de ${amount!.toStringAsFixed(2)} registrado como ${finalIsPaid ? "PAGO" : "PENDENTE"}.'
+                : 'Receita de $description de ${amount!.toStringAsFixed(2)} registrada como ${finalIsPaid ? "RECEBIDO" : "PENDENTE"}.',
+          );
+        }
+  }
+
   Future<void> _verifyGroqModel() async {
     await _aiService.verifyAndUpdateModel();
   }
@@ -1469,7 +1561,11 @@ class _HomeScreenState extends State<HomeScreen> {
          canSend = false;
       }
 
-      final msgCtrl = TextEditingController(text: info.mensagemPadrao ?? "Parabéns ${info.nomePessoa}! Tudo de bom!");
+      String initialText = info.mensagemPadrao ?? "Parabéns ${info.nomePessoa}! Tudo de bom!";
+      if (!initialText.contains("FinAgeVoz")) {
+         initialText = "🎂 Enviado pelo app FinAgeVoz: " + initialText;
+      }
+      final msgCtrl = TextEditingController(text: initialText);
 
       await showDialog(
         context: context,
@@ -1511,7 +1607,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                  
                                  final newMsg = await _aiService.answerQuestion(prompt);
                                  setStateUi(() {
-                                    msgCtrl.text = newMsg.replaceAll('"', ''); 
+                                    msgCtrl.text = "🎂 Enviado pelo app FinAgeVoz: " + newMsg.replaceAll('"', ''); 
                                  });
                               },
                            ),

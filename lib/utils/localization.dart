@@ -610,6 +610,10 @@ class AppLocalizations {
       'sub_machines': "Máquinas",
       'sub_equipment': "Equipamento",
       'status_paid': "Pago",
+      'status_received': "Recebida",
+      'status_to_receive': "A Receber",
+      'status_pending': "Pendente",
+      'status_overdue': "Atrasado",
       
       // Recurrence
       'recurrence': "Recorrência",

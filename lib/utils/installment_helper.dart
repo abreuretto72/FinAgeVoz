@@ -86,8 +86,8 @@ class InstallmentHelper {
         installmentId: installmentId,
         installmentNumber: i + 1,
         totalInstallments: installments,
-        isPaid: false, // Parcelas futuras/planejadas nascem sempre pendentes
-        paymentDate: null,
+        isPaid: installmentDate.isBefore(DateTime.now().add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1))), // Rule 2: Date <= Today -> Paid
+        paymentDate: installmentDate.isBefore(DateTime.now().add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1))) ? installmentDate : null,
       ));
     }
 

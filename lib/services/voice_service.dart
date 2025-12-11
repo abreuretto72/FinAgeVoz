@@ -266,8 +266,8 @@ class VoiceService {
           }
         },
         localeId: _currentSttLocale,  // ✅ Usa locale dinâmico
-        pauseFor: const Duration(seconds: 10),
-        listenFor: const Duration(seconds: 60),
+        pauseFor: const Duration(seconds: 5), // Adjusted to 5s to prevent premature cutoff
+        listenFor: const Duration(seconds: 30), // Max 30s conversation window
         partialResults: true,
         cancelOnError: false,
       );

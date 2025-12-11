@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/database_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../services/pdf_service.dart';
 
 /// Tela de exibição da Política de Privacidade
 /// Carrega o arquivo correto baseado no idioma do app
@@ -55,6 +57,26 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
           _policyText = _getErrorMessage();
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _openGitHubPage() async {
+    final String urlString = _currentLanguage.startsWith('pt')
+        ? 'https://abreuretto72.github.io/FinAgeVoz/web_pages/privacy-policy-pt.html'
+        : 'https://abreuretto72.github.io/FinAgeVoz/web_pages/privacy-policy-en.html';
+        
+    final Uri url = Uri.parse(urlString);
+    
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_currentLanguage.startsWith('pt') 
+              ? 'Erro ao abrir link' 
+              : 'Error opening link')),
+        );
       }
     }
   }
@@ -116,16 +138,17 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
+            icon: const Icon(Icons.print),
+            tooltip: _currentLanguage.startsWith('pt') ? 'Imprimir PDF' : 'Print PDF',
+            onPressed: () {
+               PdfService.generatePrivacyPolicyReport(_policyText, _currentLanguage);
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.share),
             tooltip: _currentLanguage.startsWith('pt') ? 'Compartilhar' : 'Share',
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: _policyText));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(_getCopiedMessage()),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+               PdfService.sharePrivacyPolicyReport(_policyText, _currentLanguage);
             },
           ),
         ],
@@ -139,57 +162,62 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header com ícone
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.privacy_tip,
-                          size: 40,
-                          color: Colors.blue,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _getHeaderTitle(),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _getHeaderSubtitle(),
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
+                  // Header com ícone (Clicável para abrir GitHub)
+                  InkWell(
+                    onTap: _openGitHubPage,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.privacy_tip,
+                            size: 40,
+                            color: Colors.blueAccent,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _getHeaderTitle(),
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueAccent,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _getHeaderSubtitle(),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.open_in_new, color: Colors.blueAccent),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+
                   
                   // Conteúdo da política
                   SelectableText(
                     _policyText,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 16,
                       height: 1.6,
-                      color: Colors.black87,
+                      color: Colors.white,
                     ),
                   ),
                   
@@ -199,7 +227,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
+                      color: Colors.white.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -207,13 +235,14 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.contact_mail, color: Colors.blue),
+                            const Icon(Icons.contact_mail, color: Colors.blueAccent),
                             const SizedBox(width: 8),
                             Text(
                               _getContactTitle(),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 15,
+                                fontSize: 16,
+                                color: Colors.white,
                               ),
                             ),
                           ],
@@ -221,14 +250,14 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                         const SizedBox(height: 12),
                         Text(
                           _getContactSubtitle(),
-                          style: const TextStyle(fontSize: 13),
+                          style: const TextStyle(fontSize: 14, color: Colors.white70),
                         ),
                         const SizedBox(height: 8),
                         SelectableText(
                           'E-mail: abreu@multiversodigital.com.br',
                           style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.blue[700],
+                            fontSize: 14,
+                            color: Colors.blueAccent,
                             decoration: TextDecoration.underline,
                           ),
                         ),
@@ -237,7 +266,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                           _currentLanguage.startsWith('pt')
                               ? 'Responsável: Belisario Retto de Abreu'
                               : 'Responsible: Belisario Retto de Abreu',
-                          style: const TextStyle(fontSize: 13),
+                          style: const TextStyle(fontSize: 14, color: Colors.white70),
                         ),
                       ],
                     ),

@@ -977,6 +977,86 @@ class PdfService {
      ]);
   }
 
+  static Future<void> generatePrivacyPolicyReport(
+    String policyText,
+    String languageCode,
+  ) async {
+    final pdf = _buildPrivacyPolicyPdf(policyText, languageCode);
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'privacy_policy_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
+    );
+  }
+
+  static Future<void> sharePrivacyPolicyReport(
+    String policyText,
+    String languageCode,
+  ) async {
+    final pdf = _buildPrivacyPolicyPdf(policyText, languageCode);
+    final fileName = 'privacy_policy_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
+    final file = await _savePdfToTemp(pdf, fileName);
+    await Share.shareXFiles([XFile(file.path)], text: AppLocalizations.t('policy_title', languageCode));
+  }
+
+  static pw.Document _buildPrivacyPolicyPdf(
+    String policyText,
+    String languageCode,
+  ) {
+    final pdf = pw.Document();
+    
+    // Normalize locale
+    String locale = languageCode;
+    if (locale == 'en') locale = 'en_US';
+    else if (locale == 'pt_BR') locale = 'pt_BR';
+    else if (locale == 'pt_PT') locale = 'pt_PT';
+    else if (locale == 'es') locale = 'es_ES';
+    
+    final dateFormat = DateFormat.yMd(locale).add_Hm();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        footer: (context) => _buildFooter(context, languageCode),
+        build: (pw.Context context) {
+          return [
+             pw.Header(
+              level: 0,
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                   pw.Text(AppLocalizations.t('policy_title', languageCode), style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                   pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+                      pw.Text(AppLocalizations.t('app_title', languageCode), style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                      pw.Text('${AppLocalizations.t('generated_on', languageCode)}${dateFormat.format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                   ]),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 20),
+            pw.SizedBox(height: 20),
+            if (policyText.isEmpty)
+              pw.Text('No content available.', style: const pw.TextStyle(fontSize: 12, color: PdfColors.red)),
+            
+            ...policyText.split('\n').map((line) {
+              if (line.trim().isEmpty) return pw.SizedBox(height: 6);
+              return pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 2),
+                child: pw.Text(
+                  line.trim(),
+                  style: const pw.TextStyle(fontSize: 10, color: PdfColors.black),
+                  textAlign: pw.TextAlign.justify,
+                ),
+              );
+            }).toList(),
+          ];
+        },
+      ),
+    );
+    return pdf;
+  }
+
+
+
   static pw.Widget _buildFooter(pw.Context context, String languageCode) {
     return pw.Container(
       decoration: const pw.BoxDecoration(

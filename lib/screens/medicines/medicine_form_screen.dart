@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../models/medicine_model.dart';
 import '../../services/database_service.dart';
 import 'posology_form_screen.dart';
+import '../../models/transaction_model.dart';
 
 class MedicineFormScreen extends StatefulWidget {
   final Remedio? remedio;
@@ -39,6 +40,9 @@ class _MedicineFormScreenState extends State<MedicineFormScreen> {
 
   bool get isEditing => _lastSavedRemedio != null;
   Remedio? _lastSavedRemedio;
+  bool _createPurchaseTransaction = false;
+  final _purchaseValueController = TextEditingController();
+
   late String _remedioId;
 
   @override
@@ -220,7 +224,38 @@ class _MedicineFormScreenState extends State<MedicineFormScreen> {
                 }
               ),
               
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              const Divider(),
+              // Purchase Integration Section
+              SwitchListTile(
+                 title: const Text("Registrar Compra (Financeiro)", style: TextStyle(fontWeight: FontWeight.bold)),
+                 subtitle: const Text("Criar despesa no fluxo de caixa"),
+                 value: _createPurchaseTransaction,
+                 onChanged: (val) => setState(() => _createPurchaseTransaction = val),
+                 secondary: const Icon(Icons.attach_money, color: Colors.green),
+              ),
+              if (_createPurchaseTransaction)
+                 Padding(
+                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                   child: Column(
+                     children: [
+                        TextFormField(
+                           controller: _purchaseValueController,
+                           decoration: const InputDecoration(
+                             labelText: 'Valor da Compra (R\$)', 
+                             border: OutlineInputBorder(),
+                             prefixText: 'R\$ '
+                           ),
+                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                           validator: (v) => _createPurchaseTransaction && (v == null || v.isEmpty) ? 'Informe o valor' : null,
+                        ),
+                        const SizedBox(height: 8),
+                         const Text("A despesa será lançada com a data de hoje.", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                     ],
+                   ),
+                 ),
+
+              const SizedBox(height: 16),
               const Divider(),
               
               Row(
@@ -292,6 +327,29 @@ class _MedicineFormScreenState extends State<MedicineFormScreen> {
       await _db.updateRemedio(remedio);
     } else {
       await _db.addRemedio(remedio);
+    }
+    
+    // Process Purchase if enabled
+    if (_createPurchaseTransaction) {
+       final valorRaw = _purchaseValueController.text.replaceAll(',', '.');
+       final valor = double.tryParse(valorRaw) ?? 0.0;
+       
+       if (valor > 0) {
+           final t = Transaction(
+               id: const Uuid().v4(),
+               description: "Compra Remédio: ${_nomeController.text}",
+               amount: valor,
+               date: DateTime.now(),
+               isExpense: true,
+               category: "Saúde", // Default category
+               isPaid: true, // Default to Paid as per "Regra de Ouro" for today
+           );
+           await _db.addTransaction(t);
+           
+           if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Despesa registrada com sucesso!')));
+           }
+       }
     }
     
     _lastSavedRemedio = remedio;

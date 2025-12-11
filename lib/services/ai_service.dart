@@ -342,12 +342,22 @@ class AIService {
              - If "Conta", "Boleto", "Fatura" -> isPaid: false (implies bill to pay).
              - If "Almoço", "Mercado", "Uber", "Gasolina", "Farmácia" -> isPaid: true (implies immediate consumption).
 
-    3. Determine 'recurrence' and 'installments':
+    3. Determine 'description' (Slot Filling Rule):
+       - If the user specifies an Item, use it.
+       - If the user DOES NOT specify an Item (e.g., "Gastei 50 reais"), explicitly set "description": null.
+       - DO NOT use generic terms like "Despesa", "Gasto", "Compra", "Receita".
+       - This allows the App to ask the user "What was the item?".
+
+    4. Determine 'recurrence' and 'installments':
        - "Parcelado em X vezes" -> installments: X.
        - "Todo mês", "Mensal", "Aluguel mensal" -> recurrence: 'MONTHLY'.
-       - IMPORTANT: For 'amount' in installments:
-         - If user says "10x of 100", amount should be 100.
-         - If user says "Total 1000 in 10x", amount should be 100 (TOTAL/X). ALWAYS return the INSTALLMENT VALUE in 'amount'.
+       - PATTERN "X parcelas de Y" matches:
+          - installments: X
+          - installmentAmount: Y
+       - PATTERN "Entrada de Z" matches:
+          - downPayment: Z
+       - 'amount' field: Should be the TOTAL VALUE (downPayment + (installments * installmentAmount)).
+       - CRITICAL: Always populate 'installmentAmount' and 'downPayment' if mentioned. Do not merge them.
 
     Transaction Examples (Strict Adherence):
     
@@ -364,18 +374,47 @@ class AIService {
     
     // TYPE C: Installments (isPaid: false)
     "Fiz uma compra parcelada em 10 vezes" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Compra Parcelada", "amount": 0.0, "isExpense": true, "isPaid": false, "installments": 10}}
+    "Comprei geladeira, dei 500 de entrada e 5 parcelas de 250" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Geladeira", "amount": 1750.0, "isExpense": true, "isPaid": false, "installments": 5, "downPayment": 500.0, "installmentAmount": 250.0}}
     
     // TYPE D: Income
-    "Recebi 500 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Recebimento", "amount": 500.0, "isExpense": false, "isPaid": true, "date": "$currentDate"}}
+    "Recebi 500 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": null, "amount": 500.0, "isExpense": false, "isPaid": true, "date": "$currentDate"}}
     "Aluguel para receber dia 10" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Aluguel", "amount": 0.0, "isExpense": false, "isPaid": false, "date": "$currentYear-MM-10T00:00:00"}}
     
+    Agenda Rules:
+    1. Title Format for meetings/appointments (COMPROMISSO):
+       - MANDATORY FORMAT: "Reunião com <Person/Group>" or "Encontro com <Person/Group>".
+       - Extract the person/group name from the phrase after "com".
+       - Example: "Reunião com João amanhã" -> title: "Reunião com João".
+       - Example: "Consulta com Dra. Maria" -> title: "Consulta com Dra. Maria".
+       - IF NO PERSON IS MENTIONES (e.g. "Reunião amanhã às 9h"):
+         - Set "title": "Reunião" (generic).
+         - Set "missing_person": true.
+
+    2. Title Format for Tasks/Reminders (TAREFA) [IMPORTANT: NOT APPLICABLE TO "REMEDIO" type]:
+       - MANDATORY FORMAT: "Lembrete: <Content>".
+       - Extract the reminder content from the user's phrase.
+       - Example: "Me lembre de pagar o IPTU" -> title: "Lembrete: pagar o IPTU".
+       - Example: "Lembrete de levar o carro" -> title: "Lembrete: levar o carro".
+       - IF NO CONTENT IS SPECIFIED (e.g. "Me lembre amanhã", "Crie um lembrete"):
+         - Set "title": "Lembrete" (generic).
+         - Set "missing_content": true.
+         - This allows the app to ask "What to remind?".
+
     Agenda Examples (Smart Agenda):
     "Adicionar uma reunião amanhã às 9 da manhã com o João" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "COMPROMISSO", "title": "Reunião com João", "date": "$currentYear-11-23T09:00:00", "time": "09:00", "description": "Com João"}}
+    "Reunião amanhã às 15h" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "COMPROMISSO", "title": "Reunião", "date": "$currentYear-11-23T15:00:00", "time": "15:00", "missing_person": true}}
+    "Encontro com a equipe de vendas dia 10" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "COMPROMISSO", "title": "Encontro com Equipe de Vendas", "date": "$currentYear-MM-10T09:00:00"}}
     "Me lembra de tomar remédio às 8" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "REMEDIO", "title": "Tomar remédio", "date": "$currentYear-11-22T20:00:00", "time": "20:00"}}
     "Registrar pagamento da internet no dia 5, valor 120 reais" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "PAGAMENTO", "title": "Internet", "date": "$currentYear-12-05T00:00:00", "payment_value": 120.0}}
     "Agendar aniversário da minha mãe dia 12 de agosto" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "ANIVERSARIO", "title": "Aniversário da mãe", "person_name": "Mãe", "relationship": "Mãe", "date": "$currentYear-08-12T00:00:00"}}
     "Aniversário de Mara 10 de Março" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "ANIVERSARIO", "title": "Aniversário de Mara", "person_name": "Mara", "date": "$currentYear-03-10T00:00:00"}}
-    "Criar tarefa comprar ração hoje à tarde" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "TAREFA", "title": "Comprar ração", "date": "$currentYear-11-22T15:00:00", "time": "15:00"}}
+    
+    // REMINDERS
+    "Me lembre de pagar o IPTU amanhã" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "TAREFA", "title": "Lembrete: pagar o IPTU", "date": "tomorrow"}}
+    "Criar um lembrete para levar o carro na revisão" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "TAREFA", "title": "Lembrete: levar o carro na revisão"}}
+    "Lembrete: enviar relatório para o João" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "TAREFA", "title": "Lembrete: enviar relatório para o João"}}
+    "Me lembre amanhã às 8" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "TAREFA", "title": "Lembrete", "date": "tomorrow", "time": "08:00", "missing_content": true}}
+    
     "Caminhar todo dia às 7" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "TAREFA", "title": "Caminhar", "time": "07:00", "recurrence": {"frequencia": "DIARIO", "intervalo": 1}}}
     "Tomar remédio de 8 em 8 horas" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "REMEDIO", "title": "Tomar remédio", "recurrence": {"frequencia": "HORAS", "intervalo": 8}}}
     "Lixo toda segunda às 20h" -> {"intent": "ADD_AGENDA_ITEM", "agenda_item": {"type": "ROTINA", "title": "Colocar lixo", "time": "20:00", "recurrence": {"frequencia": "SEMANAL", "diasDaSemana": [1]}}}

@@ -64,7 +64,7 @@ class Transaction extends HiveObject {
     required this.description,
     required this.amount,
     required this.isExpense,
-    required this.date,
+    DateTime? date, // Changed to nullable input
     this.isReversal = false,
     this.originalTransactionId,
     this.category = 'Outras Despesas',
@@ -78,7 +78,8 @@ class Transaction extends HiveObject {
     this.isSynced = false,
     this.isPaid = false,
     this.paymentDate,
-  }) : updatedAt = updatedAt ?? DateTime.now();
+  }) : date = date ?? DateTime.now(), // Fallback to now
+       updatedAt = updatedAt ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
     return {
@@ -154,5 +155,47 @@ class Transaction extends HiveObject {
     final today = DateTime(now.year, now.month, now.day);
     // Explicitly strictly before today (yesterday or older)
     return date.isBefore(today);
+  }
+
+  Transaction copyWith({
+    String? id,
+    String? description,
+    double? amount,
+    bool? isExpense,
+    DateTime? date,
+    bool? isReversal,
+    String? originalTransactionId,
+    String? category,
+    String? subcategory,
+    String? installmentId,
+    int? installmentNumber,
+    int? totalInstallments,
+    List<String>? attachments,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    bool? isSynced,
+    bool? isPaid,
+    DateTime? paymentDate,
+  }) {
+    return Transaction(
+      id: id ?? this.id,
+      description: description ?? this.description,
+      amount: amount ?? this.amount,
+      isExpense: isExpense ?? this.isExpense,
+      date: date ?? this.date,
+      isReversal: isReversal ?? this.isReversal,
+      originalTransactionId: originalTransactionId ?? this.originalTransactionId,
+      category: category ?? this.category,
+      subcategory: subcategory ?? this.subcategory,
+      installmentId: installmentId ?? this.installmentId,
+      installmentNumber: installmentNumber ?? this.installmentNumber,
+      totalInstallments: totalInstallments ?? this.totalInstallments,
+      attachments: attachments ?? this.attachments,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      isSynced: isSynced ?? this.isSynced,
+      isPaid: isPaid ?? this.isPaid,
+      paymentDate: paymentDate ?? this.paymentDate,
+    );
   }
 }

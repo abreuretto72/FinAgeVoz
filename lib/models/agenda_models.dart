@@ -298,6 +298,9 @@ class AgendaItem extends HiveObject {
   @HiveField(15)
   DateTime atualizadoEm;
 
+  @HiveField(16)
+  String? googleEventId; // ID do evento no Google Calendar
+
   AgendaItem({
     required this.tipo,
     required this.titulo,
@@ -313,6 +316,7 @@ class AgendaItem extends HiveObject {
     this.remedio,
     this.aniversario,
     this.anexos,
+    this.googleEventId,
     DateTime? criado,
     DateTime? atualizado,
   })  : criadoEm = criado ?? DateTime.now(),

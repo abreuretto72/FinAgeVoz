@@ -1,0 +1,68 @@
+Política de Privacidade - FinAgeVoz
+Última atualização: 09 de Dezembro de 2025
+
+Sua privacidade é nossa prioridade. Esta Política de Privacidade descreve como o aplicativo FinAgeVoz, desenvolvido pela Multiverso Digital ("nós", "nosso"), coleta, usa e protege suas informações.
+
+O FinAgeVoz opera no modelo "Freemium" (funcionalidades gratuitas e pagas), sem exibir publicidade de terceiros.
+
+1. Informações que Coletamos
+A. Dados da Conta (Sincronização)
+Para permitir que você acesse seus dados em múltiplos dispositivos, podemos coletar:
+
+Nome e Endereço de E-mail (via Google Sign-In ou Apple ID).
+
+Identificador único de usuário (User ID).
+
+B. Dados Financeiros e de Saúde (Seus Dados Privados)
+Estes dados são essenciais para a funcionalidade do aplicativo:
+
+Financeiro: Registros de despesas, receitas, orçamentos e categorias.
+
+Saúde: Nomes de medicamentos, horários de dosagem e histórico de tomadas.
+
+Armazenamento: Estes dados são armazenados de forma segura na nuvem (Google Firebase) e criptografados em trânsito. Nós não vendemos, alugamos ou compartilhamos esses dados com terceiros para fins de marketing.
+
+C. Dados de Voz
+O aplicativo utiliza o microfone estritamente para converter seus comandos de voz em ações (Speech-to-Text).
+
+O áudio é processado e descartado imediatamente após a conversão. Nenhuma gravação de voz é armazenada permanentemente em nossos servidores.
+
+D. Dados Técnicos e de Uso (Analytics)
+Utilizamos Google Firebase Analytics e Crashlytics para melhorar a estabilidade do app.
+
+O que é coletado: Modelo do dispositivo, sistema operacional, relatórios de falhas e métricas de uso anônimas (ex: "tempo médio na tela de agenda").
+
+Finalidade: Identificar erros técnicos e melhorar a usabilidade.
+
+2. Assinaturas e Pagamentos
+O FinAgeVoz oferece assinaturas Premium.
+
+Processamento: Todas as transações são processadas diretamente pela Google Play Store ou Apple App Store.
+
+Segurança: Não temos acesso nem armazenamos os números do seu cartão de crédito. Recebemos apenas a confirmação técnica de que a assinatura está ativa.
+
+3. Seus Direitos (GDPR e LGPD)
+Você tem controle total sobre seus dados:
+
+Direito de Acesso e Correção: Você pode visualizar e editar seus dados diretamente no aplicativo.
+
+Direito à Exclusão (Direito ao Esquecimento): Você pode solicitar a exclusão completa da sua conta e de todos os dados associados a qualquer momento em Configurações > Excluir Conta.
+
+Revogação de Consentimento: Você pode revogar o acesso ao microfone ou notificações nas configurações do seu dispositivo.
+
+4. Compartilhamento de Dados
+Compartilhamos dados estritamente necessários apenas com nossos provedores de infraestrutura segura:
+
+Google Firebase: Para banco de dados e autenticação.
+
+Google Play/Apple: Para gerenciamento de assinaturas.
+
+5. Privacidade Infantil
+O FinAgeVoz não é direcionado a crianças menores de 13 anos. Não coletamos intencionalmente dados de crianças.
+
+6. Contato
+Para dúvidas relacionadas à privacidade ou para exercer seus direitos:
+
+Responsável: Belisario Retto de Abreu
+
+E-mail: abreu@multiversodigital.com.br

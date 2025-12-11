@@ -58,6 +58,15 @@ class _PaywallScreenState extends State<PaywallScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Assinatura ativada com sucesso!'), backgroundColor: Colors.green),
           );
+        } else {
+          // Compra ok, mas não ativou premium (provável erro de config no RevenueCat)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Compra realizada, mas Premium não ativado. Verifique configuração (Entitlement).'), 
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 5),
+            ),
+          );
         }
       }
     } catch (e) {

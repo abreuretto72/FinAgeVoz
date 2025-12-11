@@ -132,6 +132,11 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
                       time.hour,
                       time.minute,
                     );
+                    // Rule 2: Auto-update status based on date
+                    final now = DateTime.now();
+                    final isTodayOrPast = _selectedDate.isBefore(now) || 
+                                         (_selectedDate.year == now.year && _selectedDate.month == now.month && _selectedDate.day == now.day);
+                    _isPaid = isTodayOrPast;
                   });
                 }
               }

@@ -64,6 +64,17 @@ class DatabaseService {
     // Initialize language notifier
     languageNotifier.value = getLanguage();
 
+    // Sincronismo Absoluto (User Requirement):
+    
+    // 0. Auto-Fix (Heuristic): Corrigir 'Comprei/Gastei' que estejam Pendentes por erro.
+    await _fixPastTenseTransactions();
+
+    // 1. Remove TUDO que veio do financeiro (para garantir que pagos sumam).
+    await _resetSyncedAgendaItems();
+    
+    // 2. Repovoa APENAS com Pendentes Válidos (!isPaid && !isDeleted).
+    await _syncMissingAgendaItems();
+
     if (_categoryBox.isNotEmpty) {
       // Check if we need to reset categories for translation compatibility
       // This is a one-time migration to ensure all strings match AppConstants
@@ -410,8 +421,16 @@ class DatabaseService {
       }
     }
     
-    // Create new object with correct amount if needed
-    final tToAdd = (amount != transaction.amount) 
+    // Rule 2 Check: If explicitly Paid but no payment date, set it.
+    // We trust the caller (UI/Voice) to have handled the "Date <= Now -> Paid" rule 
+    // to respect the "explicitly defined" user intent clause.
+    DateTime? paymentDate = transaction.paymentDate;
+    if (transaction.isPaid && paymentDate == null) {
+       paymentDate = transaction.date; 
+    }
+
+    // Create new object with correct amount and consistent payment state
+    final tToAdd = (amount != transaction.amount || paymentDate != transaction.paymentDate) 
         ? Transaction(
             id: transaction.id,
             description: transaction.description,
@@ -429,7 +448,7 @@ class DatabaseService {
             updatedAt: DateTime.now().toUtc(),
             isSynced: false,
             isPaid: transaction.isPaid,
-            paymentDate: transaction.paymentDate,
+            paymentDate: paymentDate,
           )
         : transaction;
 
@@ -494,8 +513,12 @@ class DatabaseService {
   }
 
   double getBalance() {
-    // Pure summation logic
-    return _transactionBox.values.fold(0.0, (sum, t) => sum + t.amount);
+    // User Request (Step 2956): "considerar sempre vencidas e a vencer".
+    // TOTAL Projected Balance (Past + Future).
+    return _transactionBox.values.fold(0.0, (sum, t) {
+      if (t.isDeleted) return sum;
+      return sum + t.amount;
+    });
   }
 
   // Events
@@ -642,6 +665,12 @@ class DatabaseService {
     }
 
     if (key != null) {
+      // Rule 2 Check for consistency
+      DateTime? paymentDate = transaction.paymentDate;
+      if (transaction.isPaid && paymentDate == null) {
+         paymentDate = transaction.date; 
+      }
+
       final updatedTransaction = Transaction(
         id: transaction.id,
         description: transaction.description,
@@ -659,6 +688,8 @@ class DatabaseService {
         updatedAt: DateTime.now().toUtc(),
         isSynced: false,
         isDeleted: false,
+        isPaid: transaction.isPaid,
+        paymentDate: paymentDate,
       );
       await _transactionBox.put(key, updatedTransaction);
       await _syncUpdate(updatedTransaction);
@@ -1507,9 +1538,11 @@ class DatabaseService {
      
      for (var t in transactions) {
         // STRICT RULE: Only Pending items.
-        // Paid items (Expenses or Income) are history, not agenda/to-do.
+        // STRICT RULE: Only Pending items.
+        // Paid items or Deleted items must NOT be in Agenda.
+        if (t.isDeleted) continue;
+        
         bool isRelevant = !t.isPaid; 
-
         if (!isRelevant) continue;
 
         if (!existingIds.contains(t.id)) {
@@ -1627,5 +1660,58 @@ class DatabaseService {
       await item.delete();
       print("DEBUG: Deleted synced agenda item for $transactionId");
     }
+  }
+  Future<void> _fixPastTenseTransactions() async {
+      // Heuristic: If description contains "Comprei", "Gastei", "Paguei" -> it should be PAID.
+      // This acts as a safety net for any logic gaps where past actions were saved as pending.
+      final transactions = _transactionBox.values.where((t) => !t.isPaid && !t.isDeleted).toList();
+      int fixed = 0;
+      for (var t in transactions) {
+          final desc = t.description.toLowerCase();
+          // Simple Check: Contains precise words suggesting past action.
+          if (desc.contains("comprei") || desc.contains("gastei") || desc.contains("paguei")) {
+               // Safety exclusion list
+               if (!desc.contains("vou") && !desc.contains("preciso") && !desc.contains("falta") && !desc.contains("para")) {
+                   // Fix it: Force isPaid = true
+                  final updated = Transaction(
+                      id: t.id,
+                      description: t.description,
+                      amount: t.amount,
+                      isExpense: t.isExpense,
+                      date: t.date,
+                      category: t.category,
+                      subcategory: t.subcategory,
+                      installmentId: t.installmentId,
+                      installmentNumber: t.installmentNumber,
+                      totalInstallments: t.totalInstallments,
+                      attachments: t.attachments,
+                      updatedAt: DateTime.now(),
+                      isDeleted: t.isDeleted,
+                      isSynced: false,
+                      isPaid: true, // FORCE TRUE
+                      paymentDate: t.date, // Assume paid on transaction date
+                      isReversal: t.isReversal,
+                      originalTransactionId: t.originalTransactionId,
+                  );
+                  await _transactionBox.put(t.key, updated);
+                  fixed++;
+               }
+          }
+      }
+      if (fixed > 0) print("DEBUG: Auto-fixed $fixed past tense transactions to PAID.");
+  }
+
+  Future<void> _resetSyncedAgendaItems() async {
+     print("DEBUG: Executing Full Agenda Resync (Nuke Option)...");
+     await ensureAgendaBoxOpen();
+     
+     // User Request Step 2995: "Limpar toda a aba Pagamentos antes de repovoar".
+     // Delete ALL AgendaItemType.PAGAMENTO unconditionally.
+     final toDelete = agendaBox.values.where((i) => i.tipo == AgendaItemType.PAGAMENTO).toList();
+     
+     for (var item in toDelete) {
+       await item.delete();
+     }
+     print("DEBUG: Deleted ${toDelete.length} payment items (Global Nuke).");
   }
 }

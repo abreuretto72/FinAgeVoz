@@ -13,6 +13,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'pdf_preview_screen.dart';
 import '../services/subscription/feature_gate.dart';
 import '../services/subscription/subscription_service.dart';
+import '../services/transaction_csv_service.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 
 enum TransactionType { all, income, expense }
 enum FilterPeriod { today, thisWeek, thisMonth, all }
@@ -129,16 +132,16 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
     // Calculate balances
     _filteredBalance = 0;
-    _totalBalance = 0;
+    // Use Global Balance from DB (includes everything as per User Request Step 2956)
+    _totalBalance = _dbService.getBalance();
     _cashFlowBalance = 0;
     
     // final now = DateTime.now(); // Removed duplicate
 
     for (var t in _filteredTransactions) {
-      // Total Balance (Includes everything in the filter - projected)
-      _totalBalance += t.amount;
+      // Removed local _totalBalance addition to show Global Balance regardless of filter
       
-      // Cash Flow Balance (Realized Only)
+      // Cash Flow Balance (Realized Only - relative to filter)
       if (t.isRealized) {
         _cashFlowBalance += t.amount;
       }
@@ -261,6 +264,191 @@ class _FinanceScreenState extends State<FinanceScreen> {
     });
   }
 
+  Future<void> _showImportExportOptions() async {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.file_upload),
+              title: const Text('Exportar Dados (CSV)'),
+              subtitle: const Text('Salvar backup ou abrir em Excel'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showExportFilterCsvDialog();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.file_download),
+              title: const Text('Importar Dados (CSV)'),
+              subtitle: const Text('Restaurar dados de arquivo'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _handleImportCsv();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleImportCsv() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+         type: FileType.custom,
+         allowedExtensions: ['csv'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+          final file = File(result.files.single.path!);
+          final content = await file.readAsString();
+          
+          final service = TransactionCsvService();
+          if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Processando importação...')));
+          }
+          
+          final report = await service.importCsv(content);
+          
+          if (mounted) {
+             showDialog(
+                context: context, 
+                builder: (ctx) => AlertDialog(
+                   title: const Text("Importação Concluída"),
+                   content: Text("Transações importadas: ${report['imported']}\nIgnoradas (duplicadas): ${report['ignored']}"),
+                   actions: [TextButton(onPressed: ()=>Navigator.pop(ctx), child: const Text("OK"))],
+                )
+             );
+             _loadData(); // Refresh list
+          }
+      }
+    } catch (e) {
+       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao importar: $e')));
+    }
+  }
+
+  Future<void> _showExportFilterCsvDialog() async {
+    // Default vars (All Time)
+    DateTime? startDate;
+    DateTime? endDate;
+    bool includeIncome = true;
+    bool includeExpense = true;
+    bool includePaid = true;
+    bool includePending = true;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+               title: const Text('Exportar CSV'),
+               content: SingleChildScrollView(
+                 child: Column(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                      const Text("Selecione o filtro dos dados.", style: TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 10),
+                      SwitchListTile(
+                        title: const Text("Todo o Período"),
+                        value: startDate == null, 
+                        onChanged: (v) => setState(() {
+                           if (v) { startDate = null; endDate = null; } 
+                           else { startDate = DateTime.now(); endDate = DateTime.now().add(const Duration(days: 30)); }
+                        }),
+                      ),
+                      if (startDate != null) ...[
+                          ListTile(
+                             title: Text("Início: ${DateFormat.yMd(_currentLanguage).format(startDate!)}"),
+                             onTap: () async {
+                                final d = await showDatePicker(context: context, initialDate: startDate!, firstDate: DateTime(2020), lastDate: DateTime(2030));
+                                if (d!=null) setState(()=>startDate=d);
+                             },
+                          ),
+                          ListTile(
+                             title: Text("Fim: ${DateFormat.yMd(_currentLanguage).format(endDate!)}"),
+                             onTap: () async {
+                                final d = await showDatePicker(context: context, initialDate: endDate!, firstDate: DateTime(2020), lastDate: DateTime(2030));
+                                if (d!=null) setState(()=>endDate=d);
+                             },
+                          ),
+                      ],
+                      const Divider(),
+                      CheckboxListTile(
+                        title: const Text("Receitas"),
+                        value: includeIncome,
+                        onChanged: (v) => setState(() => includeIncome = v!),
+                      ),
+                      CheckboxListTile(
+                        title: const Text("Despesas"),
+                        value: includeExpense,
+                        onChanged: (v) => setState(() => includeExpense = v!),
+                      ),
+                      const SizedBox(height: 5),
+                      const Text("Status:", style: TextStyle(fontWeight: FontWeight.bold)),
+                      CheckboxListTile(
+                        title: const Text("Pagas/Recebidas"),
+                        value: includePaid,
+                        onChanged: (v) => setState(() => includePaid = v!),
+                      ),
+                       CheckboxListTile(
+                        title: const Text("Pendentes"),
+                        value: includePending,
+                        onChanged: (v) => setState(() => includePending = v!),
+                      ),
+                   ],
+                 ),
+               ),
+               actions: [
+                 TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Cancelar")),
+                 ElevatedButton(
+                    child: const Text("Exportar"),
+                    onPressed: () async {
+                       Navigator.pop(context);
+                       
+                       // Filter Logic
+                       var list = List<Transaction>.from(_transactions);
+                       
+                       if (startDate != null && endDate != null) {
+                         list = list.where((t) => t.date.isAfter(startDate!.subtract(const Duration(days: 1))) && t.date.isBefore(endDate!.add(const Duration(days: 1)))).toList();
+                       }
+
+                       list = list.where((t) {
+                           if (t.isExpense && !includeExpense) return false;
+                           if (!t.isExpense && !includeIncome) return false;
+                           
+                           bool isSettled = t.isPaid; // 'Paid' means Settled in UI terms? 
+                           // TransactionModel: isPaid usually means settled.
+                           // But prompt distinguishes "Pagas/Recebidas" vs "Pendentes/Atrasadas"
+                           
+                           if (isSettled && !includePaid) return false;
+                           if (!isSettled && !includePending) return false;
+
+                           return true;
+                       }).toList();
+
+                       if (list.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nenhuma transação para exportar.")));
+                          return;
+                       }
+                       
+                       final service = TransactionCsvService();
+                       final csv = service.generateCsv(list);
+                       final filename = "finance_export_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.csv";
+                       await service.shareCsv(csv, filename);
+                    },
+                 )
+               ]
+            );
+          }
+        );
+      }
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     String locale = _currentLanguage;
@@ -330,7 +518,12 @@ class _FinanceScreenState extends State<FinanceScreen> {
               onPressed: _shareOnWhatsApp,
             )
           else ...[
-
+            if (!_isSearching)
+               IconButton(
+                 icon: const Icon(Icons.import_export),
+                 tooltip: "Importar/Exportar CSV",
+                 onPressed: _showImportExportOptions,
+               ),
             if (!_isSearching)
               IconButton(
                 icon: const Icon(Icons.search),
@@ -341,6 +534,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   });
                 },
               ),
+
             IconButton(
               icon: const Icon(Icons.filter_alt_off),
               tooltip: t('clear_filters'),
@@ -739,16 +933,57 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                     color: transaction.isExpense ? Colors.red : Colors.green,
                                   ),
                                 ),
-                                if (isPending)
-                                  Text(
-                                    t('pending'), // Make sure this key exists or use "A Realizar" if t() allows literal fallback or add key
-                                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                                  ),
-                                if (isOverdue)
-                                  const Text(
-                                    "Atrasado",
-                                    style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
-                                  ),
+                                Builder(
+                                  builder: (context) {
+                                    // Status Logic Refined (Regra de Ouro: Date <= Today -> Paid/Received)
+                                    final now = DateTime.now();
+                                    final today = DateTime(now.year, now.month, now.day);
+                                    final isFuture = transaction.date.isAfter(today.add(const Duration(days: 1)).subtract(const Duration(seconds: 1))); // Date > Today (end of day) logic or simply Date >= Tomorrow
+                                    // Actually, strict comparison:
+                                    final tDate = DateTime(transaction.date.year, transaction.date.month, transaction.date.day);
+                                    final isPastOrToday = !tDate.isAfter(today);
+                                    
+                                    String statusText = "";
+                                    Color statusColor = Colors.grey;
+                                    FontWeight statusWeight = FontWeight.normal;
+
+                                    if (transaction.isExpense) {
+                                      // EXPENSE LOGIC
+                                      if (transaction.isPaid || isPastOrToday) {
+                                        statusText = t('status_paid');
+                                        statusColor = Colors.green;
+                                        // Refined for Safety:
+                                        if (!transaction.isPaid && isPastOrToday) {
+                                            statusText = t('status_paid');
+                                            statusColor = Colors.green;
+                                        }
+                                      } else {
+                                        // Future
+                                        statusText = t('status_pending');
+                                        statusColor = Colors.grey;
+                                      }
+                                    } else {
+                                      // INCOME LOGIC (Receitas)
+                                      if (transaction.isPaid || isPastOrToday) {
+                                        statusText = t('status_received');
+                                        statusColor = Colors.green;
+                                      } else {
+                                        statusText = t('status_to_receive');
+                                        statusColor = Colors.grey;
+                                      }
+                                    }
+                                    
+                                    // Handle "Atrasado" legacy/explicit case if strictly needed?
+                                    // "Outros Casos: Transação não marcada manualmente como 'Paga' E ... -> Atrasado"
+                                    // This applies if we deviate from Regra de Ouro.
+                                    // Let's stick to the prompt's Table 100%.
+
+                                    return Text(
+                                      statusText,
+                                      style: TextStyle(fontSize: 10, color: statusColor, fontWeight: statusWeight),
+                                    );
+                                  }
+                                ),
                               ],
                             ),
                         onLongPress: () {

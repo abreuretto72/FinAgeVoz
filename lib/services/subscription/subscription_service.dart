@@ -58,8 +58,13 @@ class SubscriptionService {
   }
 
   void _updateLocalStateFromInfo(CustomerInfo customerInfo) {
+    print('DEBUG: Checking entitlements. Available: ${customerInfo.entitlements.all.keys.toList()}');
+    print('DEBUG: Looking for entitlementId: "$entitlementId"');
+    
     final entitlement = customerInfo.entitlements.all[entitlementId];
     final isActive = entitlement?.isActive ?? false;
+    
+    print('DEBUG: isActive: $isActive');
 
     if (isActive) {
       // Tentar extrair data de validade se disponível
