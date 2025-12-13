@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../services/database_service.dart';
 import '../models/event_model.dart';
-import '../models/operation_history.dart';
 import '../services/pdf_service.dart';
 import '../utils/localization.dart';
 import '../widgets/add_edit_event_dialog.dart';

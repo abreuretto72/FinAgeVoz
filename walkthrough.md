@@ -223,3 +223,25 @@ Agora você pode pedir para o app ligar para alguém usando comandos de voz.
 ---
 
 **Status:** ✅ Build corrigido e pronto para testes! 📱 (Adicionado entrada manual de transações)
+
+### 5. Conformidade Google Play & Release (v1.0.0+1)
+
+**Auditoria de Conformidade:**
+- ✅ **Privacidade**: Verificado e aprovado. Política acessível in-app e online.
+- ✅ **Monetização**: Confirmado modelo '100% Gratuito'. Removidas todas as referências residuais a assinaturas ou IAP no código.
+- ✅ **Anúncios**: Confirmado 'Sem Anúncios'. Nenhuma biblioteca de ads presente.
+- ✅ **Classificação Etária**: App classificado como 'Utilitário', seguro para todas as idades (Livre). Conteúdo UGC é privado.
+
+**Melhorias de Estabilidade:**
+- 🔧 **PDF Service**: Corrigido erro de renderização no PDF de Transações.
+- 🔧 **Imports**: Removidos imports quebrados (operation_history.dart) em AgendaScreen e EditEventDialog.
+- �� **Análise Estática**: Resolvidos warnings críticos do linter.
+
+**Documentação Técnica:**
+- 📄 Gerado COMPLIANCE_CHECK_REPORT.md: Relatório completo para submissão na loja.
+- 📄 Gerado COMPLIANCE_AGE_RATING_UGC.md: Guia específico para classificação de conteúdo.
+- 📄 Atualizado Terms of Service: Reflete modelo gratuito e regras de uso aceitável.
+
+**Build:**
+- 📦 **Release APK Gerado**: Sucesso na compilação da versão de produção.
+

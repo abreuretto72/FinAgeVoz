@@ -5,10 +5,16 @@
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
 ![AI](https://img.shields.io/badge/AI-Groq_Llama-FF6B6B?style=for-the-badge)
-![Free](https://img.shields.io/badge/Price-Free-brightgreen?style=for-the-badge)
+![Free](https://img.shields.io/badge/Price-100%25_Free-brightgreen?style=for-the-badge)
 ![No Ads](https://img.shields.io/badge/Ads-None-brightgreen?style=for-the-badge)
+![Google Play](https://img.shields.io/badge/Google_Play-Values_Privacy-blue?style=for-the-badge)
 
 ## ✨ Principais Funcionalidades
+
+### 🌟 100% Gratuito
+- **Sem Assinaturas**: Todo o poder do app sem custos mensais.
+- **Sem Anúncios**: Experiência limpa e sem interrupções.
+- **Privacidade Primeiro**: Seus dados ficam no seu dispositivo.
 
 ### 🎤 Controle por Voz
 - **Comandos de voz em linguagem natural** usando IA (Groq/Llama)

@@ -970,7 +970,7 @@ class PdfService {
         if (c.subcategories.isEmpty)
            pw.Padding(
              padding: const pw.EdgeInsets.only(left: 15),
-             child: pw.Text(AppLocalizations.t('no_subcategories', lang), style: const pw.TextStyle(color: PdfColors.grey, fontStyle: pw.FontStyle.italic, fontSize: 10)),
+             child: pw.Text(AppLocalizations.t('no_subcategories', lang), style: pw.TextStyle(color: PdfColors.grey, fontStyle: pw.FontStyle.italic, fontSize: 10)),
            ),
         pw.SizedBox(height: 10),
         pw.Divider(thickness: 0.5, color: PdfColors.grey300),
