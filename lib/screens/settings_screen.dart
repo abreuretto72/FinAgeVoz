@@ -4,7 +4,7 @@ import '../services/auth_service.dart';
 import '../utils/localization.dart';
 
 import 'sync_settings_screen.dart';
-import 'subscription/subscription_status_screen.dart';
+
 import 'help_screen.dart';
 import 'settings/privacy_policy_screen.dart';
 import 'settings/delete_account_screen.dart';
@@ -244,38 +244,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          const SizedBox(height: 30),
-          Text(
-            t('settings_subscription'),
-            style: const TextStyle(
-              color: Colors.blue,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.star, color: Colors.amber),
-                  title: Text(t('settings_my_subscription'), style: const TextStyle(color: Colors.white)),
-                  subtitle: Text(t('settings_my_subscription_desc'), style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                  trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const SubscriptionStatusScreen()),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
+
           
           const SizedBox(height: 30),
           Text(

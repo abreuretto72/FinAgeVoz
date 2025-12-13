@@ -1029,7 +1029,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                   label: Text(t('edit')),
                                   onPressed: () async {
                                     Navigator.pop(context);
-                                    await _editTransaction(transactionIndex);
+                                    await _editTransaction(transaction);
                                   },
                                 ),
 
@@ -1062,45 +1062,14 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                             totalInstallments: transaction.totalInstallments,
                                             attachments: updatedAttachments,
                                           );
-                                          await _dbService.updateTransaction(transactionIndex, updatedTransaction);
+                                          await _dbService.updateTransaction(transaction.id, updatedTransaction);
                                           _loadData();
                                         },
                                       ),
                                     );
                                   },
                                 ),
-                                TextButton.icon(
-                                  icon: const Icon(Icons.edit),
-                                  label: Text(t('edit')),
-                                  onPressed: () async {
-                                    Navigator.pop(context);
-                                    // Show edit dialog
-                                    final result = await showDialog<Map<String, dynamic>>(
-                                      context: context,
-                                      builder: (context) => EditTransactionDialog(
-                                        transaction: transaction,
-                                        dbService: _dbService,
-                                        currentLanguage: _currentLanguage,
-                                      ),
-                                    );
-                                    if (result != null && transactionIndex >= 0) {
-                                      final updatedTransaction = Transaction(
-                                        id: transaction.id,
-                                        description: result['description'] ?? transaction.description,
-                                        amount: result['amount'] ?? transaction.amount,
-                                        isExpense: result['isExpense'] ?? transaction.isExpense,
-                                        date: result['date'] ?? transaction.date,
-                                        category: result['category'] ?? transaction.category,
-                                        subcategory: result['subcategory'] ?? transaction.subcategory,
-                                        isReversal: transaction.isReversal,
-                                        originalTransactionId: transaction.originalTransactionId,
-                                        attachments: transaction.attachments,
-                                      );
-                                      await _dbService.updateTransaction(transactionIndex, updatedTransaction);
-                                      _loadData();
-                                    }
-                                  },
-                                ),
+
                                 TextButton.icon(
                                   icon: const Icon(Icons.delete, color: Colors.red),
                                   label: Text(t('delete'), style: const TextStyle(color: Colors.red)),
@@ -1198,9 +1167,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
       ),
     );
   }
-  Future<void> _editTransaction(int transactionIndex) async {
-      final transaction = _transactions[transactionIndex];
-      
+  Future<void> _editTransaction(Transaction transaction) async {
       final result = await showDialog<Map<String, dynamic>>(
         context: context,
         builder: (context) => EditTransactionDialog(
@@ -1232,7 +1199,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
           paymentDate: result['paymentDate'],
         );
 
-        await _dbService.updateTransaction(transactionIndex, updatedTransaction);
+        await _dbService.updateTransaction(transaction.id, updatedTransaction);
         _loadData();
       }
   }

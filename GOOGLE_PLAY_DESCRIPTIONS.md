@@ -96,12 +96,12 @@ Todos os eventos podem ter documentos anexados:
 • 100% em português
 • Responsivo para tablets
 
-🌟 MODELO FREEMIUM
+🌟 TOTALMENTE GRATUITO
 
-• Funcionalidades gratuitas robustas
-• Premium para recursos avançados
+• Todas as funcionalidades liberadas
+• Sem compras no aplicativo
 • SEM ANÚNCIOS
-• Teste grátis de 7 dias
+• Acesso vitalício gratuito
 
 📊 RELATÓRIOS E ESTATÍSTICAS
 
@@ -361,7 +361,7 @@ DESIGN
 
 🔒 Privacidade garantida - Seus dados NUNCA são compartilhados
 📱 Compatível com Android 6.0+
-🌟 Sem anúncios - Modelo Freemium
+🌟 Sem anúncios - Totalmente Gratuito
 
 Baixe agora e organize sua vida pela voz! 🎤
 ```

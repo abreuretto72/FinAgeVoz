@@ -96,12 +96,12 @@ All events can have attached documents:
 • High contrast ready
 • Responsive for tablets
 
-🌟 FREEMIUM MODEL
+🌟 COMPLETELY FREE
 
-• Robust free features
-• Premium for advanced resources
+• All features unlocked
+• No in-app purchases
 • NO ADS
-• 7-day free trial
+• Free lifetime access
 
 📊 REPORTS AND STATISTICS
 
@@ -225,7 +225,7 @@ DESIGN
 
 🔒 Privacy guaranteed - Your data is NEVER shared
 📱 Compatible with Android 6.0+
-🌟 No ads - Freemium Model
+🌟 No ads - Completely Free
 
 Download now and organize your life by voice! 🎤
 ```

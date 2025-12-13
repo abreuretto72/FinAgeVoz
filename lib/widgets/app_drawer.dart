@@ -6,7 +6,7 @@ import '../screens/data_management_screen.dart';
 import '../screens/help_screen.dart';
 import '../screens/settings/privacy_policy_screen.dart';
 import '../screens/settings/delete_account_screen.dart';
-import '../screens/subscription/subscription_status_screen.dart';
+
 import '../utils/localization.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -133,14 +133,7 @@ class AppDrawer extends StatelessWidget {
             },
           ),
           
-          ListTile(
-            leading: const Icon(Icons.workspace_premium, color: Colors.amber),
-            title: const Text('Assinatura & Planos'),
-            onTap: () {
-              Navigator.pop(context);
-              navigate(const SubscriptionStatusScreen());
-            },
-          ),
+
           
           ListTile(
             leading: const Icon(Icons.info),

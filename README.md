@@ -5,6 +5,8 @@
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
 ![AI](https://img.shields.io/badge/AI-Groq_Llama-FF6B6B?style=for-the-badge)
+![Free](https://img.shields.io/badge/Price-Free-brightgreen?style=for-the-badge)
+![No Ads](https://img.shields.io/badge/Ads-None-brightgreen?style=for-the-badge)
 
 ## ✨ Principais Funcionalidades
 
