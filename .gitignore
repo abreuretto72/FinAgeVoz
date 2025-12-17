@@ -80,3 +80,17 @@ translation_template.csv
 # Hive database files (user data)
 *.hive
 *.lock
+
+# Documentation
+*.md
+!README.md
+
+# Security and API Keys
+android/key.properties
+android/local.properties
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+*.jks
+*.keystore
+*.p12
