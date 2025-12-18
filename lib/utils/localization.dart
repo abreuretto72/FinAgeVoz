@@ -422,6 +422,7 @@ class AppLocalizations {
 
       // Settings / Onboarding
       'settings_title': "Configurações",
+      'voice_specify_date': "São muitos itens. Por favor, diga para qual mês e ano.",
       'settings_help_section': "Ajuda",
       'settings_help_contact_subtitle': "Fale conosco e tire dúvidas",
       'onboarding_title': "Configuração Inicial",
@@ -470,7 +471,7 @@ class AppLocalizations {
       'settings_reset_categories_desc': "Restaura as categorias padrão",
       'settings_reset_app': "Resetar App (Apagar Tudo)",
       'settings_reset_app_desc': "Apaga todas as transações e eventos",
-      'settings_api_title': "API para Comandos de Voz",
+      'settings_api_title': "API de Inteligência Artificial",
       'settings_api_in_use': "API em uso:",
       'settings_no_api': "Nenhuma API configurada",
       'settings_configured': "Configurada",

@@ -1,0 +1,41 @@
+# Relatório de Melhorias: IA e Agenda (NLU Refinement)
+
+## Resumo
+Este documento detalha as atualizações realizadas para melhorar o reconhecimento de linguagem natural (NLU) da IA, especificamente para consultas de Agenda (Aniversários, Remédios) e a correção de problemas de visibilidade de configurações.
+
+## Alterações Realizadas
+
+### 1. Configurações de API (Groq)
+- **Correção de Visibilidade:** A opção "Chave da API Groq" foi tornada visível na tela de Configurações Gerais.
+- **Integração com .env:** A tela de configurações agora detecta automaticamente se uma chave está presente no arquivo `.env` e exibe o status "Configurada".
+- **Interface:** Adicionado ícone dedicado e feedback visual (Verde/Laranja) para o status da chave.
+
+### 2. Reconhecimento de Intenções (NLU)
+- **Prompt da IA (AIService):**
+  - Adicionada seção "SPECIAL SECTION: BIRTHDAY NLU" com exemplos coloquiais (ex: "Para quem mandar parabéns?", "O mês está cheio de festas?").
+  - Adicionados exemplos específicos para "Remédios" (`type: REMEDIO`).
+  - Refinamento de granularidade (DAY, MONTH, YEAR) para consultas.
+
+### 3. Controlador de Voz (VoiceController)
+- **Memória Conversacional:** Implementado sistema de estado (`_pendingQueryType`, `_pendingQueryKeywords`) para lembrar o contexto da pergunta quando a IA solicita uma data.
+  - *Exemplo:* Usuário pergunta "Quantos aniversários?" -> IA pede data -> Usuário diz "Janeiro" -> IA lembra que era sobre "Aniversários".
+- **Filtros Inteligentes:**
+  - **Remédios:** Lógica de fallback para detectar busca por remédios mesmo se a IA não retornar o Enum exato.
+  - **Aniversários:** Omissão automática do "ano" na busca (pois aniversários são anuais) e remoção da "hora" na resposta falada.
+  - **Resultados Múltiplos:** A assistente agora lista até 5 itens encontrados em vez de apenas o primeiro.
+- **Interação Obrigatória para Filtros:** Se o usuário fizer uma busca genérica sem data, a IA agora é obrigada a perguntar "Para qual mês e ano?", evitando despejar centenas de resultados.
+
+### 4. Repositório de Agenda (AgendaRepository)
+- **Busca Normalizada:** Implementada normalização de texto (remoção de acentos, minúsculas) para garantir que "Aniversário" encontre "Aniversario".
+- **Correspondência Flexível:** Melhorada a lógica de `contains` para aceitar correspondências parciais e plurais simples.
+
+## Arquivos Modificados
+- `lib/screens/general_settings_screen.dart`
+- `lib/voice/voice_controller.dart`
+- `lib/services/ai_service.dart`
+- `lib/services/agenda_repository.dart`
+- `lib/utils/localization.dart`
+
+## Próximos Passos Sugeridos
+- Validar novos casos de uso de NLU com usuários beta.
+- Expandir a "Memória Conversacional" para outras intenções (ex: Finanças).

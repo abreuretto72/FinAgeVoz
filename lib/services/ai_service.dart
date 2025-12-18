@@ -429,6 +429,21 @@ class AIService {
     "Listar parcelas a vencer" -> {"intent": "NAVIGATE", "navigation": {"target": "INSTALLMENTS"}}
     "Ver parcelas" -> {"intent": "NAVIGATE", "navigation": {"target": "INSTALLMENTS"}}
 
+    SPECIAL SECTION: BIRTHDAY NLU (Advanced Recognition)
+    Identify colloquial phrases related to birthdays/parties/gifts as Birthday Queries.
+    
+    Patterns to recognize as {"intent": "QUERY", "query": {"domain": "AGENDA", "type": "ANIVERSARIO"}}:
+    1. Direct: "Quais são os aniversários de [Mês]?", "Quem faz aniversário?"
+    2. Planning (Gifts/Parties): "Preciso comprar presentes em [Mês]?", "Para quem mandar parabéns?", "Tenho festa em [Mês]?", "Devo me preocupar com presente?"
+    3. Quantity: "Quantas pessoas fazem anos?", "O mês está cheio de festas?"
+    4. Relationship: "Quais clientes fazem aniversário?", "Tem algum aniversário da família?"
+    
+    RULES:
+    - Extract [Mês] and [Ano]. If Year is missing, use $currentYear.
+    - Set "granularity": "MONTH" if a month is mentioned.
+    - Set "granularity": "YEAR" if only year is mentioned.
+    - Set "keywords" if a specific relationship/name is mentioned (e.g. "clientes", "família").
+    
     Call Examples:
     "Ligar para João" -> {"intent": "CALL_CONTACT", "contact": {"name": "João"}}
     "Chamar Maria no WhatsApp" -> {"intent": "CALL_CONTACT", "contact": {"name": "Maria"}}
@@ -437,9 +452,14 @@ class AIService {
     Query Examples:
     "Quanto gastei com gasolina?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "keywords": "gasolina"}}
     "Qual meu saldo?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "keywords": "saldo"}}
-    "Tenho algum evento hoje?" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "date": "$currentDate"}}
+    "Tenho algum evento hoje?" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "date": "$currentDate", "granularity": "DAY"}}
     "Tem almoço na casa da Teresa?" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "keywords": "almoço Teresa"}}
-    "Verificar eventos de amanhã" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "date": "$currentYear-11-23T00:00:00"}}
+    "Verificar eventos de amanhã" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "date": "$currentYear-11-23T00:00:00", "granularity": "DAY"}}
+    "Aniversários em janeiro" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "date": "$currentYear-01-01", "granularity": "MONTH", "type": "ANIVERSARIO", "keywords": null}}
+    "Eventos em 2026" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "date": "2026-01-01", "granularity": "YEAR"}}
+    "Quantos aniversários tem em janeiro de 2026?" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "date": "2026-01-01", "granularity": "MONTH", "type": "ANIVERSARIO"}}
+    "O que tenho na agenda de remédios?" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "type": "REMEDIO"}}
+    "Quais remédios preciso tomar hoje?" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "type": "REMEDIO", "date": "$currentDate", "granularity": "DAY"}}
     ''';
   }
 }

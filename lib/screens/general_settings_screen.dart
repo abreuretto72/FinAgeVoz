@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../utils/localization.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GeneralSettingsScreen extends StatefulWidget {
   const GeneralSettingsScreen({super.key});
@@ -245,6 +246,38 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
 
                     const Divider(color: Colors.grey, height: 1),
 
+                    // Groq API Key
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.cyan.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.key, color: Colors.cyan),
+                      ),
+                      title: Text(
+                        t('groq_api_key_label'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        (_dbService.getGroqApiKey()?.isNotEmpty == true || (dotenv.env['GROQ_API_KEY']?.isNotEmpty == true))
+                          ? t('settings_configured') 
+                          : t('settings_not_configured'),
+                        style: TextStyle(
+                          color: (_dbService.getGroqApiKey()?.isNotEmpty == true || (dotenv.env['GROQ_API_KEY']?.isNotEmpty == true)) ? Colors.green : Colors.orange,
+                          fontSize: 12
+                        ),
+                      ),
+                      trailing: const Icon(Icons.edit, color: Colors.white, size: 20),
+                      onTap: () => _showApiKeyDialog(),
+                    ),
+
+                    const Divider(color: Colors.grey, height: 1),
+
                     // Biometric Lock
                     SwitchListTile(
                       secondary: Container(
@@ -480,6 +513,95 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+  void _showApiKeyDialog() {
+    final dbKey = _dbService.getGroqApiKey();
+    final envKey = dotenv.env['GROQ_API_KEY'];
+    final effectiveKey = (dbKey != null && dbKey.isNotEmpty) ? dbKey : (envKey ?? '');
+    
+    final controller = TextEditingController(text: effectiveKey);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t('groq_api_key_label')),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                t('how_to_get_key_title'),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                t('get_key_step_1'),
+                style: const TextStyle(fontSize: 12, color: Colors.blue),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                t('get_key_step_2'),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                t('get_key_step_3'),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                t('get_key_step_4'),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                t('get_key_step_5'),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                t('paste_key_below'),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  labelText: t('api_key_label'),
+                  hintText: 'gsk_...',
+                  border: const OutlineInputBorder(),
+                  helperText: t('api_key_helper'),
+                ),
+                obscureText: true,
+                maxLines: 1,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t('cancel')),
+          ),
+          TextButton(
+            onPressed: () async {
+              await _dbService.setGroqApiKey(controller.text.trim());
+              if (mounted) {
+                Navigator.pop(context);
+                setState(() {});
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(t('api_key_updated'))),
+                );
+              }
+            },
+            child: Text(t('save')),
+          ),
+        ],
       ),
     );
   }

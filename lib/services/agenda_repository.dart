@@ -251,15 +251,29 @@ class AgendaRepository {
     String? texto,
     AgendaItemType? tipo,
     DateTime? data,
+    bool matchDay = true,
+    bool matchMonth = true,
+    bool matchYear = true,
   }) {
+    print("DEBUG: Searching Agenda. Txt: $texto, Date: $data (d:$matchDay, m:$matchMonth, y:$matchYear)");
+    
     return _box.values.where((item) {
       bool ok = true;
 
       if (texto != null && texto.trim().isNotEmpty) {
-        final t = texto.toLowerCase();
-        ok = ok &&
-            ((item.titulo.toLowerCase().contains(t)) ||
-                ((item.descricao ?? '').toLowerCase().contains(t)));
+        final t = _normalize(texto);
+        final title = _normalize(item.titulo);
+        final desc = _normalize(item.descricao ?? '');
+        
+        // Simple containment check
+        if (!title.contains(t) && !desc.contains(t)) {
+           // Try checking singular version of search term if it ends in 's'
+           if (t.endsWith('s') && title.contains(t.substring(0, t.length - 1))) {
+              ok = ok && true;
+           } else {
+              ok = false;
+           }
+        }
       }
 
       if (tipo != null) {
@@ -269,13 +283,31 @@ class AgendaRepository {
       if (data != null) {
         final di = item.dataInicio;
         if (di == null) return false;
-        ok = ok &&
-            di.year == data.year &&
-            di.month == data.month &&
-            di.day == data.day;
+        
+        // Handle Annual Recurrence (Ignore Year if matchYear is requested)
+        bool isAnnual = item.recorrencia?.frequencia == 'ANUAL';
+        
+        // If searching for "Aniversario" specifically (by text or type), ALWAYS ignore year?
+        // No, granularity flags handle this.
+        
+        bool y = !matchYear || (di.year == data.year) || isAnnual;
+        bool m = !matchMonth || (di.month == data.month);
+        bool d = !matchDay || (di.day == data.day);
+        
+        ok = ok && y && m && d;
       }
 
       return ok;
     }).toList();
+  }
+
+  String _normalize(String s) {
+    return s.toLowerCase()
+      .replaceAll(RegExp(r'[áàâãä]'), 'a')
+      .replaceAll(RegExp(r'[éèêë]'), 'e')
+      .replaceAll(RegExp(r'[íìîï]'), 'i')
+      .replaceAll(RegExp(r'[óòôõö]'), 'o')
+      .replaceAll(RegExp(r'[úùûü]'), 'u')
+      .replaceAll(RegExp(r'[ç]'), 'c');
   }
 }

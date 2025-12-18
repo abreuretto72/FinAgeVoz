@@ -21,6 +21,10 @@ class VoiceController {
   final VoidCallback? onProcessingEnd;
   final Function(AgendaItem)? onNavigateToForm;
   
+  // State for conversational queries
+  AgendaItemType? _pendingQueryType;
+  String? _pendingQueryKeywords;
+  
   VoiceController({
     VoiceService? voiceService,
     AIService? aiService,
@@ -176,8 +180,11 @@ class VoiceController {
     }
 
     final domain = (queryData['domain'] as String?)?.toUpperCase() ?? 'AGENDA';
-    final keywords = queryData['keywords'] as String?;
+    String? keywords = queryData['keywords'] as String?;
+    // parse date
     final dateStr = queryData['date'] as String?;
+    final granularity = (queryData['granularity'] as String?)?.toUpperCase();
+    final typeStr = (queryData['type'] as String?)?.toUpperCase();
     
     // AGENDA SEARCH
     if (domain == 'AGENDA') {
@@ -186,8 +193,86 @@ class VoiceController {
          try { date = DateTime.parse(dateStr); } catch (_) {}
        }
        
-       print("DEBUG searching: keywords=$keywords, date=$date");
-       final results = _agendaRepo.search(texto: keywords, data: date);
+       AgendaItemType? type;
+       if (typeStr != null) {
+          try {
+             type = AgendaItemType.values.firstWhere(
+               (e) => e.toString().split('.').last == typeStr || 
+                      (typeStr.contains('ANIVERSARIO') && e == AgendaItemType.ANIVERSARIO) ||
+                      (typeStr.contains('REMEDIO') && e == AgendaItemType.REMEDIO)
+             );
+          } catch (_) {
+             if (typeStr.contains('REMEDIO')) type = AgendaItemType.REMEDIO;
+          }
+       }
+       
+       // FALLBACK: Context Merge
+       // If we have a pending context (e.g. user was asked for date) and current query implies no type change,
+       // merge the previous specific type/keywords.
+       if (_pendingQueryType != null && type == null) {
+           print("DEBUG: Restoring pending context: $_pendingQueryType");
+           type = _pendingQueryType;
+           // Only restore keywords if they are generic or empty in current?
+           // Actually, if user said "Janeiro", keywords is null.
+           if (keywords == null) keywords = _pendingQueryKeywords;
+           
+           // Clear pending once used
+           _pendingQueryType = null;
+           _pendingQueryKeywords = null;
+       }
+       
+       // Fallback: Infer type from keywords if type is still missing
+       if (type == null && keywords != null) {
+          final k = keywords!.toLowerCase();
+          if (k.contains('aniversario') || k.contains('aniversário')) {
+             type = AgendaItemType.ANIVERSARIO;
+          } else if (k.contains('remedio') || k.contains('remédio')) {
+             type = AgendaItemType.REMEDIO;
+          } else if (k.contains('pagamento') || k.contains('conta') || k.contains('vencimento')) {
+             type = AgendaItemType.PAGAMENTO;
+          }
+       }
+
+       // Rule: If date/granularity is missing, ask for clarification.
+       // User Request: "se não falar o mes/ano o agente tem que perguntar."
+       bool hasDate = date != null || granularity != null;
+       bool hasKeywords = keywords != null && keywords.trim().isNotEmpty;
+       
+       if (!hasDate) {
+           // Save context for follow-up
+           _pendingQueryType = type;
+           _pendingQueryKeywords = keywords;
+           print("DEBUG: Saving pending context: $type");
+           
+           await _voiceService.speak(t('voice_specify_date'));
+           return;
+       }
+
+       bool matchDay = true;
+       bool matchMonth = true;
+       bool matchYear = true;
+
+       if (granularity == 'MONTH') {
+           matchDay = false;
+       } else if (granularity == 'YEAR') {
+           matchDay = false;
+           matchMonth = false;
+       }
+       
+       // Special rule: if searching for birthdays, year doesn't matter (usually)
+       if (type == AgendaItemType.ANIVERSARIO) {
+           // matchYear = false; // logic already in repo
+       }
+       
+       print("DEBUG searching: kw=$keywords, date=$date, gran=$granularity, type=$type");
+       final results = _agendaRepo.search(
+          texto: keywords, 
+          tipo: type,
+          data: date,
+          matchDay: matchDay,
+          matchMonth: matchMonth,
+          matchYear: matchYear
+       );
        
        if (results.isEmpty) {
          String msg = t('voice_search_empty');
@@ -199,16 +284,34 @@ class VoiceController {
          final count = results.length;
          String msg = count == 1 ? t('voice_found_one') : "${t('voice_found_many')}$count${t('voice_found_many_suffix')}";
          
-         // Describe first item
-         final first = results.first;
-         final dateFormatted = first.dataInicio != null 
-             ? DateFormat('dd/MM').format(first.dataInicio!) 
-             : "";
-         final timeFormatted = first.horarioInicio ?? "";
+         // Describe items (Limit to 5 to avoid long speech)
+         int limit = 5;
+         for (int i = 0; i < results.length && i < limit; i++) {
+            final item = results[i];
+            
+            // Format Date
+            String dateText = "";
+            if (item.dataInicio != null) {
+               dateText = DateFormat('dd').format(item.dataInicio!);
+               // Only add month if it's relevant/ambiguous? For "January" query, usually redundant but safe to add.
+            }
+            
+            final timeFormatted = item.horarioInicio ?? "";
+            
+            if (i > 0) msg += i == results.length - 1 || i == limit - 1 ? " e " : ", ";
+            
+            msg += " ${item.titulo}";
+            
+            if (dateText.isNotEmpty) msg += " dia $dateText";
+            if (item.tipo != AgendaItemType.ANIVERSARIO && timeFormatted.isNotEmpty) {
+               msg += " às $timeFormatted";
+            }
+         }
          
-         msg += " ${first.titulo}";
-         if (dateFormatted.isNotEmpty) msg += "${t('voice_day')}$dateFormatted";
-         if (timeFormatted.isNotEmpty) msg += "${t('voice_at')}$timeFormatted";
+         if (results.length > limit) {
+             msg += " e outros ${results.length - limit}.";
+         }
+         
          msg += ".";
          
          await _voiceService.speak(msg);

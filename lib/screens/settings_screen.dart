@@ -136,7 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                   activeColor: Colors.blue,
                 ),
-                SwitchListTile(
+                  SwitchListTile(
                   secondary: const Icon(Icons.mic, color: Colors.white),
                   title: Text(t('settings_enable_voice'), style: const TextStyle(color: Colors.white)),
                   subtitle: Text(t('settings_enable_voice_desc'), style: const TextStyle(color: Colors.grey, fontSize: 12)),
@@ -158,6 +158,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }
                   },
                   activeColor: Colors.blue,
+                ),
+                
+                // Moved API Settings Here
+                const Divider(color: Colors.grey),
+                ListTile(
+                  leading: const Icon(Icons.key, color: Colors.cyan),
+                  title: Text(t('groq_api_key_label'), style: const TextStyle(color: Colors.white)),
+                  subtitle: Text(
+                    _dbService.getGroqApiKey()?.isNotEmpty == true 
+                      ? t('settings_configured') 
+                      : t('settings_not_configured'),
+                    style: TextStyle(
+                      color: _dbService.getGroqApiKey()?.isNotEmpty == true ? Colors.green : Colors.orange,
+                      fontSize: 12
+                    ),
+                  ),
+                  trailing: const Icon(Icons.edit, color: Colors.white, size: 20),
+                  onTap: () => _showApiKeyDialog(),
                 ),
                   SwitchListTile(
                   secondary: const Icon(Icons.lock, color: Colors.white),
@@ -410,98 +428,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           
-          // Only show API section if voice commands are enabled
-          if (_dbService.getVoiceCommandsEnabled()) ...[
-            const SizedBox(height: 30),
-            Text(
-              t('settings_api_title'),
-              style: TextStyle(
-                color: Colors.blue,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Current API indicator
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _dbService.getGroqApiKey()?.isNotEmpty == true 
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _dbService.getGroqApiKey()?.isNotEmpty == true 
-                    ? Colors.green
-                    : Colors.orange,
-                  width: 2,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    _dbService.getGroqApiKey()?.isNotEmpty == true 
-                      ? Icons.check_circle
-                      : Icons.info,
-                    color: _dbService.getGroqApiKey()?.isNotEmpty == true 
-                      ? Colors.green
-                      : Colors.orange,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t('settings_api_in_use'),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _dbService.getGroqApiKey()?.isNotEmpty == true 
-                            ? 'Groq (${_dbService.getGroqModel()})'
-                            : t('settings_no_api'),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.key, color: Colors.cyan),
-                    title: Text(t('groq_api_key_label'), style: const TextStyle(color: Colors.white)),
-                    subtitle: Text(
-                      _dbService.getGroqApiKey()?.isNotEmpty == true 
-                        ? t('settings_configured') 
-                        : t('settings_not_configured'),
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                    trailing: const Icon(Icons.edit, color: Colors.white, size: 20),
-                    onTap: () => _showApiKeyDialog(),
-                  ),
-                ],
-              ),
-            ),
-          ],
+
+
         ],
+        ),
       ),
-    ),
     ),
     );
   }
