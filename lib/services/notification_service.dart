@@ -13,7 +13,9 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin notificationsPlugin = FlutterLocalNotificationsPlugin();
+  // Getter for backward compatibility if needed, or update calls
+  FlutterLocalNotificationsPlugin get _notificationsPlugin => notificationsPlugin;
   bool _initialized = false;
   
   // Cache calculated intervals to avoid redundant math if needed, but for now direct calc.

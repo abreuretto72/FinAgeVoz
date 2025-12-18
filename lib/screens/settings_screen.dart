@@ -281,47 +281,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           
           const SizedBox(height: 30),
-          Text(
-            "Debug / Testes",
-            style: const TextStyle(
-              color: Colors.red,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: ListTile(
-              leading: const Icon(Icons.notifications_active, color: Colors.yellow),
-              title: const Text("Testar Notificação (5s)", style: TextStyle(color: Colors.white)),
-              subtitle: const Text("Agenda alerta para 5 segundos", style: TextStyle(color: Colors.grey, fontSize: 12)),
-              onTap: () async {
-                 try {
-                     final now = DateTime.now();
-                     final future = now.add(const Duration(seconds: 5));
-                     await NotificationService().scheduleEvent(
-                        99999, 
-                        "Teste de Notificação", 
-                        "Se você está vendo isso, o sistema funciona! (${future.hour}:${future.minute}:${future.second})", 
-                        future
-                     );
-                     
-                     if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                           const SnackBar(content: Text("Agendado para 5 segundos... Feche o app ou bloqueie a tela!")),
-                        );
-                     }
-                 } catch (e) {
-                     print("DEBUG ERROR: $e");
-                 }
-              },
-            ),
-          ),
-          
           const SizedBox(height: 30),
           Text(
             t('settings_data'),
