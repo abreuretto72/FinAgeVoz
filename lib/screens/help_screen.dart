@@ -167,6 +167,19 @@ class _HelpScreenState extends State<HelpScreen> {
           t('help_module_bday_desc'),
         ),
         
+        // Notification Alert
+        Card(
+          color: Colors.amber.shade50,
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: _buildHelpItem(
+               t('help_notifications_title'), 
+               t('help_notifications_desc'),
+            ),
+          ),
+        ),
+        
         const Divider(height: 40),
         _buildSectionHeader(t('help_section_health')),
 

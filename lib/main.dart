@@ -11,6 +11,7 @@ import 'models/category_model.dart';
 
 import 'models/medicine_model.dart';
 import 'services/database_service.dart';
+import 'services/notification_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/auth_screen.dart';
@@ -97,6 +98,13 @@ void main() async {
     print("DEBUG: SubscriptionService initialized");
   } catch (e) {
     print("WARNING: SubscriptionService init failed: $e");
+  }
+
+  try {
+    await NotificationService().init();
+    print("DEBUG: NotificationService initialized");
+  } catch(e) {
+    print("WARNING: NotificationService init failed: $e");
   }
 
   print("DEBUG: calling runApp");

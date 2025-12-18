@@ -46,7 +46,9 @@
 ### 📅 Agenda de Eventos
 - ✅ Criação rápida de compromissos por voz.
 - ✅ Eventos recorrentes (Diário, Semanal, Mensal, Anual).
+- ✅ Eventos recorrentes (Diário, Semanal, Mensal, Anual).
 - ✅ Notificações faladas: O app anuncia sua agenda do dia ao abrir.
+- ✅ **Notificações Inteligentes**: O app envia alertas mesmo fechado (necessário permissão).
 
 
 ### 🤖 Inteligência Artificial

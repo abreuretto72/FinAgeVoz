@@ -50,33 +50,46 @@ class _MedicineFormScreenState extends State<MedicineFormScreen> {
     super.initState();
     _remedioId = widget.remedio?.id ?? const Uuid().v4();
     _lastSavedRemedio = widget.remedio;
-    _nomeController = TextEditingController(text: widget.remedio?.nome ?? '');
-    _nomeGenericoController = TextEditingController(text: widget.remedio?.nomeGenerico ?? '');
-    _concentracaoController = TextEditingController(text: widget.remedio?.concentracao ?? '');
-    _indicacaoController = TextEditingController(text: widget.remedio?.indicacao ?? '');
-    _obsController = TextEditingController(text: widget.remedio?.observacoesMedico ?? '');
-    
-    if (widget.remedio?.attachments != null) {
-       _attachments = List.from(widget.remedio!.attachments!);
-    }
+    _nomeController = TextEditingController();
+    _nomeGenericoController = TextEditingController();
+    _concentracaoController = TextEditingController();
+    _indicacaoController = TextEditingController();
+    _obsController = TextEditingController();
     
     if (isEditing) {
+      _nomeController.text = widget.remedio!.nome;
+      _nomeGenericoController.text = widget.remedio!.nomeGenerico ?? '';
       _formaFarmaceutica = widget.remedio!.formaFarmaceutica;
       if (!_formas.contains(_formaFarmaceutica)) _formas.add(_formaFarmaceutica);
       
+      _concentracaoController.text = widget.remedio!.concentracao;
       _viaAdministracao = widget.remedio!.viaAdministracao;
       if (!_vias.contains(_viaAdministracao)) _vias.add(_viaAdministracao);
       
-      _loadPosologias();
+      _indicacaoController.text = widget.remedio!.indicacao ?? '';
+      _obsController.text = widget.remedio!.observacoesMedico ?? '';
+      _remedioId = widget.remedio!.id;
+      _posologias = _db.getPosologias(_remedioId);
+      
+      if (widget.remedio!.attachments != null) {
+        _attachments = List.from(widget.remedio!.attachments!);
+      }
+      
+      _lastSavedRemedio = widget.remedio; // Treat existing as saved
+    } else {
+      // Initialize ID immediately for new items to prevent null sync issues
+      _remedioId = const Uuid().v4();
     }
   }
 
   Future<void> _loadPosologias() async {
     if (!isEditing) return;
     final list = _db.getPosologias(_remedioId);
-    setState(() {
-      _posologias = list;
-    });
+    if (mounted) {
+      setState(() {
+        _posologias = list;
+      });
+    }
   }
 
   bool _hasUnsavedChanges() {
@@ -262,24 +275,48 @@ class _MedicineFormScreenState extends State<MedicineFormScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                    const Text("Posologias (Regras de Tomada)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                   if (isEditing)
-                     IconButton(icon: const Icon(Icons.add_circle, color: Colors.blue), onPressed: _addPosologia)
+                   IconButton(
+                      icon: const Icon(Icons.add_circle, color: Colors.blue), 
+                      onPressed: _addPosologia, // Now handles saving automatically
+                   )
                 ],
               ),
-              if (!isEditing)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text("Salve o remédio primeiro para adicionar posologias.", style: TextStyle(color: Colors.grey)),
-                ),
               
-              if (isEditing)
+              if (_lastSavedRemedio != null)
+                 Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Text("DEBUG INFO: Remedio ID: $_remedioId | L: ${_posologias.length}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                      ),
+                   ],
+                 ),
+                 
+              if (_lastSavedRemedio == null)
+                 const Padding(
+                   padding: EdgeInsets.symmetric(vertical: 8),
+                   child: Text("Configure os dados acima e clique em + para adicionar.", style: TextStyle(color: Colors.grey)),
+                 ),
+              
+              if (_lastSavedRemedio != null)
                  ..._posologias.map((p) => Card(
                    child: ListTile(
-                     title: Text(p.frequenciaTipo == 'INTERVALO' 
-                         ? "A cada ${p.intervaloHoras} horas"
-                         : p.frequenciaTipo == 'HORARIOS_FIXOS' 
-                            ? "Horários: ${p.horariosDoDia?.join(', ')}" 
-                            : p.frequenciaTipo),
+                     title: Builder(
+                       builder: (context) {
+                          String text = "";
+                          if (p.frequenciaTipo == 'INTERVALO') {
+                             text = "A cada ${p.intervaloHoras ?? '?'} horas";
+                          } else if (p.frequenciaTipo == 'HORARIOS_FIXOS') {
+                             text = "Horários: ${p.horariosDoDia?.join(', ') ?? 'N/A'}";
+                          } else if (p.frequenciaTipo == 'VEZES_DIA') {
+                             text = "${p.vezesAoDia ?? '?'} vezes ao dia";
+                          } else {
+                             text = p.frequenciaTipo;
+                          }
+                          return Text(text, style: const TextStyle(fontWeight: FontWeight.bold));
+                       }
+                     ),
                      subtitle: Text("${p.quantidadePorDose} ${p.unidadeDose}"),
                      trailing: IconButton(icon: const Icon(Icons.edit), onPressed: () => _editPosologia(p)),
                    ),
@@ -303,13 +340,14 @@ class _MedicineFormScreenState extends State<MedicineFormScreen> {
     
     // Preserve existing posologies if validating/saving multiple times
     List<String> currentPosologies = widget.remedio?.posologiaIds ?? [];
-    final dbRemedio = _db.getRemedio(id);
+    final dbRemedio = _db.getRemedio(_remedioId); // Use _remedioId directly
     if (dbRemedio != null) {
         currentPosologies = dbRemedio.posologiaIds;
     }
 
+    // Use the persistent ID we initialized in initState
     final remedio = Remedio(
-      id: id,
+      id: _remedioId, 
       nome: _nomeController.text,
       nomeGenerico: _nomeGenericoController.text,
       formaFarmaceutica: _formaFarmaceutica,
@@ -323,11 +361,9 @@ class _MedicineFormScreenState extends State<MedicineFormScreen> {
       attachments: _attachments,
     );
 
-    if (dbRemedio != null) {
-      await _db.updateRemedio(remedio);
-    } else {
-      await _db.addRemedio(remedio);
-    }
+    // Save to DB (Update or Add)
+    // We check if it exists in DB to decide, or just put (Hive put works for both if ID key)
+    await _db.updateRemedio(remedio); // Helper usually calls put
     
     // Process Purchase if enabled
     if (_createPurchaseTransaction) {
@@ -352,7 +388,13 @@ class _MedicineFormScreenState extends State<MedicineFormScreen> {
        }
     }
     
-    _lastSavedRemedio = remedio;
+    // SAFETY: Update state variables and Force UI rebuild
+    if (mounted) {
+        setState(() {
+            _lastSavedRemedio = remedio;
+            _remedioId = remedio.id; // Ensure consistent ID
+        });
+    }
 
     if (shouldPop && mounted) {
        Navigator.pop(context);
@@ -370,11 +412,14 @@ class _MedicineFormScreenState extends State<MedicineFormScreen> {
     }
 
     if (!mounted) return;
+    
+    print("DEBUG: Navigating to PosologyForm with ID: $_remedioId");
 
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => PosologyFormScreen(remedioId: _remedioId)),
     );
+    print("DEBUG: Returned from PosologyForm. Reloading list...");
     _loadPosologias();
   }
 

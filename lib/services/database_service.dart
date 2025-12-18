@@ -12,6 +12,8 @@ import '../models/event_model.dart';
 import '../models/category_model.dart';
 
 import '../models/medicine_model.dart';
+import '../services/notification_service.dart';
+import 'package:uuid/uuid.dart';
 import '../models/agenda_models.dart';
 import '../utils/hive_setup.dart';
 import '../utils/constants.dart';
@@ -537,6 +539,11 @@ class DatabaseService {
       isSynced: false,
     );
     await _eventBox.add(eventToAdd);
+    
+    // Notification Hook
+    if (!event.isCancelled && event.date.isAfter(DateTime.now())) {
+         await NotificationService().scheduleEvent(event.id.hashCode, event.title, event.description, event.date);
+    }
   }
 
   List<Event> getEvents() {
@@ -585,6 +592,12 @@ class DatabaseService {
           isDeleted: false,
        );
        await _eventBox.put(key, updatedEvent);
+       
+       // Notification Hook
+       await NotificationService().cancel(event.id.hashCode);
+       if (!event.isCancelled && !event.isDeleted && event.date.isAfter(DateTime.now())) {
+            await NotificationService().scheduleEvent(event.id.hashCode, event.title, event.description, event.date);
+       }
     } else if (indexOrId is String) {
        final existing = _eventBox.values.firstWhere((e) => e.id == indexOrId);
        final key = existing.key;
@@ -602,6 +615,12 @@ class DatabaseService {
           isDeleted: false,
        );
        await _eventBox.put(key, updatedEvent);
+       
+       // Notification Hook
+       await NotificationService().cancel(event.id.hashCode);
+       if (!event.isCancelled && !event.isDeleted && event.date.isAfter(DateTime.now())) {
+            await NotificationService().scheduleEvent(event.id.hashCode, event.title, event.description, event.date);
+       }
     }
   }
 
@@ -624,6 +643,8 @@ class DatabaseService {
             isDeleted: true,
          );
          await _eventBox.put(key, deletedEvent);
+         // Notification Hook
+         await NotificationService().cancel(event.id.hashCode);
        }
     } else if (indexOrId is String) {
        try {
@@ -1443,6 +1464,8 @@ class DatabaseService {
            remedio.posologiaIds.add(p.id);
            await updateRemedio(remedio);
        }
+       // Notification Hook
+       await NotificationService().schedulePosology(p, remedio);
     }
   }
 
@@ -1454,9 +1477,19 @@ class DatabaseService {
 
   Future<void> updatePosologia(Posologia p) async {
     await _posologiaBox.put(p.id, p);
+    
+    // Notification Hook (Cancel old + Schedule new)
+    final remedio = getRemedio(p.remedioId);
+    if (remedio != null) {
+        await NotificationService().cancelPosologyNotifications(p.id);
+        await NotificationService().schedulePosology(p, remedio);
+    }
   }
 
   Future<void> deletePosologia(String id) async {
+    // Notification Hook (Cancel)
+    await NotificationService().cancelPosologyNotifications(id);
+    
     await _posologiaBox.delete(id);
     final history = getHistorico(id);
     for (var h in history) {

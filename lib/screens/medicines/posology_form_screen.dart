@@ -52,17 +52,55 @@ class _PosologyFormScreenState extends State<PosologyFormScreen> {
     
     if (p != null) {
       _unidadeDose = p.unidadeDose;
-      _frequenciaTipo = p.frequenciaTipo;
+      
+      // Normalize Frequency Type to ensure it matches Dropdown items
+      const validTypes = ['INTERVALO', 'HORARIOS_FIXOS', 'VEZES_DIA', 'SE_NECESSARIO'];
+      if (validTypes.contains(p.frequenciaTipo)) {
+         _frequenciaTipo = p.frequenciaTipo;
+      } else {
+         // Fallback/Correction for legacy/mismatched values
+         final upper = p.frequenciaTipo.toUpperCase();
+         if (validTypes.contains(upper)) {
+            _frequenciaTipo = upper;
+         } else {
+             // If completely invalid, keep default 'INTERVALO' or derived? 
+             // We keep default 'INTERVALO' set at declaration.
+             // Print debug info
+             print("DEBUG: Invalid Frequency Type '${p.frequenciaTipo}'. Reverting to INTERVALO.");
+         }
+      }
+
       if (!_unidades.contains(_unidadeDose)) _unidades.add(_unidadeDose);
 
       _intervaloHorasController.text = p.intervaloHoras?.toString() ?? '8';
       _vezesDiaController.text = p.vezesAoDia?.toString() ?? '3';
       
+      // If legacy VEZES_DIA is found but not in our "Strict" dropdown list, 
+      // we might want to convert it or show it. 
+      // But we removed it from dropdown. So we must add it back OR map it.
+      // Let's add it back to valid types in logic but maybe not in UI? 
+      // No, if it's in DB, we must show it or migration is needed.
+      // PROPOSAL: Convert VEZES_DIA to INTERVALO (approx) for display, or just mapping.
+      // For now, if p.frequenciaTipo is VEZES_DIA, I will override it to INTERVALO in the UI state to allow user to re-configure properly.
+      
+      if (p.frequenciaTipo == 'VEZES_DIA') {
+          _frequenciaTipo = 'INTERVALO';
+          // Estimate interval: 24 / times
+          if (p.vezesAoDia != null && p.vezesAoDia! > 0) {
+             _intervaloHorasController.text = (24 / p.vezesAoDia!).floor().toString();
+          }
+      }
+      
       if (p.horariosDoDia != null) {
-        _horariosFixos = p.horariosDoDia!.map((s) {
-           final parts = s.split(':');
-           return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-        }).toList();
+        try {
+          _horariosFixos = p.horariosDoDia!.map((s) {
+             final parts = s.split(':');
+             return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+          }).toList();
+        } catch (e) {
+          print("DEBUG: Error parsing time strings: $e");
+          _horariosFixos = [];
+        }
       }
 
       _dataInicio = p.inicioTratamento;
@@ -172,10 +210,9 @@ class _PosologyFormScreenState extends State<PosologyFormScreen> {
                  value: _frequenciaTipo,
                  decoration: const InputDecoration(labelText: 'Tipo de Frequência'),
                  items: const [
-                   DropdownMenuItem(value: 'INTERVALO', child: Text('Intervalo de Horas (ex: 8 em 8h)')),
-                   DropdownMenuItem(value: 'HORARIOS_FIXOS', child: Text('Horários Fixos (ex: 08:00, 20:00)')),
-                   DropdownMenuItem(value: 'VEZES_DIA', child: Text('N vezes ao dia')),
-                   DropdownMenuItem(value: 'SE_NECESSARIO', child: Text('Se necessário (SOS)')),
+                   DropdownMenuItem(value: 'INTERVALO', child: Text('Intervalo Fixo (ex: 8 em 8h)')),
+                   DropdownMenuItem(value: 'HORARIOS_FIXOS', child: Text('Horários Específicos (ex: 08:00)')),
+                   DropdownMenuItem(value: 'SE_NECESSARIO', child: Text('Se Necessário (SOS)')),
                  ],
                  onChanged: (v) => setState(() => _frequenciaTipo = v!),
                ),
@@ -257,13 +294,58 @@ class _PosologyFormScreenState extends State<PosologyFormScreen> {
                  controller: _instrucoesController,
                  decoration: const InputDecoration(labelText: 'Instruções Extras (ex: estômago vazio)'),
                ),
+               
+               // Summary Section
+               if (_frequenciaTipo.isNotEmpty)
+                  Container(
+                     margin: const EdgeInsets.only(top: 16),
+                     padding: const EdgeInsets.all(16),
+                     decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                     ),
+                     child: Column(
+                        children: [
+                           const Text("RESUMO DO TRATAMENTO", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blue)),
+                           const SizedBox(height: 8),
+                           Text(
+                              _buildSummaryText(),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                           ),
+                        ],
+                     ),
+                  ),
              ],
-            ),
-          ),
+           ), // Column
+          ), // Padding
         ), // Form
       ), // SingleChild
      ), // Scaffold
     ); // PopScope
+  }
+
+  String _buildSummaryText() {
+     String text = "Tomar ${_qtdController.text} $_unidadeDose";
+     
+     if (_frequenciaTipo == 'INTERVALO') {
+        text += " a cada ${_intervaloHorasController.text} horas";
+     } else if (_frequenciaTipo == 'HORARIOS_FIXOS') {
+        text += " nos horários: ${_horariosFixos.map((t) => t.format(context)).join(', ')}";
+     } else if (_frequenciaTipo == 'VEZES_DIA') {
+        text += " ${_vezesDiaController.text} vezes ao dia";
+     } else if (_frequenciaTipo == 'SE_NECESSARIO') {
+        text += " se necessário";
+     }
+     
+     if (_usoContinuo) {
+        text += " (Uso Contínuo)";
+     } else if (_dataFim != null) {
+        text += " até ${DateFormat('dd/MM/yyyy').format(_dataFim!)}";
+     }
+     
+     return text;
   }
 
   Future<void> _pickTime() async {

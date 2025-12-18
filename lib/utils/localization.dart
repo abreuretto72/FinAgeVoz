@@ -340,6 +340,8 @@ class AppLocalizations {
       // Help Screen New
       'help_manual_title': "Manual do Usuário",
       'help_support_tooltip': "Falar com Suporte",
+      'help_notifications_title': "Notificações & Alertas",
+      'help_notifications_desc': "É crucial permitir notificações. O app usa 'Notificações Locais' para avisar sobre remédios, contas e agenda mesmo quando o aplicativo estiver fechado. Sem isso, você perderá lembretes importantes.",
       'help_tab_commands': "Comandos",
       'help_tab_transactions': "Transações",
       'help_tab_agenda': "Agenda",
@@ -793,6 +795,8 @@ class AppLocalizations {
       'help_agenda': "📅 Agenda:",
       'help_agenda_1': "• \"Reunião amanhã às 14h\"",
       'help_agenda_2': "• \"Pagar luz dia 15\"",
+      'help_notifications_title': "Notificações & Alertas",
+      'help_notifications_desc': "É crucial permitir notificações. O app usa 'Notificações Locais' para avisar sobre remédios, contas e agenda mesmo quando a aplicação estiver fechada. Sem isso, perderá lembretes importantes.",
       'help_attachments': "📎 Anexos e Partilha:",
       'help_attach_1': "• Adicione fotos e PDFs a transações e eventos.",
       'help_attach_2': "• Partilhe relatórios via WhatsApp.",

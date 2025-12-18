@@ -74,6 +74,32 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
   }
 
   Widget _buildRemedioCard(Remedio remedio) {
+    // Buscar posologias associadas a este remédio
+    final posologias = _db.getPosologias(remedio.id);
+    String posologiaTexto = '';
+    
+    if (posologias.isNotEmpty) {
+      // Pega a primeira posologia para exibir (ou junta todas se tiver mais de uma)
+      final p = posologias.first;
+      final tipo = p.frequenciaTipo.toUpperCase();
+      
+      if (tipo == 'INTERVALO') {
+        posologiaTexto = "A cada ${p.intervaloHoras} horas";
+      } else if (tipo == 'HORARIOS_FIXOS') {
+        posologiaTexto = "${p.horariosDoDia?.join(', ')}";
+      } else if (tipo == 'VEZES_DIA') {
+        posologiaTexto = "${p.vezesAoDia}x ao dia";
+      } else if (tipo == 'SE_NECESSARIO') {
+        posologiaTexto = "Se necessário";
+      } else {
+        posologiaTexto = p.frequenciaTipo;
+      }
+      
+      if (posologias.length > 1) {
+        posologiaTexto += " (+${posologias.length - 1})";
+      }
+    }
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
@@ -82,7 +108,26 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
           child: const Icon(Icons.medication, color: Colors.blue),
         ),
         title: Text(remedio.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text("${remedio.concentracao} • ${remedio.formaFarmaceutica}"),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("${remedio.concentracao} • ${remedio.formaFarmaceutica}"),
+            if (posologiaTexto.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.access_time, size: 14, color: Colors.green),
+                    const SizedBox(width: 4),
+                    Text(
+                      posologiaTexto, 
+                      style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => _navigateToDetail(remedio),
       ),
