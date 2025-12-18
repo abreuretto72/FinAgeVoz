@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../utils/localization.dart';
 
 class HelpScreen extends StatefulWidget {
@@ -10,6 +11,22 @@ class HelpScreen extends StatefulWidget {
 }
 
 class _HelpScreenState extends State<HelpScreen> {
+  String _appVersion = '';
+  String _buildNumber = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPackageInfo();
+  }
+
+  Future<void> _loadPackageInfo() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() {
+      _appVersion = info.version;
+      _buildNumber = info.buildNumber;
+    });
+  }
 
   String get _currentLanguage => Localizations.localeOf(context).toString();
 
@@ -267,7 +284,7 @@ class _HelpScreenState extends State<HelpScreen> {
         const SizedBox(height: 20),
         Center(
           child: Text(
-            t('about_version'),
+            '${t('about_version')} $_appVersion ($_buildNumber)',
             style: const TextStyle(color: Colors.grey),
           ),
         ),

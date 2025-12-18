@@ -17,6 +17,7 @@ import 'package:uuid/uuid.dart';
 import '../models/agenda_models.dart';
 import '../utils/hive_setup.dart';
 import '../utils/constants.dart';
+import '../utils/safe_data_helper.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -519,7 +520,7 @@ class DatabaseService {
     // TOTAL Projected Balance (Past + Future).
     return _transactionBox.values.fold(0.0, (sum, t) {
       if (t.isDeleted) return sum;
-      return sum + t.amount;
+      return sum + SafeDataHelper.safeDouble(t.amount);
     });
   }
 
