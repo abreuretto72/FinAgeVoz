@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import '../models/medicine_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -19,7 +21,17 @@ class NotificationService {
   Future<void> init() async {
     if (_initialized) return;
 
+    // 1. Initialize Timezones (Device Local)
     tz.initializeTimeZones();
+    try {
+      final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
+      final String timeZoneName = timeZoneInfo.identifier;
+      print("DEBUG: Device Timezone found: $timeZoneName");
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (e) {
+      print("WARNING: Could not get device timezone, using default/UTC. Error: $e");
+      try { tz.setLocalLocation(tz.getLocation('America/Sao_Paulo')); } catch(_) {}
+    }
 
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -41,12 +53,16 @@ class NotificationService {
         }
     );
     
+    // 2. Request Permissions (Strict)
     if (Platform.isAndroid) {
         await _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+        if (await Permission.notification.isDenied) {
+           await Permission.notification.request();
+        }
     }
 
     _initialized = true;
-    print("DEBUG: NotificationService Initialized");
+    print("DEBUG: NotificationService Initialized with Location: ${tz.local.name}");
   }
 
   /// Schedule a one-time event (Compromissos)
