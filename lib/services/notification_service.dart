@@ -55,19 +55,42 @@ class NotificationService {
     
     // 2. Request Permissions (Strict)
     if (Platform.isAndroid) {
-        await _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+        final androidPlugin = _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        await androidPlugin?.requestNotificationsPermission();
+        await androidPlugin?.requestExactAlarmsPermission(); // Required for exact scheduling
+        
         if (await Permission.notification.isDenied) {
            await Permission.notification.request();
+        }
+        if (await Permission.scheduleExactAlarm.isDenied) {
+            await Permission.scheduleExactAlarm.request();
         }
     }
 
     _initialized = true;
     print("DEBUG: NotificationService Initialized with Location: ${tz.local.name}");
+    
+    // TEST NOTIFICATION (Remove in production if annoying, but vital for debug now)
+    // await _notificationsPlugin.show(
+    //    99999, 
+    //    'FinAgeVoz Ativo', 
+    //    'O sistema de notificações está funcionando.', 
+    //    const NotificationDetails(
+    //      android: AndroidNotificationDetails('test_channel', 'Testes', importance: Importance.max)
+    //    )
+    // );
   }
 
   /// Schedule a one-time event (Compromissos)
   Future<void> scheduleEvent(int id, String title, String body, DateTime scheduledDate) async {
+    print("DEBUG: Attempting to schedule EVENT $id for $scheduledDate");
     try {
+        // Ensure future
+        if (scheduledDate.isBefore(DateTime.now())) {
+             print("DEBUG: Skipping past event $id");
+             return;
+        }
+
         await _notificationsPlugin.zonedSchedule(
             id,
             title,
@@ -80,6 +103,7 @@ class NotificationService {
                     channelDescription: 'Notificações de Compromissos',
                     importance: Importance.max,
                     priority: Priority.high,
+                    fullScreenIntent: true, // Force attention
                 ),
                 iOS: DarwinNotificationDetails(),
             ),
@@ -87,14 +111,15 @@ class NotificationService {
             uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
             payload: 'EVENT_$id'
         );
-        print("DEBUG: Scheduled Event $id for $scheduledDate");
-    } catch (e) {
-        print("ERROR: Failed to schedule event: $e");
+        print("DEBUG: SUCCESS Scheduled Event $id");
+    } catch (e, stack) {
+        print("ERROR: Failed to schedule event: $e\n$stack");
     }
   }
 
   /// Schedule a daily repeated event (Medicines - Horarios Fixos)
   Future<void> scheduleDaily(int id, String title, String body, TimeOfDay time) async {
+      print("DEBUG: Attempting to schedule DAILY $id at ${time.hour}:${time.minute}");
       try {
           await _notificationsPlugin.zonedSchedule(
              id,
@@ -107,23 +132,26 @@ class NotificationService {
                      'Medicamentos', 
                      channelDescription: 'Lembretes de Medicamentos', 
                      importance: Importance.max, 
-                     priority: Priority.high
+                     priority: Priority.high,
+                     fullScreenIntent: true,
                  ),
                  iOS: DarwinNotificationDetails(),
              ),
              androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
              uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-             matchDateTimeComponents: DateTimeComponents.time, // Triggers every day at this time
+             matchDateTimeComponents: DateTimeComponents.time, 
              payload: 'MED_$id'
          );
-         print("DEBUG: Scheduled Daily Med $id for ${time.hour}:${time.minute}"); 
-      } catch (e) {
-         print("ERROR: Failed to schedule daily: $e");
+         print("DEBUG: SUCCESS Scheduled Daily Med $id"); 
+      } catch (e, stack) {
+         print("ERROR: Failed to schedule daily: $e\n$stack");
       }
   }
 
-  /// Schedule explicit future doses (For Intervals)
+  /// Schedule explicit future doses
   Future<void> scheduleDose(int id, String title, String body, DateTime date) async {
+       if (date.isBefore(DateTime.now())) return;
+       print("DEBUG: Attempting to schedule DOSE $id at $date");
        try {
         await _notificationsPlugin.zonedSchedule(
             id,
@@ -137,6 +165,7 @@ class NotificationService {
                     channelDescription: 'Lembretes de Medicamentos',
                     importance: Importance.max,
                     priority: Priority.high,
+                    fullScreenIntent: true,
                 ),
                 iOS: DarwinNotificationDetails(),
             ),
@@ -144,9 +173,9 @@ class NotificationService {
             uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
             payload: 'DOSE_$id'
         );
-        print("DEBUG: Scheduled Dose $id for $date");
-    } catch (e) {
-        print("ERROR: Failed to schedule dose: $e");
+        print("DEBUG: SUCCESS Scheduled Dose $id");
+    } catch (e, stack) {
+        print("ERROR: Failed to schedule dose: $e\n$stack");
     }
   }
   
