@@ -6,6 +6,7 @@ import '../../services/attachments_service.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/medicine_model.dart';
 import '../../services/database_service.dart';
+import '../../utils/currency_formatter.dart';
 import 'posology_form_screen.dart';
 import '../../models/transaction_model.dart';
 
@@ -254,10 +255,10 @@ class _MedicineFormScreenState extends State<MedicineFormScreen> {
                      children: [
                         TextFormField(
                            controller: _purchaseValueController,
-                           decoration: const InputDecoration(
-                             labelText: 'Valor da Compra (R\$)', 
-                             border: OutlineInputBorder(),
-                             prefixText: 'R\$ '
+                           decoration: InputDecoration(
+                             labelText: 'Valor da Compra (${CurrencyFormatter.getSymbol(context)})', 
+                             border: const OutlineInputBorder(),
+                             prefixText: '${CurrencyFormatter.getSymbol(context)} '
                            ),
                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
                            validator: (v) => _createPurchaseTransaction && (v == null || v.isEmpty) ? 'Informe o valor' : null,

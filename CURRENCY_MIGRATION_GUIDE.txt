@@ -1,0 +1,198 @@
+# 🔧 SCRIPT DE MIGRAÇÃO - CURRENCY FORMATTER
+## Guia para aplicar CurrencyFormatter em todo o código
+
+---
+
+## 📋 ARQUIVOS PARA ATUALIZAR (PRIORIDADE ALTA)
+
+### 1. **lib/widgets/add_transaction_dialog.dart**
+
+**Linha 39:** 
+```dart
+// ANTES:
+String _currencySymbol = 'R$';
+
+// DEPOIS:
+// Remover variável, usar CurrencyFormatter.getSymbol(context)
+```
+
+**Linha 276:**
+```dart
+// ANTES:
+'${t('total_calculated')} $_currencySymbol ${_calculateTotal().toStringAsFixed(2)}',
+
+// DEPOIS:
+import '../utils/currency_formatter.dart';
+'${t('total_calculated')} ${CurrencyFormatter.format(context, _calculateTotal())}',
+```
+
+---
+
+### 2. **lib/widgets/advanced_filters_dialog.dart**
+
+**Linha 29:**
+```dart
+// ANTES:
+String _currencySymbol = 'R$';
+
+// DEPOIS:
+// Remover, usar CurrencyFormatter.getSymbol(context)
+```
+
+---
+
+### 3. **lib/screens/agenda_form_screen.dart**
+
+**Linha 357:**
+```dart
+// ANTES:
+decoration: const InputDecoration(labelText: 'Valor (R$)'),
+
+// DEPOIS:
+decoration: InputDecoration(
+  labelText: '${t('value')} (${CurrencyFormatter.getSymbol(context)})',
+),
+```
+
+---
+
+### 4. **lib/screens/medicines/medicine_form_screen.dart**
+
+**Linhas 258-260:**
+```dart
+// ANTES:
+labelText: 'Valor da Compra (R$)', 
+hintText: '0.00',
+prefixText: 'R$ '
+
+// DEPOIS:
+labelText: '${t('purchase_value')} (${CurrencyFormatter.getSymbol(context)})', 
+hintText: '0.00',
+prefixText: '${CurrencyFormatter.getSymbol(context)} '
+```
+
+---
+
+### 5. **lib/screens/home_screen.dart**
+
+**Linha 1466-1467:**
+```dart
+// ANTES:
+'Compra de $description registrada. ${downPayment > 0 ? 'Entrada de ${downPayment.toStringAsFixed(2)} e ' : ''}$installments parcelas de ${installmentVal.toStringAsFixed(2)} reais.'
+
+// DEPOIS:
+import '../utils/currency_formatter.dart';
+'Compra de $description registrada. ${downPayment > 0 ? 'Entrada de ${CurrencyFormatter.format(context, downPayment)} e ' : ''}$installments parcelas de ${CurrencyFormatter.format(context, installmentVal)}.'
+```
+
+**Linha 1506-1507:**
+```dart
+// ANTES:
+'Gasto de $description de ${amount!.toStringAsFixed(2)} registrado...'
+
+// DEPOIS:
+'Gasto de $description de ${CurrencyFormatter.format(context, amount!)} registrado...'
+```
+
+**Linha 1823:**
+```dart
+// ANTES:
+"Lembrete de pagamento: ${item.titulo}, valor R$ ${item.pagamento!.valor.toStringAsFixed(2)}"
+
+// DEPOIS:
+"Lembrete de pagamento: ${item.titulo}, valor ${CurrencyFormatter.format(context, item.pagamento!.valor)}"
+```
+
+**Linha 1872, 1874:**
+```dart
+// ANTES:
+"Valor: ${t.amount.toStringAsFixed(2)} reais."
+
+// DEPOIS:
+"Valor: ${CurrencyFormatter.format(context, t.amount)}."
+```
+
+---
+
+### 6. **lib/services/database_service.dart**
+
+**Linha 1443:**
+```dart
+// ANTES:
+body = "Vencimento: R$ ${item.pagamento!.valor.toStringAsFixed(2)}";
+
+// DEPOIS:
+import '../utils/currency_formatter.dart';
+// Problema: Não tem context aqui!
+// Solução: Passar locale como parâmetro
+body = "Vencimento: ${CurrencyFormatter.formatWithLocale('pt_BR', item.pagamento!.valor)}";
+```
+
+---
+
+### 7. **lib/services/agenda_repository.dart**
+
+**Linha 211:**
+```dart
+// ANTES:
+body = "Vencimento: R$ ${item.pagamento!.valor.toStringAsFixed(2)}";
+
+// DEPOIS:
+import '../utils/currency_formatter.dart';
+body = "Vencimento: ${CurrencyFormatter.formatWithLocale('pt_BR', item.pagamento!.valor)}";
+```
+
+---
+
+## 🎯 PADRÃO DE SUBSTITUIÇÃO
+
+### Com Context Disponível:
+```dart
+// Import
+import '../utils/currency_formatter.dart';
+
+// Uso
+CurrencyFormatter.format(context, valor)
+CurrencyFormatter.getSymbol(context)
+```
+
+### Sem Context (Services):
+```dart
+// Import
+import '../utils/currency_formatter.dart';
+
+// Uso
+CurrencyFormatter.formatWithLocale('pt_BR', valor)
+CurrencyFormatter.getSymbolWithLocale('pt_BR')
+```
+
+---
+
+## ✅ CHECKLIST
+
+- [ ] add_transaction_dialog.dart
+- [ ] advanced_filters_dialog.dart
+- [ ] agenda_form_screen.dart
+- [ ] medicine_form_screen.dart
+- [ ] home_screen.dart (múltiplas linhas)
+- [ ] database_service.dart
+- [ ] agenda_repository.dart
+- [ ] Testar em pt_BR
+- [ ] Testar em en_US
+- [ ] Testar em es_ES
+
+---
+
+## 🧪 TESTE
+
+```dart
+// Teste manual:
+print(CurrencyFormatter.formatWithLocale('pt_BR', 1234.56)); // R$ 1.234,56
+print(CurrencyFormatter.formatWithLocale('en_US', 1234.56)); // $1,234.56
+print(CurrencyFormatter.formatWithLocale('es_ES', 1234.56)); // 1.234,56 €
+```
+
+---
+
+**Criado em:** 2025-12-18  
+**Status:** 📝 Guia de Migração

@@ -4,6 +4,7 @@ import '../services/agenda_repository.dart';
 import '../services/database_service.dart';
 import '../services/ai_service.dart';
 import '../services/contact_service.dart';
+import '../utils/currency_formatter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:uuid/uuid.dart';
 
@@ -354,7 +355,9 @@ class _AgendaFormScreenState extends State<AgendaFormScreen> {
         const Text("Detalhes do Pagamento", style: TextStyle(fontWeight: FontWeight.bold)),
         TextFormField(
           controller: _valueController,
-          decoration: const InputDecoration(labelText: 'Valor (R\$)'),
+          decoration: InputDecoration(
+            labelText: 'Valor (${CurrencyFormatter.getSymbol(context)})',
+          ),
           keyboardType: TextInputType.number,
           validator: (v) => v == null || v.isEmpty ? 'Informe o valor' : null,
         ),

@@ -273,7 +273,7 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                   ),
               const SizedBox(height: 8),
               Text(
-                '${t('total_calculated')} $_currencySymbol ${_calculateTotal().toStringAsFixed(2)}',
+                '${t('total_calculated')} ${NumberFormat.simpleCurrency(locale: _currentLanguage).format(_calculateTotal())}',
                 style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
               ),
             ] else

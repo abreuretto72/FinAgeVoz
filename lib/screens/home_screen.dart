@@ -27,7 +27,9 @@ import '../models/category_model.dart';
 
 import '../utils/localization.dart';
 import '../utils/installment_helper.dart';
+import '../utils/currency_formatter.dart';
 import '../services/agenda_repository.dart';
+import '../widgets/ai_disclaimer_banner.dart';
 import '../models/agenda_models.dart';
 import 'agenda_form_screen.dart';
 import 'medicines/medicine_form_screen.dart';
@@ -783,11 +785,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: const TextStyle(color: Colors.grey, fontSize: 14),
                         ),
                       ],
-                    ),
+                      ),
                   ],
                 ),
               ),
             ),
+            
+            // ⚠️ AI Disclaimer - Google Play Compliance
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: AIDisclaimerBanner(),
+            ),
+            
             // Center Section (Status + Mic)
             Expanded(
               child: Column(
@@ -1463,8 +1472,8 @@ class _HomeScreenState extends State<HomeScreen> {
           final installmentVal = installmentAmount ?? ((totalFeedback - downPayment) / installments);
           await _voiceService.speak(
             isExpense
-                ? 'Compra de $description registrada. ${downPayment > 0 ? 'Entrada de ${downPayment.toStringAsFixed(2)} e ' : ''}$installments parcelas de ${installmentVal.toStringAsFixed(2)} reais.'
-                : 'Receita de $description registrada. ${downPayment > 0 ? 'Entrada de ${downPayment.toStringAsFixed(2)} e ' : ''}$installments parcelas de ${installmentVal.toStringAsFixed(2)} reais.',
+                ? 'Compra de $description registrada. ${downPayment > 0 ? 'Entrada de ${CurrencyFormatter.format(context, downPayment)} e ' : ''}$installments parcelas de ${CurrencyFormatter.format(context, installmentVal)}.'
+                : 'Receita de $description registrada. ${downPayment > 0 ? 'Entrada de ${CurrencyFormatter.format(context, downPayment)} e ' : ''}$installments parcelas de ${CurrencyFormatter.format(context, installmentVal)}.',
           );
         } else {
           final now = DateTime.now();
@@ -1503,8 +1512,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
           await _voiceService.speak(
             isExpense
-                ? 'Gasto de $description de ${amount!.toStringAsFixed(2)} registrado como ${finalIsPaid ? "PAGO" : "PENDENTE"}.'
-                : 'Receita de $description de ${amount!.toStringAsFixed(2)} registrada como ${finalIsPaid ? "RECEBIDO" : "PENDENTE"}.',
+                ? 'Gasto de $description de ${CurrencyFormatter.format(context, amount!)} registrado como ${finalIsPaid ? "PAGO" : "PENDENTE"}.'
+                : 'Receita de $description de ${CurrencyFormatter.format(context, amount!)} registrada como ${finalIsPaid ? "RECEBIDO" : "PENDENTE"}.',
           );
         }
   }
@@ -1820,7 +1829,7 @@ class _HomeScreenState extends State<HomeScreen> {
               
               case AgendaItemType.PAGAMENTO:
                 if (item.pagamento != null) {
-                  message = "Lembrete de pagamento: ${item.titulo}, valor R\$ ${item.pagamento!.valor.toStringAsFixed(2)}";
+                  message = "Lembrete de pagamento: ${item.titulo}, valor ${CurrencyFormatter.format(context, item.pagamento!.valor)}";
                 } else {
                   message = "Lembrete de pagamento: ${item.titulo}";
                 }
@@ -1869,9 +1878,9 @@ class _HomeScreenState extends State<HomeScreen> {
         String message;
         
         if (tDate.isAtSameMomentAs(tomorrow)) {
-           message = "Lembrete: A parcela de ${t.description} vence amanhã. Valor: ${t.amount.toStringAsFixed(2)} reais.";
+           message = "Lembrete: A parcela de ${t.description} vence amanhã. Valor: ${CurrencyFormatter.format(context, t.amount)}.";
         } else if (tDate.isAtSameMomentAs(today)) {
-           message = "Atenção: A parcela de ${t.description} vence hoje! Valor: ${t.amount.toStringAsFixed(2)} reais.";
+           message = "Atenção: A parcela de ${t.description} vence hoje! Valor: ${CurrencyFormatter.format(context, t.amount)}.";
         } else {
            final daysLate = today.difference(tDate).inDays;
            message = "A parcela de ${t.description} está atrasada há $daysLate dias.";

@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import '../models/agenda_models.dart';
 import '../utils/hive_setup.dart';
+import '../utils/currency_formatter.dart';
 import 'notification_service.dart';
 import 'database_service.dart';
 
@@ -208,7 +209,9 @@ class AgendaRepository {
          String body = item.descricao ?? 'Agenda FinAgeVoz';
          
          if (item.tipo == AgendaItemType.PAGAMENTO && item.pagamento != null) {
-               body = "Vencimento: R\$ ${item.pagamento!.valor.toStringAsFixed(2)}";
+               // Use locale from DatabaseService
+               final locale = DatabaseService().getLanguage();
+               body = "Vencimento: ${CurrencyFormatter.formatWithLocale(locale, item.pagamento!.valor)}";
          } else if (item.tipo == AgendaItemType.REMEDIO && item.remedio != null) {
                body = "Horário de Remédio: ${item.remedio!.nome} (Dosagem: ${item.remedio!.dosagem})";
          } else if (item.tipo == AgendaItemType.ANIVERSARIO) {
