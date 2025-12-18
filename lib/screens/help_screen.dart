@@ -281,13 +281,6 @@ class _HelpScreenState extends State<HelpScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 20),
-        Center(
-          child: Text(
-            '${t('about_version')} $_appVersion ($_buildNumber)',
-            style: const TextStyle(color: Colors.grey),
-          ),
-        ),
       ],
     );
   }

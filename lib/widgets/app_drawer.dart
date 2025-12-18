@@ -6,6 +6,7 @@ import '../screens/data_management_screen.dart';
 import '../screens/help_screen.dart';
 import '../screens/settings/privacy_policy_screen.dart';
 import '../screens/settings/delete_account_screen.dart';
+import '../screens/settings/about_screen.dart';
 
 import '../utils/localization.dart';
 
@@ -140,7 +141,7 @@ class AppDrawer extends StatelessWidget {
             title: Text(t('menu_about')),
             onTap: () {
               Navigator.pop(context);
-              _showAboutDialog(context);
+              navigate(const AboutScreen());
             },
           ),
           
@@ -201,33 +202,5 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  void _showAboutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(t('about_title')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(t('about_version')),
-            const SizedBox(height: 10),
-            Text(t('about_description')),
-            const SizedBox(height: 20),
-            Text(t('about_developed_by'), style: const TextStyle(fontWeight: FontWeight.bold)),
-            Text(t('about_company')),
-            const SizedBox(height: 5),
-            Text(t('about_email_label'), style: const TextStyle(fontWeight: FontWeight.bold)),
-            Text(t('about_email')),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(t('close')),
-          ),
-        ],
-      ),
-    );
-  }
+
 }
