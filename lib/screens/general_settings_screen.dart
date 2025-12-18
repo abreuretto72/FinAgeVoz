@@ -290,6 +290,167 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
 
               const SizedBox(height: 24),
 
+              // Agenda Settings Header
+              const Padding(
+                padding: EdgeInsets.only(left: 4, bottom: 8),
+                child: Text(
+                  'Agenda & Notificações',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold, // Section Header
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+
+              // Agenda Settings Container
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    // Compromissos
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.calendar_today, color: Colors.blue),
+                      ),
+                      title: const Text("Compromissos", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                      subtitle: const Text("Antecedência de aviso", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      trailing: DropdownButton<int>(
+                        value: _dbService.getDefaultAgendaReminderMinutes(),
+                        dropdownColor: const Color(0xFF2C2C2C),
+                        style: const TextStyle(color: Colors.white),
+                        underline: Container(),
+                        icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                        onChanged: (val) async {
+                          if (val != null) {
+                            await _dbService.setDefaultAgendaReminderMinutes(val);
+                            setState(() {});
+                          }
+                        },
+                        items: [0, 5, 10, 15, 30, 60, 120].map((m) {
+                          return DropdownMenuItem<int>(
+                            value: m,
+                            child: Text(m == 0 ? "No horário" : "$m min"),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const Divider(color: Colors.grey, height: 1),
+                    
+                    // Remédios
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.pink.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.medication, color: Colors.pink),
+                      ),
+                      title: const Text("Remédios", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                      subtitle: const Text("Antecedência de aviso", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      trailing: DropdownButton<int>(
+                        value: _dbService.getDefaultMedicineReminderMinutes(),
+                        dropdownColor: const Color(0xFF2C2C2C),
+                        style: const TextStyle(color: Colors.white),
+                        underline: Container(),
+                        icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                        onChanged: (val) async {
+                          if (val != null) {
+                            await _dbService.setDefaultMedicineReminderMinutes(val);
+                            setState(() {});
+                          }
+                        },
+                        items: [0, 5, 10, 15, 30, 60, 120].map((m) {
+                          return DropdownMenuItem<int>(
+                            value: m,
+                            child: Text(m == 0 ? "No horário" : "$m min"),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const Divider(color: Colors.grey, height: 1),
+
+                    // Pagamentos
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.attach_money, color: Colors.green),
+                      ),
+                      title: const Text("Pagamentos", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                      subtitle: const Text("Antecedência de aviso", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      trailing: DropdownButton<int>(
+                        value: _dbService.getDefaultPaymentReminderMinutes(),
+                        dropdownColor: const Color(0xFF2C2C2C),
+                        style: const TextStyle(color: Colors.white),
+                        underline: Container(),
+                        icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                        onChanged: (val) async {
+                          if (val != null) {
+                            await _dbService.setDefaultPaymentReminderMinutes(val);
+                            setState(() {});
+                          }
+                        },
+                        items: [0, 5, 10, 15, 30, 60, 120].map((m) {
+                          return DropdownMenuItem<int>(
+                            value: m,
+                            child: Text(m == 0 ? "No horário" : "$m min"),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const Divider(color: Colors.grey, height: 1),
+
+                    // Quantidade de Avisos (Global)
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.notifications_active, color: Colors.orange),
+                      ),
+                      title: const Text("Quantidade de Avisos", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                      subtitle: const Text("Repetições do lembrete", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      trailing: DropdownButton<int>(
+                        value: _dbService.getDefaultWarningCount(),
+                        dropdownColor: const Color(0xFF2C2C2C),
+                        style: const TextStyle(color: Colors.white),
+                        underline: Container(),
+                        icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                        onChanged: (val) async {
+                          if (val != null) {
+                            await _dbService.setDefaultWarningCount(val);
+                            setState(() {});
+                          }
+                        },
+                        items: [1, 2, 3, 4, 5, 10].map((m) {
+                          return DropdownMenuItem<int>(
+                            value: m,
+                            child: Text("$m x"),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
               // Info Footer
               Container(
                 padding: const EdgeInsets.all(16),

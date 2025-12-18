@@ -85,19 +85,33 @@ class NotificationService {
 
   /// Schedule a one-time event (Compromissos)
   Future<void> scheduleEvent(int id, String title, String body, DateTime scheduledDate) async {
-    print("DEBUG: Attempting to schedule EVENT $id for $scheduledDate");
+    final now = DateTime.now();
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    print("📅 SCHEDULING EVENT NOTIFICATION");
+    print("   ID: $id");
+    print("   Title: $title");
+    print("   Body: $body");
+    print("   Scheduled for: $scheduledDate");
+    print("   Current time: $now");
+    print("   Time until notification: ${scheduledDate.difference(now)}");
+    
     try {
         // Ensure future
-        if (scheduledDate.isBefore(DateTime.now())) {
-             print("DEBUG: Skipping past event $id");
+        if (scheduledDate.isBefore(now)) {
+             print("⚠️  SKIPPED: Event is in the past");
+             print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
              return;
         }
+
+        final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
+        print("   TZ Scheduled: $tzScheduledDate");
+        print("   Timezone: ${tz.local.name}");
 
         await _notificationsPlugin.zonedSchedule(
             id,
             title,
             body,
-            tz.TZDateTime.from(scheduledDate, tz.local),
+            tzScheduledDate,
             const NotificationDetails(
                 android: AndroidNotificationDetails(
                     'agenda_channel_id',
@@ -106,6 +120,8 @@ class NotificationService {
                     importance: Importance.max,
                     priority: Priority.high,
                     fullScreenIntent: true, // Force attention
+                    enableVibration: true,
+                    playSound: true,
                 ),
                 iOS: DarwinNotificationDetails(),
             ),
@@ -113,9 +129,29 @@ class NotificationService {
             uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
             payload: 'EVENT_$id'
         );
-        print("DEBUG: SUCCESS Scheduled Event $id");
+        print("✅ SUCCESS: Event notification scheduled!");
+        
+        // List all pending notifications
+        await _logPendingNotifications();
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     } catch (e, stack) {
-        print("ERROR: Failed to schedule event: $e\n$stack");
+        print("❌ ERROR: Failed to schedule event notification");
+        print("   Error: $e");
+        print("   Stack: $stack");
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    }
+  }
+
+  /// Log all pending notifications for debugging
+  Future<void> _logPendingNotifications() async {
+    try {
+      final pending = await _notificationsPlugin.pendingNotificationRequests();
+      print("📋 PENDING NOTIFICATIONS: ${pending.length}");
+      for (var notif in pending) {
+        print("   - ID: ${notif.id}, Title: ${notif.title}, Body: ${notif.body}");
+      }
+    } catch (e) {
+      print("⚠️  Could not retrieve pending notifications: $e");
     }
   }
 
@@ -250,6 +286,18 @@ class NotificationService {
   Future<void> cancel(int id) async {
     await _notificationsPlugin.cancel(id);
     print("DEBUG: Cancelled Notification $id");
+  }
+
+  /// Test notification - schedule one for 10 seconds from now
+  Future<void> testNotification() async {
+    final testTime = DateTime.now().add(Duration(seconds: 10));
+    print("🧪 TESTING: Scheduling test notification for 10 seconds from now");
+    await scheduleEvent(
+      99999,
+      '🧪 Teste de Notificação',
+      'Se você viu isso, as notificações estão funcionando!',
+      testTime
+    );
   }
 
   Future<void> cancelAll() async {

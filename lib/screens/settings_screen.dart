@@ -187,6 +187,101 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           
           const SizedBox(height: 30),
+          const Text(
+            "Agenda / Compromissos",
+            style: TextStyle(
+              color: Colors.blue,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E1E),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.calendar_today, color: Colors.blue), // Compromisso
+                  title: const Text("Compromissos", style: TextStyle(color: Colors.white)),
+                  subtitle: const Text("Antecedência de aviso", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  trailing: DropdownButton<int>(
+                    value: _dbService.getDefaultAgendaReminderMinutes(),
+                    dropdownColor: const Color(0xFF2C2C2C),
+                    style: const TextStyle(color: Colors.white),
+                    underline: Container(),
+                    icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                    onChanged: (val) async {
+                      if (val != null) {
+                        await _dbService.setDefaultAgendaReminderMinutes(val);
+                        setState(() {});
+                      }
+                    },
+                    items: [0, 5, 10, 15, 30, 60, 120].map((m) {
+                      return DropdownMenuItem<int>(
+                        value: m,
+                        child: Text(m == 0 ? "No horário" : "$m min"),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const Divider(color: Colors.grey, height: 1),
+                ListTile(
+                  leading: const Icon(Icons.medication, color: Colors.red), // Remédios
+                  title: const Text("Remédios", style: TextStyle(color: Colors.white)),
+                  subtitle: const Text("Antecedência de aviso", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  trailing: DropdownButton<int>(
+                    value: _dbService.getDefaultMedicineReminderMinutes(),
+                    dropdownColor: const Color(0xFF2C2C2C),
+                    style: const TextStyle(color: Colors.white),
+                    underline: Container(),
+                    icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                    onChanged: (val) async {
+                      if (val != null) {
+                        await _dbService.setDefaultMedicineReminderMinutes(val);
+                        setState(() {});
+                      }
+                    },
+                    items: [0, 5, 10, 15, 30, 60, 120].map((m) {
+                      return DropdownMenuItem<int>(
+                        value: m,
+                        child: Text(m == 0 ? "No horário" : "$m min"),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const Divider(color: Colors.grey, height: 1),
+                ListTile(
+                  leading: const Icon(Icons.attach_money, color: Colors.green), // Pagamentos
+                  title: const Text("Pagamentos", style: TextStyle(color: Colors.white)),
+                  subtitle: const Text("Antecedência de aviso", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  trailing: DropdownButton<int>(
+                    value: _dbService.getDefaultPaymentReminderMinutes(),
+                    dropdownColor: const Color(0xFF2C2C2C),
+                    style: const TextStyle(color: Colors.white),
+                    underline: Container(),
+                    icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                    onChanged: (val) async {
+                      if (val != null) {
+                        await _dbService.setDefaultPaymentReminderMinutes(val);
+                        setState(() {});
+                      }
+                    },
+                    items: [0, 5, 10, 15, 30, 60, 120].map((m) {
+                      return DropdownMenuItem<int>(
+                        value: m,
+                        child: Text(m == 0 ? "No horário" : "$m min"),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 30),
           Text(
             t('settings_help_section'),
             style: TextStyle(

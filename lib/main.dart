@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'dart:io';
+import 'dart:async';
+import 'dart:ui';
 import 'package:path_provider/path_provider.dart';
 import 'l10n/app_localizations.dart';
 import 'models/transaction_model.dart';
@@ -23,8 +26,107 @@ import 'services/subscription/subscription_service.dart';
 import 'utils/hive_setup.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  print("DEBUG: runApp starting sequence");
+  // ═══════════════════════════════════════════════════════════════
+  // 🛡️ GLOBAL ERROR BARRIER - Prevents Grey Screen of Death
+  // ═══════════════════════════════════════════════════════════════
+  
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    
+    // ═══════════════════════════════════════════════════════════════
+    // STEP 1: Capture async errors (PlatformDispatcher)
+    // ═══════════════════════════════════════════════════════════════
+    PlatformDispatcher.instance.onError = (error, stack) {
+      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('🔴 PLATFORM ERROR CAPTURED (Async Layer)');
+      debugPrint('Error: $error');
+      debugPrint('Stack: $stack');
+      debugPrint('═══════════════════════════════════════════════════════');
+      return true; // Handled - don't crash
+    };
+    
+    // ═══════════════════════════════════════════════════════════════
+    // STEP 2: Capture UI/Framework errors (FlutterError)
+    // ═══════════════════════════════════════════════════════════════
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('🔴 FLUTTER ERROR CAPTURED (UI Layer)');
+      debugPrint('Error: ${details.exception}');
+      debugPrint('Stack: ${details.stack}');
+      debugPrint('═══════════════════════════════════════════════════════');
+      // Don't crash - just log it
+    };
+    
+    // ═══════════════════════════════════════════════════════════════
+    // STEP 3: Custom Error Widget - "Tela de Desculpas"
+    // ═══════════════════════════════════════════════════════════════
+    ErrorWidget.builder = (FlutterErrorDetails details) {
+      // In debug mode, show the red error screen
+      if (kDebugMode) {
+        return ErrorWidget(details.exception);
+      }
+      
+      // In release mode, show friendly error screen
+      return MaterialApp(
+        home: Scaffold(
+          backgroundColor: const Color(0xFF121212),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange,
+                    size: 80,
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Ops, algo não saiu como esperado',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Não se preocupe, seus dados estão seguros.',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white70,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      // Try to navigate to home
+                      runApp(const FinAgeVozApp());
+                    },
+                    icon: const Icon(Icons.home),
+                    label: const Text('Voltar para o Início'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00E5FF),
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    };
+    
+    print("DEBUG: runApp starting sequence");
   
   // Initialize Hive
   await Hive.initFlutter();
@@ -109,6 +211,15 @@ void main() async {
 
   print("DEBUG: calling runApp");
   runApp(const FinAgeVozApp());
+  
+  }, (error, stack) {
+    // Catch any errors that escape the main zone
+    debugPrint('═══════════════════════════════════════════════════════');
+    debugPrint('🔴 ZONE ERROR CAPTURED (Main Zone)');
+    debugPrint('Error: $error');
+    debugPrint('Stack: $stack');
+    debugPrint('═══════════════════════════════════════════════════════');
+  });
 }
 
 

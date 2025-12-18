@@ -332,6 +332,8 @@ class AgendaItemAdapter extends TypeAdapter<AgendaItem> {
       aniversario: fields[12] as AniversarioInfo?,
       anexos: (fields[13] as List?)?.cast<Anexo>(),
       googleEventId: fields[16] as String?,
+      avisoMinutosAntes: fields[17] as int?,
+      quantidadeAvisos: fields[18] as int?,
     )
       ..criadoEm = fields[14] as DateTime
       ..atualizadoEm = fields[15] as DateTime;
@@ -340,7 +342,7 @@ class AgendaItemAdapter extends TypeAdapter<AgendaItem> {
   @override
   void write(BinaryWriter writer, AgendaItem obj) {
     writer
-      ..writeByte(17)
+      ..writeByte(19)
       ..writeByte(0)
       ..write(obj.tipo)
       ..writeByte(1)
@@ -374,7 +376,11 @@ class AgendaItemAdapter extends TypeAdapter<AgendaItem> {
       ..writeByte(15)
       ..write(obj.atualizadoEm)
       ..writeByte(16)
-      ..write(obj.googleEventId);
+      ..write(obj.googleEventId)
+      ..writeByte(17)
+      ..write(obj.avisoMinutosAntes)
+      ..writeByte(18)
+      ..write(obj.quantidadeAvisos);
   }
 
   @override

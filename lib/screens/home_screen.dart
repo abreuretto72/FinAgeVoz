@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:device_calendar/device_calendar.dart' hide Event;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 
 import '../services/voice_service.dart';
 import '../voice/voice_controller.dart';
@@ -63,6 +64,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final VoiceService _voiceService = VoiceService();
   final AIService _aiService = AIService();
   final DatabaseService _dbService = DatabaseService();
+  final AgendaRepository _agendaRepo = AgendaRepository();
+
+  Timer? _checkTimer;
+  DateTime? _lastBirthdayCheck;
+  final Set<dynamic> _notifiedAgendaItems = {};
 
   final ImportService _importService = ImportService();
   late final VoiceController _voiceController;
@@ -88,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
   
   // Static flag to ensure events are announced only once per app session
-  static bool _hasAnnouncedEvents = false;
+
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -121,6 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     );
     _initVoice();
+    _checkTimer = Timer.periodic(const Duration(minutes: 1), (_) => _checkTodayEvents());
     // Check for events on startup as requested
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(seconds: 2), () async {
@@ -140,6 +147,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_statusText.isEmpty) {
       _statusText = t('status_tap_to_speak');
     }
+  }
+
+  @override
+  void dispose() {
+    _checkTimer?.cancel();
+    super.dispose();
   }
 
   String t(String key) => AppLocalizations.t(key, _currentLanguage);
@@ -1501,18 +1514,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _checkTodayEvents() async {
-    if (_hasAnnouncedEvents) return;
-    
+    // 1. Calendar Events (Google/System)
     final notificationService = EventNotificationService();
     await notificationService.checkAndNotifyTodayEvents();
     
-    // Check medicines
+    // 2. Agenda Items (Internal)
+    await _checkAgendaItems();
+    
+    // 3. Medicines
     await _checkMedicines();
 
-    // Check birthdays
-    await _checkBirthdays();
-
-    _hasAnnouncedEvents = true;
+    // 4. Birthdays (Once per day)
+    final now = DateTime.now();
+    if (_lastBirthdayCheck == null || _lastBirthdayCheck!.day != now.day) {
+         await _checkBirthdays();
+         _lastBirthdayCheck = now;
+    }
   }
 
   Future<void> _checkBirthdays() async {
@@ -1740,6 +1757,95 @@ class _HomeScreenState extends State<HomeScreen> {
           );
        }
      );
+  }
+
+  Future<void> _checkAgendaItems() async {
+     if (!mounted) return;
+     final now = DateTime.now();
+     
+     // Include ALL agenda types
+     final items = _agendaRepo.getAll().where((i) => 
+        !i.status.toString().contains('CONCLUIDO')
+     ).toList();
+
+     for (var item in items) {
+        if (item.dataInicio == null) continue;
+        final d = item.dataInicio!;
+        if (d.year != now.year || d.month != now.month || d.day != now.day) continue;
+        
+        DateTime time;
+        if (item.horarioInicio != null && item.horarioInicio!.contains(':')) {
+          try {
+            final parts = item.horarioInicio!.split(':');
+            time = DateTime(d.year, d.month, d.day, int.parse(parts[0]), int.parse(parts[1]));
+          } catch (_) {
+            continue;
+          }
+        } else if (item.tipo == AgendaItemType.ANIVERSARIO) {
+          // Birthdays use 9:00 AM as default
+          time = DateTime(d.year, d.month, d.day, 9, 0);
+        } else {
+          continue;
+        }
+        
+        final diff = time.difference(now).inMinutes;
+
+        int reminderMins = 15;
+        if (item.tipo == AgendaItemType.COMPROMISSO || item.tipo == AgendaItemType.TAREFA) {
+             reminderMins = item.avisoMinutosAntes ?? DatabaseService().getDefaultAgendaReminderMinutes();
+        } else if (item.tipo == AgendaItemType.REMEDIO) {
+             reminderMins = item.avisoMinutosAntes ?? DatabaseService().getDefaultMedicineReminderMinutes();
+        } else if (item.tipo == AgendaItemType.PAGAMENTO) {
+             reminderMins = item.avisoMinutosAntes ?? DatabaseService().getDefaultPaymentReminderMinutes();
+        } else if (item.tipo == AgendaItemType.ANIVERSARIO) {
+             reminderMins = 0; // Birthday alerts at the time
+        }
+        
+        // Notify if within configurable range
+        if (diff >= -1 && diff <= reminderMins && !_notifiedAgendaItems.contains(item.key)) {
+            String message;
+            
+            switch (item.tipo) {
+              case AgendaItemType.ANIVERSARIO:
+                message = "Hoje é aniversário de ${item.titulo}! Não esqueça de parabenizar!";
+                break;
+              
+              case AgendaItemType.REMEDIO:
+                if (item.remedio != null) {
+                  message = "Lembrete de remédio: ${item.remedio!.nome}, dosagem ${item.remedio!.dosagem}";
+                } else {
+                  message = "Lembrete de remédio: ${item.titulo}";
+                }
+                break;
+              
+              case AgendaItemType.PAGAMENTO:
+                if (item.pagamento != null) {
+                  message = "Lembrete de pagamento: ${item.titulo}, valor R\$ ${item.pagamento!.valor.toStringAsFixed(2)}";
+                } else {
+                  message = "Lembrete de pagamento: ${item.titulo}";
+                }
+                break;
+              
+              case AgendaItemType.COMPROMISSO:
+              case AgendaItemType.TAREFA:
+              case AgendaItemType.LEMBRETE:
+              case AgendaItemType.PROJETO:
+              case AgendaItemType.PRAZO:
+                if (diff > 0) {
+                  message = "Lembrete: ${item.titulo} em $diff minutos.";
+                } else {
+                  message = "Lembrete: ${item.titulo} agora!";
+                }
+                break;
+              
+              default:
+                message = "Lembrete: ${item.titulo}";
+            }
+            
+            await _voiceService.speak(message);
+            _notifiedAgendaItems.add(item.key);
+        }
+     }
   }
 
   Future<void> _checkInstallmentNotifications() async {
