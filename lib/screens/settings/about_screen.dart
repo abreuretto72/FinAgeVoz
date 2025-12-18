@@ -126,12 +126,39 @@ class _AboutScreenState extends State<AboutScreen> {
             
             const Spacer(flex: 3),
             
-            // Copyright
+            // Company & Contact Info
             Padding(
               padding: const EdgeInsets.only(bottom: 32.0),
-              child: Text(
-                '© $_currentYear FinAgeVoz. All rights reserved.',
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              child: Column(
+                children: [
+                   const Text(
+                    'Multiverso Digital',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () => _launchUrl('mailto:contato@multiversodigital.com.br'),
+                    child: const Text(
+                      'contato@multiversodigital.com.br',
+                      style: TextStyle(
+                        color: Colors.blueAccent,
+                        fontSize: 14,
+                        decoration: TextDecoration.underline,
+                        decorationColor: Colors.blueAccent,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    '© 2025 FinAgeVoz. Todos os direitos reservados.',
+                    style: TextStyle(color: Colors.white38, fontSize: 12),
+                  ),
+                ],
               ),
             ),
           ],
