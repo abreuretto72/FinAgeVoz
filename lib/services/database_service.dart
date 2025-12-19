@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' hide Category;
+import 'balance_manager.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:io';
 import 'dart:convert';
@@ -21,6 +22,9 @@ import '../utils/safe_data_helper.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
+  
+  late BalanceManager _balanceManager;
+  BalanceManager get balanceManager => _balanceManager;
   factory DatabaseService() => _instance;
   DatabaseService._internal();
 
@@ -48,6 +52,7 @@ class DatabaseService {
     _remedioBox = await Hive.openBox<Remedio>('remedios');
     _posologiaBox = await Hive.openBox<Posologia>('posologias');
     _historicoTomadaBox = await Hive.openBox<HistoricoTomada>('historico_tomadas');
+    _balanceManager = await BalanceManager.init();
 
     print("DEBUG: Hive boxes opened. Category box empty? ${_categoryBox.isEmpty}");
     
@@ -125,6 +130,13 @@ class DatabaseService {
       // await _removePhantomHealthTransaction(); // Disabled after fix confirmed
       // Ensure sync between Finance and Agenda
       await _syncMissingAgendaItems();
+      // Ensure History Consistency - FORCE REBUILD to fix phantom balances reported by user
+      if (_transactionBox.isNotEmpty) {
+          await _balanceManager.rebuildAll(getTransactions());
+      } else {
+        // Clear ghost balances if user deleted everything
+        await _balanceManager.rebuildAll([]);
+      }
     }
   }
   
@@ -457,6 +469,8 @@ class DatabaseService {
 
     await _transactionBox.add(tToAdd);
     await _syncAdd(tToAdd);
+    // Recalculate Balance History
+    await _balanceManager.recalculateFrom(tToAdd.date, getTransactions());
   }
 
   Future<void> markTransactionAsPaid(String id, DateTime date) async {
@@ -484,6 +498,7 @@ class DatabaseService {
       );
       await _transactionBox.put(t.key, updatedT);
       await _syncUpdate(updatedT);
+      await _balanceManager.recalculateFrom(date, getTransactions());
     } catch (e) {
       print("Transaction not found: $id");
     }
@@ -513,6 +528,11 @@ class DatabaseService {
     } else {
       await _transactionBox.add(transaction);
     }
+  }
+
+  /// Returns the current Realized Balance (Cash Flow logic)
+  double getRealizedBalance() {
+    return _balanceManager.getCurrentBalance(getTransactions());
   }
 
   double getBalance() {

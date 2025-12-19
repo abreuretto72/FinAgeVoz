@@ -1048,10 +1048,14 @@ class _HomeScreenState extends State<HomeScreen> {
         await _initiateAgendaItem(result['agenda_item']);
         return;
     } else if (intent == 'QUERY') {
-        // Delegate AGENDA queries to controller for Search functionality
+        // Delegate AGENDA and FINANCE queries to controller
         final domain = result['query']?['domain'];
-        if (domain == 'AGENDA') {
+        if (domain == 'AGENDA' || domain == 'FINANCE') {
             await _voiceController.handleQuery(result['query']);
+            setState(() {
+              _isProcessing = false;
+              _statusText = t('status_idle');
+            });
             return;
         }
         // Fall through for FINANCE queries to be handled by AI answer logic below

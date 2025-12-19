@@ -162,25 +162,47 @@ class BIService {
   }
   
   String _calculateBalance(List<Transaction> all, Map<String, dynamic> query) {
-      // Calculate current balance (Income Paid - Expense Paid)
-      double balance = 0;
+      // Saldo Realizado Corrente (via BalanceManager para rapidez/precisão)
+      // Nota: Precisa ser getRealizedBalance do dbService
+      double currentBalance = _dbService.getRealizedBalance();
+
+      // Calcular pendências até o fim do mês
+      final now = DateTime.now();
+      final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+      
+      double pendingExpenses = 0;
+      double pendingIncome = 0;
+      
       for (var t in all) {
-          if (!t.isPaid) continue;
-          if (t.isExpense) balance -= t.amount;
-          else balance += t.amount;
+        if (t.isPaid || t.isDeleted) continue; 
+        
+        // Considerar pendências DENTRO do mês corrente (para previsão de fechamento)
+        // Se a data for anterior a hoje e não paga, é atrasada? Sim. Deve entrar na previsão? Sim.
+        // Se a data for futura e dentro do mês.
+        
+        if (t.date.isBefore(endOfMonth)) {
+           if (t.isExpense) pendingExpenses += t.amount;
+           else pendingIncome += t.amount;
+        }
       }
       
-      final type = query['type'];
-      if (type == 'PROJECTED') {
-          // Add pending income/expense till end of period?
-          // Simplification: Projected usually means "End of Month"
-          // We need to filter pending items until end of month.
-          // This requires logic similar to Aggregation but for future items.
-          // For MVP, return current balance.
-          return "Seu saldo atual consolidado é de ${_formatMoney(balance)}.";
+      double projected = currentBalance + pendingIncome - pendingExpenses;
+      
+      String msg = "Seu saldo total hoje é de ${_formatMoney(currentBalance)}.";
+      
+      if (pendingExpenses > 0 || pendingIncome > 0) {
+        msg += " Você tem ";
+        if (pendingExpenses > 0) msg += "${_formatMoney(pendingExpenses)} em contas pendentes";
+        if (pendingIncome > 0) {
+          if (pendingExpenses > 0) msg += " e ";
+          msg += "${_formatMoney(pendingIncome)} a receber";
+        }
+        msg += " até o fim do mês, o que deixaria seu saldo previsto em ${_formatMoney(projected)}.";
+      } else {
+        msg += " Não há previsões pendentes para este mês.";
       }
       
-      return "Seu saldo atual é de ${_formatMoney(balance)}.";
+      return msg;
   }
   
   String _findSpecific(List<Transaction> filtered, Map<String, dynamic> query) {

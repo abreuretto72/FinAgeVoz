@@ -18,7 +18,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 
 enum TransactionType { all, income, expense }
-enum FilterPeriod { today, thisWeek, thisMonth, all }
+enum FilterPeriod { today, thisWeek, thisMonth, last30Days, all }
 enum SortBy { date, amount, type, description }
 
 class FinanceScreen extends StatefulWidget {
@@ -33,7 +33,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
   List<Transaction> _transactions = [];
   List<Transaction> _filteredTransactions = [];
   
-  FilterPeriod _selectedPeriod = FilterPeriod.thisMonth;
+  FilterPeriod _selectedPeriod = FilterPeriod.last30Days;
   DateTime? _selectedDate;
   TransactionType _selectedType = TransactionType.all;
   String _searchQuery = '';
@@ -90,6 +90,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
           case FilterPeriod.thisMonth:
             matchesPeriod = transaction.date.year == now.year && transaction.date.month == now.month;
             break;
+          case FilterPeriod.last30Days:
+            final start = now.subtract(const Duration(days: 31));
+            final end = now.add(const Duration(days: 1));
+            matchesPeriod = transaction.date.isAfter(start) && transaction.date.isBefore(end);
+            break;
           case FilterPeriod.all:
             matchesPeriod = true;
             break;
@@ -132,8 +137,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
     // Calculate balances
     _filteredBalance = 0;
-    // Use Global Balance from DB (includes everything as per User Request Step 2956)
-    _totalBalance = _dbService.getBalance();
+    // Use Realized Balance (Cash Flow) as primary indicator - Aligned with Voice/AI
+    _totalBalance = _dbService.getRealizedBalance();
     _cashFlowBalance = 0;
     
     // final now = DateTime.now(); // Removed duplicate
@@ -774,14 +779,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      "${_filteredTransactions.length} ${t('transactions_count_label')}",
-                      style: const TextStyle(color: Colors.grey, fontSize: 10),
-                    ),
-                  ),
+
                 ],
               ),
             ),
@@ -806,7 +804,21 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 ),
                 const SizedBox(width: 8),
 
-                // 2. Month (Period)
+                // 2. Last 30 Days (Default)
+                ChoiceChip(
+                  label: Text(t('period_last_30')),
+                  selected: _selectedPeriod == FilterPeriod.last30Days && _selectedDate == null,
+                  onSelected: (selected) {
+                    setState(() {
+                      _selectedPeriod = FilterPeriod.last30Days;
+                      _selectedDate = null;
+                      _applyFilters();
+                    });
+                  },
+                ),
+                const SizedBox(width: 8),
+
+                // 3. Month (Period)
                 ChoiceChip(
                   label: Text(t('period_month')),
                   selected: _selectedPeriod == FilterPeriod.thisMonth && _selectedDate == null,

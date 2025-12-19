@@ -114,7 +114,7 @@ class AppLocalizations {
       'total_transactions': "Total Transações: ",
       'total_income': "Receitas: ",
       'total_expense': "Despesas: ",
-      'balance_label': "Saldo: ",
+      'balance_label': "Saldo Total: ",
       'table_date': "Data",
       'table_description': "Descrição",
       'table_category': "Categoria",
@@ -138,6 +138,12 @@ class AppLocalizations {
       'help_trans_1': "• \"Gastei 50 reais na padaria\"",
       'help_trans_2': "• \"Recebi 1000 reais de salário\"",
       'help_trans_3': "• \"Comprei TV de 2000 reais em 10x\"",
+      'help_balance_reports_title': "Saldos e Relatórios Avançados",
+      'help_balance_desc': "• Saldo Realizado: Considera receitas (+) e despesas (-) efetivadas.\n• Filtro 'Últimos 30 Dias': Visualização padrão móvel.\n• Relatórios PDF: Despesas com sinal negativo (-R\$) e soma algébrica.\n• Voz: Pergunte \"Qual meu saldo?\" para valores reais.",
+      
+      'help_quick_questions_title': "🗣️ O que você pode perguntar:",
+      'help_quick_questions_desc': "Experimente estas perguntas:\n\n💰 *Finanças:*\n• \"Qual meu saldo total?\"\n• \"Quanto gastei este mês?\"\n• \"Quanto gastei com mercado?\"\n• \"Qual o total de receitas?\"\n• \"Liste minhas despesas de hoje.\"\n\n📅 *Agenda:*\n• \"O que tenho para hoje?\"\n• \"Quais os compromissos de amanhã?\"\n• \"Tenho médico esta semana?\"\n• \"Adiar reunião para amanhã.\"\n\n🧠 *Geral:*\n• \"Bom dia!\" (Briefing completo)\n• \"Quais as notícias?\"\n• \"Qual meu horóscopo?\"\n• \"Conte uma piada.\"",
+
       'help_agenda': "📅 Agenda:",
       'help_agenda_1': "• \"Reunião amanhã às 14h\"",
       'help_agenda_2': "• \"Pagar luz dia 15\"",

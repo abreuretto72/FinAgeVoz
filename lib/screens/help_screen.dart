@@ -108,6 +108,10 @@ class _HelpScreenState extends State<HelpScreen> {
           ),
           _buildSectionHeader(t('help_section_examples')),
           _buildHelpItem(
+            t('help_quick_questions_title'), 
+            t('help_quick_questions_desc'),
+          ),
+          _buildHelpItem(
             t('help_add_finance_title'), 
             t('help_add_finance_desc'),
           ),
@@ -187,6 +191,10 @@ class _HelpScreenState extends State<HelpScreen> {
         _buildHelpItem(
           t('help_graphic_reports_title'), 
           t('help_graphic_reports_desc'),
+        ),
+        _buildHelpItem(
+          t('help_balance_reports_title'), 
+          t('help_balance_desc'),
         ),
         
         _buildSectionHeader("Importação e Exportação"),

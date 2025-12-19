@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.2.0] - 2025-12-19 14:00 - Critical Finance Fixes
+
+### 🚀 Critical Fixes (Saldo e Relatórios)
+- **Correção de Saldo (Balance Manager)**:
+  - Implementada lógica de **Soma Algébrica** rigorosa (`Saldo = Receita + Despesa`). Assumindo que despesas são nativamente negativas, eliminando erros de cálculo.
+  - Adicionado mecanismo de `rebuildAll` no início da sessão financeira para corrigir erros históricos de "saldo fantasma".
+- **Relatórios PDF**: 
+  - Padronizada a exibição de **Despesas com sinal negativo** (ex: `- R$ 100,00`) em todas as colunas e sumários para coerência visual.
+  - Corrigida a aritmética nos totais de relatórios de Fluxo de Caixa e Transações Detalhadas.
+- **Filtros UI**:
+  - Alterado o filtro padrão para **"Últimos 30 Dias"** (Janela Móvel), oferecendo uma visão mais imediata do que o mês fechado.
+
+### 📚 Documentation & Help
+- **Tela de Ajuda**: 
+  - Nova aba de "Perguntas Frequentes" com exemplos de comandos para Finanças, Agenda e Geral.
+  - Explicações detalhadas sobre o cálculo do Saldo Realizado.
+- **Ajuda Financeira**: Detalhamento sobre a metodologia de Saldo Realizado vs Projetado.
+
+### 🔧 Engine Improvements
+- **DatabaseService**: Refatorado para integrar profundamente com o `BalanceManager` V2.
+
 ## [2.1.0] - 2025-12-19
 
 ### ✨ New Features

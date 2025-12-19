@@ -65,15 +65,16 @@ class PdfService {
       if (t.isExpense) {
         // Algebraic v2: Expense is negative.
         // We want positive magnitude for "Total Expenses".
-        totalExpense += t.amount;
+        // Force negative sign for expenses regardless of storage format
+        totalExpense += (t.amount.abs() * -1);
       } else {
         totalIncome += t.amount;
       }
     }
-    // Convert expense total to positive for display
-    totalExpense = totalExpense.abs();
+    // Convert expense total to positive for display - REMOVED per user request
+    // totalExpense = totalExpense.abs();
     
-    final balance = totalIncome - totalExpense;
+    final balance = totalIncome + totalExpense;
 
     pdf.addPage(
       pw.MultiPage(
@@ -109,7 +110,7 @@ class PdfService {
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
                     pw.Text('${AppLocalizations.t('total_income', languageCode)}${currencyFormat.format(totalIncome)}', style: const pw.TextStyle(color: PdfColors.green)),
-                    pw.Text('${AppLocalizations.t('total_expense', languageCode)}${currencyFormat.format(totalExpense)}', style: const pw.TextStyle(color: PdfColors.red)),
+                    pw.Text('${AppLocalizations.t('total_expense', languageCode)} - ${currencyFormat.format(totalExpense.abs())}', style: const pw.TextStyle(color: PdfColors.red)),
                     pw.Text('${AppLocalizations.t('balance_label', languageCode)}${currencyFormat.format(balance)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                   ],
                 ),
@@ -353,10 +354,11 @@ class PdfService {
                   catIncome += t.amount;
                 }
               }
-              // Convert expense total to positive for calculation
-              catExpense = catExpense.abs();
+              // Convert expense total to positive - REMOVED per user request
+              // catExpense = catExpense.abs();
               
-              final netTotal = catIncome - catExpense;
+              // Algebraic sum: Income (Positive) + Expense (Negative)
+              final netTotal = catIncome + catExpense;
 
               widgets.add(
                 pw.Container(
@@ -478,13 +480,14 @@ class PdfService {
     double totalExpense = 0;
     for (var t in transactions) {
       if (t.isExpense) {
-        totalExpense += t.amount;
+        // Force negative sign for expenses regardless of storage format
+        totalExpense += (t.amount.abs() * -1);
       } else {
         totalIncome += t.amount;
       }
     }
-    // Convert expense total to positive for display
-    totalExpense = totalExpense.abs();
+    // Convert expense total to positive for display - REMOVED per user request
+    // totalExpense = totalExpense.abs();
 
     pdf.addPage(
       pw.MultiPage(
@@ -520,7 +523,7 @@ class PdfService {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(AppLocalizations.t('total_expense', languageCode), style: const pw.TextStyle(fontSize: 12)),
-                    pw.Text(currencyFormat.format(totalExpense), style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.red)),
+                    pw.Text("- ${currencyFormat.format(totalExpense.abs())}", style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.red)),
                   ],
                 ),
                 pw.Column(
@@ -598,7 +601,8 @@ class PdfService {
         totalIncome += t.amount;
       }
     }
-    totalExpense = totalExpense.abs();
+    // totalExpense should be negative for Algebraic Sum
+    // totalExpense = totalExpense.abs(); // REMOVED
 
     pdf.addPage(
       pw.MultiPage(
