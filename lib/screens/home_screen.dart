@@ -48,6 +48,7 @@ import 'help_screen.dart';
 
 import '../services/query_service.dart';
 import '../services/sync/cloud_sync_service.dart';
+import '../services/talking_clock_service.dart';
 import 'sync_settings_screen.dart';
 import '../services/subscription/feature_gate.dart';
 import '../services/subscription/subscription_service.dart';
@@ -128,6 +129,9 @@ class _HomeScreenState extends State<HomeScreen> {
          }
       }
     );
+    // Init Talking Clock
+    TalkingClockService().init();
+    
     _initVoice();
     _checkTimer = Timer.periodic(const Duration(minutes: 1), (_) => _checkTodayEvents());
     // Check for events on startup as requested

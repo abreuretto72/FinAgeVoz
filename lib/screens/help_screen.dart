@@ -59,7 +59,7 @@ class _HelpScreenState extends State<HelpScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: Text(t('help_manual_title')),
@@ -77,6 +77,7 @@ class _HelpScreenState extends State<HelpScreen> {
               Tab(text: t('help_tab_transactions')),
               Tab(text: t('help_tab_agenda')),
               Tab(text: t('help_tab_api')),
+              const Tab(text: 'Comportamento IA'), // Using hardcoded string for now or add to localization
               Tab(text: t('help_tab_limits')),
             ],
           ),
@@ -87,6 +88,7 @@ class _HelpScreenState extends State<HelpScreen> {
             _buildTransactionsTab(),
             _buildAgendaTab(),
             _buildApiTab(),
+            _buildAiBehaviorTab(),
             _buildLimitsTab(),
           ],
         ),
@@ -230,6 +232,49 @@ class _HelpScreenState extends State<HelpScreen> {
         _buildHelpItem(
           t('help_cloud_backup_title'), 
           t('help_cloud_backup_desc'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAiBehaviorTab() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 150),
+      children: [
+        _buildInfoCard(
+            "Cérebro da IA", 
+            "Agora você pode controlar a personalidade e as habilidades do seu assistente FinAgeVoz.",
+            icon: Icons.psychology
+        ),
+        _buildSectionHeader("Personalidade"),
+        _buildHelpItem(
+          "Modo Terapêutico", 
+          "Quando ativo, a IA oferece apoio emocional se você disser que está cansado ou estressado. Se desligado, ela é mais objetiva.",
+        ),
+        _buildHelpItem(
+          "Humor & Proatividade", 
+          "Permite que a IA conte piadas e inicie conversas proativamente ao abrir o app.",
+        ),
+        
+        _buildSectionHeader("Rotina e Acessibilidade"),
+        _buildHelpItem(
+          "Briefing Matinal", 
+          "Receba 'Bom dia' com notícias, previsão do tempo e curiosidades históricas. Configurável em Menu > Comportamento da IA.",
+        ),
+        _buildHelpItem(
+          "Relógio Falante", 
+          "O app fala a hora a cada 15 minutos. Útil para deficientes visuais ou para focar no tempo. Respeita horário de silêncio (ex: 22h às 07h).",
+        ),
+        
+        _buildSectionHeader("Astral & Sorte"),
+        _buildHelpItem(
+          "Horóscopo Diário", 
+          "Configure sua data de nascimento para receber previsões astrais personalizadas focadas em finanças.",
+        ),
+        _buildHelpItem(
+          "Números da Sorte", 
+          "Junto com o horóscopo, receba 6 números da sorte gerados matematicamente (1-60).",
         ),
       ],
     );

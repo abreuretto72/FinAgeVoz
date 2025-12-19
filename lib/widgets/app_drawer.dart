@@ -7,6 +7,7 @@ import '../screens/help_screen.dart';
 import '../screens/settings/privacy_policy_screen.dart';
 import '../screens/settings/delete_account_screen.dart';
 import '../screens/settings/about_screen.dart';
+import '../screens/ai_behavior_screen.dart';
 
 import '../utils/localization.dart';
 
@@ -81,6 +82,16 @@ class AppDrawer extends StatelessWidget {
             onTap: () {
               Navigator.pop(context);
               navigate(const GeneralSettingsScreen());
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.psychology),
+            title: const Text('Comportamento da IA'),
+            subtitle: const Text('Personalidade, Briefing, Relógio'),
+            onTap: () {
+              Navigator.pop(context);
+              navigate(const AiBehaviorScreen());
             },
           ),
           

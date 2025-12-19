@@ -1298,6 +1298,27 @@ class DatabaseService {
   }
 
 
+  // Talking Clock Settings
+  bool getTalkingClockEnabled() {
+    if (!_settingsBox.isOpen) return false;
+    return _settingsBox.get('talking_clock_enabled', defaultValue: false);
+  }
+
+  Future<void> setTalkingClockEnabled(bool value) async {
+    if (!_settingsBox.isOpen) return;
+    await _settingsBox.put('talking_clock_enabled', value);
+  }
+
+  bool getTalkingClockDateOnHourOnly() {
+    if (!_settingsBox.isOpen) return false;
+    return _settingsBox.get('talking_clock_date_on_hour', defaultValue: false);
+  }
+
+  Future<void> setTalkingClockDateOnHourOnly(bool value) async {
+    if (!_settingsBox.isOpen) return;
+    await _settingsBox.put('talking_clock_date_on_hour', value);
+  }
+
   // Settings: Always announce events
   // Agenda Settings
   int getDefaultAgendaReminderMinutes() {
@@ -1386,9 +1407,55 @@ class DatabaseService {
          }
          print("DEBUG: Propagated WARNING COUNT change (old: $oldDefault -> new: $newDefault) to ${itemsToUpdate.length} items.");
        } catch (e) {
+       } catch (e) {
           print("ERROR propagating warning count: $e");
        }
   }
+
+  // --- AI BEHAVIOR SETTINGS ---
+
+  // Section A: Personality
+  bool getAiTherapeuticMode() => _settingsBox.get('ai_therapeutic_mode', defaultValue: true);
+  Future<void> setAiTherapeuticMode(bool val) => _settingsBox.put('ai_therapeutic_mode', val);
+
+  bool getAiAllowHumor() => _settingsBox.get('ai_allow_humor', defaultValue: true);
+  Future<void> setAiAllowHumor(bool val) => _settingsBox.put('ai_allow_humor', val);
+
+  bool getAiProactiveMode() => _settingsBox.get('ai_proactive_mode', defaultValue: true);
+  Future<void> setAiProactiveMode(bool val) => _settingsBox.put('ai_proactive_mode', val);
+
+  // Section B: Morning Briefing
+  bool getAiMorningBriefingEnabled() => _settingsBox.get('ai_morning_briefing', defaultValue: true);
+  Future<void> setAiMorningBriefingEnabled(bool val) => _settingsBox.put('ai_morning_briefing', val);
+
+  bool getAiIncludeNews() => _settingsBox.get('ai_include_news', defaultValue: true);
+  Future<void> setAiIncludeNews(bool val) => _settingsBox.put('ai_include_news', val);
+
+  bool getAiIncludeWeather() => _settingsBox.get('ai_include_weather', defaultValue: true);
+  Future<void> setAiIncludeWeather(bool val) => _settingsBox.put('ai_include_weather', val);
+
+  bool getAiIncludeHoroscope() => _settingsBox.get('ai_include_horoscope', defaultValue: true);
+  Future<void> setAiIncludeHoroscope(bool val) => _settingsBox.put('ai_include_horoscope', val);
+
+  bool getAiIncludeHistory() => _settingsBox.get('ai_include_history', defaultValue: true);
+  Future<void> setAiIncludeHistory(bool val) => _settingsBox.put('ai_include_history', val);
+
+  // Section C: Talking Clock (Extensions)
+  // Already have enabled/dateOnHour. Adding Quiet Hours.
+  int getTalkingClockQuietStart() => _settingsBox.get('talking_clock_quiet_start', defaultValue: 22);
+  Future<void> setTalkingClockQuietStart(int hour) => _settingsBox.put('talking_clock_quiet_start', hour);
+
+  int getTalkingClockQuietEnd() => _settingsBox.get('talking_clock_quiet_end', defaultValue: 7);
+  Future<void> setTalkingClockQuietEnd(int hour) => _settingsBox.put('talking_clock_quiet_end', hour);
+
+  // User Profile for Horoscope
+  DateTime? getUserBirthDate() {
+      final str = _settingsBox.get('user_birth_date');
+      if (str == null) return null;
+      return DateTime.tryParse(str);
+  }
+  
+  Future<void> setUserBirthDate(DateTime date) => _settingsBox.put('user_birth_date', date.toIso8601String());
 
   Future<void> _propagateReminderChange(AgendaItemType type, int oldDefault, int newDefault) async {
      try {

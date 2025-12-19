@@ -5,6 +5,7 @@ import '../services/notification_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../utils/localization.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../services/talking_clock_service.dart';
 
 class GeneralSettingsScreen extends StatefulWidget {
   const GeneralSettingsScreen({super.key});
@@ -173,6 +174,46 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
 
                     const Divider(color: Colors.grey, height: 1),
 
+                    // Birth Date (Perfil / Horóscopo)
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.pink.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.cake, color: Colors.pink),
+                      ),
+                      title: const Text(
+                        "Data de Nascimento",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        _dbService.getUserBirthDate() != null
+                            ? "${_dbService.getUserBirthDate()!.day}/${_dbService.getUserBirthDate()!.month}/${_dbService.getUserBirthDate()!.year}"
+                            : "Toque para definir (Necessário para Horóscopo)",
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      trailing: const Icon(Icons.edit, color: Colors.white, size: 20),
+                      onTap: () async {
+                         final picked = await showDatePicker(
+                             context: context,
+                             initialDate: _dbService.getUserBirthDate() ?? DateTime(1980),
+                             firstDate: DateTime(1900),
+                             lastDate: DateTime.now(),
+                         );
+                         if (picked != null) {
+                             await _dbService.setUserBirthDate(picked);
+                             setState((){});
+                         }
+                      },
+                    ),
+                    
+                    const Divider(color: Colors.grey, height: 1),
+
                     // Always Announce Events
                     SwitchListTile(
                       secondary: Container(
@@ -317,6 +358,69 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                       },
                       activeColor: Colors.orange,
                     ),
+                    
+                    const Divider(color: Colors.grey, height: 1),
+
+                    // Talking Clock (Relógio Falante)
+                    SwitchListTile(
+                      secondary: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.access_time_filled, color: Colors.teal),
+                      ),
+                      title: const Text(
+                        "Relógio Falante",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        "Falar a hora a cada 15 minutos (07h às 22h)",
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      value: _dbService.getTalkingClockEnabled(),
+                      onChanged: (bool value) async {
+                        setState(() {
+                             // Update Service directly to sync state
+                             if (value) {
+                                TalkingClockService().start();
+                             } else {
+                                TalkingClockService().stop();
+                             }
+                        });
+                        // Service updates DB internally in start/stop methods I added? 
+                        // Actually in my implementation of start/stop I added _dbService calls.
+                        // But good to force rebuild UI.
+                      },
+                      activeColor: Colors.teal,
+                    ),
+                    
+                    if (_dbService.getTalkingClockEnabled())
+                        CheckboxListTile(
+                           title: const Text(
+                             "Data compl. apenas na hora cheia?",
+                             style: TextStyle(color: Colors.white70, fontSize: 14),
+                           ),
+                           subtitle: const Text(
+                             "Nas frações (15, 30, 45) fala apenas o horário.",
+                             style: TextStyle(color: Colors.grey, fontSize: 11),
+                           ),
+                           contentPadding: const EdgeInsets.only(left: 72, right: 16),
+                           value: _dbService.getTalkingClockDateOnHourOnly(),
+                           onChanged: (val) {
+                               if (val != null) {
+                                   setState(() {
+                                       TalkingClockService().setPreferences(speakDateOnHourOnly: val);
+                                   });
+                               }
+                           },
+                           activeColor: Colors.teal,
+                           checkColor: Colors.white,
+                        ),
                   ],
                 ),
               ),

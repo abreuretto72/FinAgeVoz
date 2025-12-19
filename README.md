@@ -51,11 +51,18 @@
 - ✅ **Notificações Inteligentes**: O app envia alertas mesmo fechado (necessário permissão).
 
 
-### 🤖 Inteligência Artificial
+### 🤖 Comportamento da IA (Novo!)
+- ✅ **Personalidade Ajustável**: Escolha entre "Modo Terapêutico" (empático) ou Objetivo.
+- ✅ **Briefing Matinal**: Receba um "Bom dia" com manchetes, previsão do tempo (simulada) e curiosidades.
+- ✅ **Horóscopo & Sorte**: Previsões astrais baseadas na sua data de nascimento + 6 números da sorte (Mega-Sena) gerados matematicamente.
+- ✅ **Relógio Falante**: Anuncia a hora a cada 15 minutos (configurável), com respeito a horários de silêncio (ex: noite).
+
+### 🤖 Inteligência Artificial (Core)
 - ✅ Processamento de linguagem natural com **Groq (Llama 3.3)**
 - ✅ Respostas inteligentes a perguntas financeiras
 - ✅ Extração automática de dados (valores, datas, categorias)
 - ✅ Suporte a múltiplos idiomas
+
 
 ### 📊 Relatórios e Análises
 - ✅ Gráficos de pizza por categoria

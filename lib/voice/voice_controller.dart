@@ -282,7 +282,27 @@ class VoiceController {
          await _voiceService.speak(msg);
        } else {
          final count = results.length;
-         String msg = count == 1 ? t('voice_found_one') : "${t('voice_found_many')}$count${t('voice_found_many_suffix')}";
+         
+         // Persona Response Logic
+         String intro = "";
+         if (count < 3) {
+             intro = "Hoje está tranquilo! Você tem apenas $count compromissos."; // "Today is easy"
+         } else if (count <= 5) {
+             intro = "Você tem $count compromissos na agenda.";
+         } else {
+             intro = "Dia cheio! Encontrei $count itens.";
+         }
+         
+         // If generic query "Como está meu dia", use this intro.
+         // If specific search "Aniversarios", keep standard "Encontrei X".
+         // Heuristic: If keywords are empty or very broad, use Persona.
+         bool usePersona = keywords == null || keywords.isEmpty || keywords.toLowerCase().contains("agenda") || keywords.toLowerCase().contains("dia");
+         
+         String msg = usePersona ? intro : "${t('voice_found_many')}$count${t('voice_found_many_suffix')}";
+         
+         if (usePersona) {
+             msg += " O primeiro é";
+         }
          
          // Describe items (Limit to 5 to avoid long speech)
          int limit = 5;
@@ -292,8 +312,10 @@ class VoiceController {
             // Format Date
             String dateText = "";
             if (item.dataInicio != null) {
+               // Only say date if it's NOT the requested single date (e.g. searching for Month)
+               // Simple heuristic: If multiple days involved in results, say date.
+               // For now, always say day just in case unless it's today?
                dateText = DateFormat('dd').format(item.dataInicio!);
-               // Only add month if it's relevant/ambiguous? For "January" query, usually redundant but safe to add.
             }
             
             final timeFormatted = item.horarioInicio ?? "";
@@ -302,7 +324,13 @@ class VoiceController {
             
             msg += " ${item.titulo}";
             
-            if (dateText.isNotEmpty) msg += " dia $dateText";
+            // Contextualize date speaking
+            // If granularity is DAY, dont repeat date for every item?
+            // "Dentista às 10, Almoço às 12..." is better than "Dentista dia 18 às 10..."
+            if (granularity != 'DAY' && dateText.isNotEmpty) {
+                 msg += " dia $dateText";
+            }
+            
             if (item.tipo != AgendaItemType.ANIVERSARIO && timeFormatted.isNotEmpty) {
                msg += " às $timeFormatted";
             }
@@ -311,6 +339,10 @@ class VoiceController {
          if (results.length > limit) {
              msg += " e outros ${results.length - limit}.";
          }
+         
+         // Offer to read details? (As per user suggestion: "Quer que eu leia os detalhes?")
+         // This implies conversational flow. For now, we JUST read them (simpler).
+         // "O primeiro é Dentista às 10h..." -> Done above.
          
          msg += ".";
          
