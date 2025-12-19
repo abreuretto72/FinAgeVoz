@@ -173,6 +173,14 @@ class _AiBehaviorScreenState extends State<AiBehaviorScreen> {
                 await _dbService.setAiIncludeHistory(v!);
                 setState((){});
             }),
+            _buildCheckbox("Santo do Dia", _dbService.getAiIncludeReligious(), (v) async {
+                await _dbService.setAiIncludeReligious(v!);
+                setState((){});
+            }),
+            _buildCheckbox("Datas Comemorativas", _dbService.getAiIncludeCommemorative(), (v) async {
+                await _dbService.setAiIncludeCommemorative(v!);
+                setState((){});
+            }),
           ]
         ],
       ),

@@ -907,7 +907,8 @@ class DatabaseService {
   
   Map<String, dynamic> getDataStats() {
     final transactions = _transactionBox.values.toList();
-    final events = _eventBox.values.toList();
+    // Exclude PAGAMENTO items as they are synced from transactions
+    final agendaItems = agendaBox.values.where((item) => item.tipo != AgendaItemType.PAGAMENTO).toList();
     
     DateTime? oldestTransaction;
     DateTime? newestTransaction;
@@ -920,7 +921,7 @@ class DatabaseService {
     
     return {
       'transactionCount': transactions.length,
-      'eventCount': events.length,
+      'eventCount': agendaItems.length, // Counts only real events (excludes PAGAMENTO)
       'categoryCount': _categoryBox.length,
       'oldestTransaction': oldestTransaction,
       'newestTransaction': newestTransaction,
@@ -1440,6 +1441,12 @@ class DatabaseService {
   bool getAiIncludeHistory() => _settingsBox.get('ai_include_history', defaultValue: true);
   Future<void> setAiIncludeHistory(bool val) => _settingsBox.put('ai_include_history', val);
 
+  bool getAiIncludeReligious() => _settingsBox.get('ai_include_religious', defaultValue: false);
+  Future<void> setAiIncludeReligious(bool val) => _settingsBox.put('ai_include_religious', val);
+
+  bool getAiIncludeCommemorative() => _settingsBox.get('ai_include_commemorative', defaultValue: true);
+  Future<void> setAiIncludeCommemorative(bool val) => _settingsBox.put('ai_include_commemorative', val);
+
   // Section C: Talking Clock (Extensions)
   // Already have enabled/dateOnHour. Adding Quiet Hours.
   int getTalkingClockQuietStart() => _settingsBox.get('talking_clock_quiet_start', defaultValue: 22);
@@ -1456,6 +1463,14 @@ class DatabaseService {
   }
   
   Future<void> setUserBirthDate(DateTime date) => _settingsBox.put('user_birth_date', date.toIso8601String());
+
+  // User Favorite Team
+  String? getUserFavoriteTeam() => _settingsBox.get('user_favorite_team');
+  Future<void> setUserFavoriteTeam(String team) => _settingsBox.put('user_favorite_team', team);
+
+  // User First Name
+  String? getUserName() => _settingsBox.get('user_name');
+  Future<void> setUserName(String name) => _settingsBox.put('user_name', name);
 
   Future<void> _propagateReminderChange(AgendaItemType type, int oldDefault, int newDefault) async {
      try {

@@ -84,6 +84,7 @@ translation_template.csv
 # Documentation
 *.md
 !README.md
+!CHANGELOG.md
 
 # Security and API Keys
 android/key.properties

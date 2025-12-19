@@ -669,33 +669,108 @@ class _FinanceScreenState extends State<FinanceScreen> {
                    Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(t('balance_total') + " (Atual)", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                          Text(
-                            currencyFormat.format(_totalBalance),
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: _totalBalance >= 0 ? Colors.green : Colors.red,
+                      InkWell(
+                        onTap: () async {
+                          final allowed = await FeatureGate(SubscriptionService()).canUseFeature(context, AppFeature.useAdvancedReports);
+                          if (!allowed) return;
+
+                          try {
+                            // Balance Total: Show ALL transactions including future installments (parcelas a vencer)
+                            final balanceTransactions = List<Transaction>.from(_transactions);
+                            
+                            // Sort mainly by date descending for report
+                            balanceTransactions.sort((a, b) => b.date.compareTo(a.date));
+
+                            if (mounted) {
+                                Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => PdfPreviewScreen(
+                                    title: "Relatório de Saldo Total",
+                                    buildPdf: (format) => PdfService.generateCashFlowPdfBytes(
+                                        balanceTransactions,
+                                        currencyFormat,
+                                        dateFormat,
+                                        _totalBalance,
+                                        _currentLanguage,
+                                        "Relatório do Saldo Total",
+                                    ),
+                                    ),
+                                ),
+                                );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('${t('error')}: $e')),
+                                );
+                            }
+                          }
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t('balance_total') + " (Atual)", style: const TextStyle(fontSize: 12, color: Colors.grey, decoration: TextDecoration.underline)),
+                            Text(
+                              currencyFormat.format(_totalBalance),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: _totalBalance >= 0 ? Colors.green : Colors.red,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text("Fluxo de Caixa (Realizado)", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                          Text(
-                            currencyFormat.format(_cashFlowBalance),
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: _cashFlowBalance >= 0 ? Colors.green : Colors.red,
+                      InkWell(
+                        onTap: () async {
+                          final allowed = await FeatureGate(SubscriptionService()).canUseFeature(context, AppFeature.useAdvancedReports);
+                          if (!allowed) return;
+
+                          try {
+                            // Filter realized transactions for Cash Flow
+                            final cashFlowTransactions = _filteredTransactions.where((t) => t.isRealized).toList();
+                            
+                            if (mounted) {
+                                Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => PdfPreviewScreen(
+                                    title: "Relatório de Fluxo de Caixa",
+                                    buildPdf: (format) => PdfService.generateCashFlowPdfBytes(
+                                        cashFlowTransactions,
+                                        currencyFormat,
+                                        dateFormat,
+                                        _cashFlowBalance,
+                                        _currentLanguage,
+                                        "Relatório de Fluxo de Caixa",
+                                    ),
+                                    ),
+                                ),
+                                );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('${t('error')}: $e')),
+                                );
+                            }
+                          }
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Text("Fluxo de Caixa (Realizado)", style: TextStyle(fontSize: 12, color: Colors.grey, decoration: TextDecoration.underline)),
+                            Text(
+                              currencyFormat.format(_cashFlowBalance),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: _cashFlowBalance >= 0 ? Colors.green : Colors.red,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),

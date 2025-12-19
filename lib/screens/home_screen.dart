@@ -991,6 +991,28 @@ class _HomeScreenState extends State<HomeScreen> {
     final lowerText = text.toLowerCase();
     final cleanText = lowerText.replaceAll(RegExp(r'[!.,?]'), '').trim();
 
+    // GREETING DETECTION (Priority check before AI)
+    final greetings = ['bom dia', 'boa tarde', 'boa noite', 'olá', 'oi', 'hey'];
+    if (greetings.any((g) => cleanText == g || cleanText.startsWith('$g '))) {
+      await _handleGreeting(cleanText);
+      setState(() {
+        _isProcessing = false;
+        _statusText = t('status_idle');
+      });
+      return;
+    }
+
+    // NEWS REQUEST DETECTION (Priority check before AI)
+    final newsKeywords = ['notícias', 'noticias', 'manchetes', 'novidades', 'acontecendo'];
+    if (newsKeywords.any((k) => cleanText.contains(k))) {
+      await _handleNewsRequest();
+      setState(() {
+        _isProcessing = false;
+        _statusText = t('status_idle');
+      });
+      return;
+    }
+
     // Confirmation / acknowledgment commands
     if (['ok', 'tá bom', 'ta bom', 'certo', 'entendido', 'sim', 'pode ir', 'confirmado', 'confirmar']
         .contains(cleanText)) {
@@ -1033,6 +1055,19 @@ class _HomeScreenState extends State<HomeScreen> {
             return;
         }
         // Fall through for FINANCE queries to be handled by AI answer logic below
+    } else if (intent == 'CHAT') {
+        // Handle conversational/emotional responses
+        final message = result['message'];
+        if (message != null && message.isNotEmpty) {
+            await _voiceService.speak(message);
+        } else {
+            await _voiceService.speak('Estou aqui para ajudar. Como posso te auxiliar?');
+        }
+        setState(() {
+          _isProcessing = false;
+          _statusText = t('status_idle');
+        });
+        return;
     } 
 
     if (intent == 'ADD_TRANSACTION') {
@@ -1929,5 +1964,251 @@ class _HomeScreenState extends State<HomeScreen> {
         await Future.delayed(const Duration(seconds: 1));
       }
     }
+  }
+
+  Future<void> _handleNewsRequest() async {
+    String response = "Aqui estão as principais manchetes de hoje: ";
+    
+    // Simulated news (since we don't have real-time internet)
+    final newsItems = [
+      "Mercado financeiro apresenta estabilidade com leve alta no índice Bovespa.",
+      "Novas tecnologias em inteligência artificial prometem revolucionar o setor de saúde.",
+      "Economia global mostra sinais de recuperação segundo relatório do FMI.",
+      "Investimentos em energias renováveis batem recorde histórico.",
+    ];
+    
+    // Pick 2-3 random news items
+    final selectedNews = <String>[];
+    final seed = DateTime.now().millisecondsSinceEpoch;
+    var rng = seed;
+    
+    while (selectedNews.length < 3 && selectedNews.length < newsItems.length) {
+      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+      final index = rng % newsItems.length;
+      final news = newsItems[index];
+      if (!selectedNews.contains(news)) {
+        selectedNews.add(news);
+      }
+    }
+    
+    for (int i = 0; i < selectedNews.length; i++) {
+      response += "${i + 1}. ${selectedNews[i]} ";
+    }
+    
+    // Add team news if user has a favorite team
+    final favoriteTeam = _dbService.getUserFavoriteTeam();
+    if (favoriteTeam != null && favoriteTeam.isNotEmpty) {
+      response += "E sobre o $favoriteTeam: ";
+      
+      // Simulated tournament standings
+      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+      final position = (rng % 10) + 1; // Position 1-10
+      final points = 45 - (position * 3); // Points decrease with position
+      
+      final tournaments = ["Brasileirão", "Copa do Brasil", "Libertadores", "Campeonato Estadual"];
+      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+      final tournamentIndex = rng % tournaments.length;
+      final tournament = tournaments[tournamentIndex];
+      
+      response += "O time está na ${position}ª posição do $tournament com $points pontos. ";
+      
+      // Simulated recent match result
+      final opponents = ["Palmeiras", "Corinthians", "São Paulo", "Santos", "Internacional", "Grêmio", "Atlético-MG", "Fluminense"];
+      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+      final opponentIndex = rng % opponents.length;
+      final opponent = opponents[opponentIndex];
+      
+      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+      final resultType = rng % 3; // 0=win, 1=draw, 2=loss
+      
+      int teamGoals;
+      int opponentGoals;
+      
+      if (resultType == 0) {
+        // Win: team scored more
+        rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+        teamGoals = (rng % 3) + 1; // 1-3 goals
+        rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+        opponentGoals = rng % teamGoals; // 0 to (teamGoals-1)
+        response += "Na última rodada, venceu o $opponent por $teamGoals a $opponentGoals. ";
+      } else if (resultType == 1) {
+        // Draw: same score
+        rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+        teamGoals = rng % 4; // 0-3 goals
+        opponentGoals = teamGoals;
+        response += "Na última rodada, empatou com o $opponent em $teamGoals a $teamGoals. ";
+      } else {
+        // Loss: opponent scored more
+        rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+        opponentGoals = (rng % 3) + 1; // 1-3 goals
+        rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+        teamGoals = rng % opponentGoals; // 0 to (opponentGoals-1)
+        response += "Na última rodada, perdeu para o $opponent por $opponentGoals a $teamGoals. ";
+      }
+      
+      // Add one general news item
+      final teamNewsOptions = [
+        "O elenco se prepara para o próximo confronto com foco total.",
+        "A diretoria trabalha em reforços para a próxima janela de transferências.",
+        "Torcida organizada planeja grande festa para o próximo jogo em casa.",
+        "Comissão técnica analisa adversários e define estratégia.",
+      ];
+      
+      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+      final teamNewsIndex = rng % teamNewsOptions.length;
+      response += teamNewsOptions[teamNewsIndex] + " ";
+    }
+    
+    // Add stock market highlights
+    response += "No mercado de ações: ";
+    
+    // Simulated Bovespa index (random variation between -2% and +2%)
+    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+    final bovespaVariation = ((rng % 400) - 200) / 100.0; // -2.00 to +2.00
+    final bovespaPoints = 120000 + (bovespaVariation * 1000).toInt(); // ~120k points
+    
+    if (bovespaVariation >= 0) {
+      response += "O índice Bovespa fechou em alta de ${bovespaVariation.toStringAsFixed(2)}%, aos ${bovespaPoints} pontos. ";
+    } else {
+      response += "O índice Bovespa fechou em queda de ${bovespaVariation.abs().toStringAsFixed(2)}%, aos ${bovespaPoints} pontos. ";
+    }
+    
+    // Simulated stock data (top gainers and losers)
+    final stockGainers = [
+      "Petrobras subiu 3,5%",
+      "Vale teve alta de 2,8%",
+      "Itaú avançou 2,1%",
+      "Ambev registrou ganho de 1,9%",
+      "Magazine Luiza subiu 4,2%",
+    ];
+    
+    final stockLosers = [
+      "Eletrobras caiu 2,3%",
+      "Gol recuou 1,8%",
+      "Azul teve queda de 2,1%",
+      "CVC perdeu 1,5%",
+      "Lojas Americanas caiu 3,1%",
+    ];
+    
+    // Pick one gainer and one loser
+    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+    final gainerIndex = rng % stockGainers.length;
+    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+    final loserIndex = rng % stockLosers.length;
+    
+    response += "Entre as maiores altas, ${stockGainers[gainerIndex]}. ";
+    response += "Já entre as baixas, ${stockLosers[loserIndex]}. ";
+    
+    response += "Essas são as principais notícias do momento.";
+    await _voiceService.speak(response);
+  }
+
+  Future<void> _handleGreeting(String greeting) async {
+    final userName = _dbService.getUserName();
+    final nameGreeting = userName != null ? ", $userName" : "";
+    
+    String response = "";
+    if (greeting.contains('bom dia')) response = "Bom dia$nameGreeting! ";
+    else if (greeting.contains('boa tarde')) response = "Boa tarde$nameGreeting! ";
+    else if (greeting.contains('boa noite')) response = "Boa noite$nameGreeting! ";
+    else response = "Olá$nameGreeting! ";
+    
+    final briefingEnabled = _dbService.getAiMorningBriefingEnabled();
+    if (briefingEnabled && greeting.contains('bom dia')) {
+      // Build Cultural Almanac using AI
+      final now = DateTime.now();
+      final dayOfMonth = now.day;
+      final monthName = _getMonthName(now.month);
+      
+      // Build dynamic prompt based on user preferences
+      String almanacPrompt = "Hoje é dia $dayOfMonth de $monthName. O usuário deseja um briefing cultural rápido. ";
+      
+      List<String> topics = [];
+      
+      if (_dbService.getAiIncludeHistory()) {
+        topics.add("Fatos Históricos: Cite 1 ou 2 eventos interessantes que ocorreram nesta data (foco em Ciência, Cultura ou Inovação). Evite política polêmica ou tragédias.");
+      }
+      
+      if (_dbService.getAiIncludeReligious()) {
+        topics.add("Santo do Dia: Identifique o principal Santo Católico celebrado hoje e, em meia frase, diga do que ele é padroeiro.");
+      }
+      
+      if (_dbService.getAiIncludeCommemorative()) {
+        topics.add("Efemérides: Cite qual profissão ou causa é celebrada hoje (foco no calendário do Brasil e Portugal).");
+      }
+      
+      if (topics.isNotEmpty) {
+        almanacPrompt += "Inclua os seguintes tópicos na sua resposta:\n";
+        for (var topic in topics) {
+          almanacPrompt += "- $topic\n";
+        }
+        almanacPrompt += "\nDiretriz de Estilo: Não faça listas com bullet points. Escreva um texto corrido, narrativo e natural, como um apresentador de rádio. ";
+        almanacPrompt += "Se você não tiver certeza absoluta sobre um fato histórico ou santo específico para esta data, não invente. Pule esse tópico e vá para o próximo. ";
+        almanacPrompt += "Mantenha a resposta curta (máximo 3 frases).";
+        
+        // Call AI to generate almanac
+        try {
+          final almanacResponse = await _aiService.answerQuestion(almanacPrompt);
+          response += almanacResponse + " ";
+        } catch (e) {
+          print("Error generating almanac: $e");
+          // Fallback to simple greeting
+          response += "Espero que tenha descansado bem. ";
+        }
+      } else {
+        response += "Espero que tenha descansado bem. ";
+      }
+      
+      // Add weather if enabled
+      if (_dbService.getAiIncludeWeather()) {
+        response += "A previsão para hoje é de sol com algumas nuvens. ";
+      }
+      
+      // Add horoscope if enabled
+      if (_dbService.getAiIncludeHoroscope()) {
+        final birthDate = _dbService.getUserBirthDate();
+        if (birthDate != null) {
+          final sign = _getZodiacSign(birthDate);
+          final luckyNumbers = _generateLuckyNumbers();
+          response += "Para $sign, o dia promete oportunidades. Seus números da sorte: $luckyNumbers. ";
+        }
+      }
+    } else {
+      response += "Como posso ajudar?";
+    }
+    await _voiceService.speak(response);
+  }
+
+  String _getMonthName(int month) {
+    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    return months[month - 1];
+  }
+
+  String _getZodiacSign(DateTime d) {
+    int day = d.day, month = d.month;
+    if ((month == 3 && day >= 21) || (month == 4 && day <= 19)) return "Áries";
+    if ((month == 4 && day >= 20) || (month == 5 && day <= 20)) return "Touro";
+    if ((month == 5 && day >= 21) || (month == 6 && day <= 20)) return "Gêmeos";
+    if ((month == 6 && day >= 21) || (month == 7 && day <= 22)) return "Câncer";
+    if ((month == 7 && day >= 23) || (month == 8 && day <= 22)) return "Leão";
+    if ((month == 8 && day >= 23) || (month == 9 && day <= 22)) return "Virgem";
+    if ((month == 9 && day >= 23) || (month == 10 && day <= 22)) return "Libra";
+    if ((month == 10 && day >= 23) || (month == 11 && day <= 21)) return "Escorpião";
+    if ((month == 11 && day >= 22) || (month == 12 && day <= 21)) return "Sagitário";
+    if ((month == 12 && day >= 22) || (month == 1 && day <= 19)) return "Capricórnio";
+    if ((month == 1 && day >= 20) || (month == 2 && day <= 18)) return "Aquário";
+    return "Peixes";
+  }
+
+  String _generateLuckyNumbers() {
+    final numbers = <int>{};
+    var seed = DateTime.now().millisecondsSinceEpoch;
+    while (numbers.length < 6) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      numbers.add((seed % 60) + 1);
+    }
+    final sorted = numbers.toList()..sort();
+    return sorted.map((n) => n.toString().padLeft(2, '0')).join(', ');
   }
 }

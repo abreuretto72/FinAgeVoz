@@ -1,6 +1,6 @@
 name: fin_age_voz
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -54,6 +54,7 @@ dependencies:
   timezone: ^0.9.4
   flutter_timezone: ^5.0.1
   package_info_plus: ^9.0.0
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:
@@ -73,7 +74,7 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
-  generate: true  # ✅ Habilita geração de AppLocalizations
+  generate: true # ✅ Habilita geração de AppLocalizations
 
   assets:
     - .env

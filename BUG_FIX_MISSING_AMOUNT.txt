@@ -1,0 +1,217 @@
+# 🐛 BUG FIX: Valor Ausente em Transações
+
+## 🔴 PROBLEMA IDENTIFICADO
+
+Quando o usuário não menciona o valor na transação, a IA:
+1. ❌ Define `amount: 0.0`
+2. ❌ Define `isPaid: true` (deveria ser `false` quando valor está ausente)
+3. ❌ Coloca o valor dito posteriormente no título da transação
+
+### **Exemplo do Bug:**
+```
+Usuário: "Gastei no mercado"
+IA: Retorna {"amount": 0.0, "isPaid": true, "description": "Mercado"}
+IA: Pergunta "Qual o valor?"
+Usuário: "150"
+Sistema: Registra como PENDENTE com título "Mercado 150"
+```
+
+---
+
+## ✅ CORREÇÃO NECESSÁRIA
+
+### **Regra Nova:**
+Quando `amount` for ausente ou `0.0`, a IA deve:
+1. ✅ Retornar `amount: null` (não `0.0`)
+2. ✅ Adicionar campo `missing_amount: true`
+3. ✅ **NÃO** criar a transação ainda
+4. ✅ Pedir o valor ao usuário
+5. ✅ Quando o valor for informado, criar como `isPaid: true` (se era despesa realizada)
+
+---
+
+## 📝 IMPLEMENTAÇÃO
+
+### **1. Atualizar Prompt da IA (ai_service.dart)**
+
+**Localização:** Linhas 426-428
+
+**ANTES:**
+```dart
+"Comprei um tênis hoje" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Tênis", "amount": 0.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
+"Paguei a conta de luz" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Conta de Luz", "amount": 0.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
+```
+
+**DEPOIS:**
+```dart
+"Comprei um tênis hoje" -> {"intent": "SLOT_FILLING", "entity": "TRANSACTION", "missing_field": "amount", "partial_data": {"description": "Tênis", "isExpense": true, "isPaid": true, "date": "$currentDate"}, "question": "Qual foi o valor do tênis?"}
+"Paguei a conta de luz" -> {"intent": "SLOT_FILLING", "entity": "TRANSACTION", "missing_field": "amount", "partial_data": {"description": "Conta de Luz", "isExpense": true, "isPaid": true, "date": "$currentDate"}, "question": "Qual foi o valor da conta de luz?"}
+```
+
+### **2. Adicionar Handler de SLOT_FILLING (voice_controller.dart)**
+
+**Adicionar novo método:**
+```dart
+Future<void> handleSlotFilling(Map<String, dynamic>? data) async {
+  if (data == null) return;
+  
+  final entity = data['entity'];
+  final missingField = data['missing_field'];
+  final partialData = data['partial_data'];
+  final question = data['question'];
+  
+  // Armazenar dados parciais
+  _pendingTransaction = partialData;
+  _missingField = missingField;
+  
+  // Perguntar ao usuário
+  await _voiceService.speak(question);
+  
+  // Aguardar resposta (próximo comando de voz)
+  _waitingForSlotValue = true;
+}
+
+// Modificar processVoiceCommand para tratar resposta de slot
+Future<void> processVoiceCommand(String text) async {
+  if (_waitingForSlotValue && _missingField == 'amount') {
+    // Extrair valor da resposta
+    final value = _extractValue(text);
+    if (value != null) {
+      _pendingTransaction['amount'] = value;
+      _waitingForSlotValue = false;
+      _missingField = null;
+      
+      // Criar transação com dados completos
+      await handleTransaction(_pendingTransaction);
+      _pendingTransaction = null;
+      return;
+    }
+  }
+  
+  // Processar normalmente...
+}
+
+double? _extractValue(String text) {
+  // Regex para extrair números
+  final regex = RegExp(r'(\d+(?:[.,]\d{1,2})?)');
+  final match = regex.firstMatch(text);
+  if (match != null) {
+    final valueStr = match.group(1)!.replaceAll(',', '.');
+    return double.tryParse(valueStr);
+  }
+  return null;
+}
+```
+
+### **3. Atualizar handleTransaction**
+
+**Adicionar validação:**
+```dart
+Future<void> handleTransaction(Map<String, dynamic>? data) async {
+  if (data == null) return;
+  
+  try {
+     await _dbService.init();
+     
+     final description = data['description'] ?? "Transação por Voz";
+     final amount = (data['amount'] as num?)?.toDouble();
+     
+     // VALIDAÇÃO: Se amount é null ou 0, não criar transação
+     if (amount == null || amount == 0.0) {
+       print("ERROR: Amount is missing. This should have been caught by SLOT_FILLING.");
+       await _voiceService.speak("Desculpe, não consegui identificar o valor. Por favor, tente novamente.");
+       return;
+     }
+     
+     // Continuar com a criação...
+```
+
+---
+
+## 🎯 FLUXO CORRIGIDO
+
+### **Cenário 1: Valor Ausente**
+```
+Usuário: "Gastei no mercado"
+
+IA processa:
+- Detecta descrição: "Mercado"
+- Detecta tipo: DESPESA (verbo "gastei")
+- Detecta status: PAGO (verbo passado)
+- Detecta valor: AUSENTE
+
+IA responde:
+{
+  "intent": "SLOT_FILLING",
+  "entity": "TRANSACTION",
+  "missing_field": "amount",
+  "partial_data": {
+    "description": "Mercado",
+    "isExpense": true,
+    "isPaid": true,
+    "date": "2025-12-19"
+  },
+  "question": "Qual foi o valor gasto no mercado?"
+}
+
+Sistema:
+- Armazena dados parciais
+- Fala: "Qual foi o valor gasto no mercado?"
+- Aguarda resposta
+
+Usuário: "150"
+
+Sistema:
+- Extrai valor: 150.0
+- Completa dados: amount = 150.0
+- Cria transação: isPaid = true (mantém status original)
+- Fala: "Despesa de 150 reais registrada com sucesso."
+```
+
+### **Cenário 2: Valor Presente**
+```
+Usuário: "Gastei 150 no mercado"
+
+IA processa:
+- Descrição: "Mercado"
+- Valor: 150.0
+- Tipo: DESPESA
+- Status: PAGO
+
+IA responde:
+{
+  "intent": "ADD_TRANSACTION",
+  "transaction": {
+    "description": "Mercado",
+    "amount": 150.0,
+    "isExpense": true,
+    "isPaid": true,
+    "date": "2025-12-19"
+  }
+}
+
+Sistema:
+- Cria transação imediatamente
+- Fala: "Despesa de 150 reais registrada com sucesso."
+```
+
+---
+
+## 📋 CHECKLIST DE IMPLEMENTAÇÃO
+
+- [ ] Atualizar exemplos no prompt da IA (ai_service.dart linhas 426-428)
+- [ ] Adicionar intent `SLOT_FILLING` ao processVoiceCommand
+- [ ] Criar método `handleSlotFilling`
+- [ ] Adicionar variáveis de estado: `_pendingTransaction`, `_missingField`, `_waitingForSlotValue`
+- [ ] Implementar `_extractValue` para extrair números da resposta
+- [ ] Adicionar validação em `handleTransaction` para rejeitar amount = 0
+- [ ] Testar cenários:
+  - [ ] "Gastei no mercado" → Pergunta valor → "150" → Registra como PAGO
+  - [ ] "Comprei um tênis" → Pergunta valor → "200" → Registra como PAGO
+  - [ ] "Gastei 150 no mercado" → Registra imediatamente como PAGO
+
+---
+
+**Criado em:** 19/12/2024  
+**Prioridade:** ALTA  
+**Autor:** Antigravity AI

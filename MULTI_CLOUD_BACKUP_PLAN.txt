@@ -1,0 +1,356 @@
+# 📦 Plano de Implementação: Backup Multi-Nuvem
+
+## 🎯 Objetivo
+Implementar backup automático dos dados do usuário (transações, agenda, categorias) para múltiplos serviços de nuvem no app Flutter FinAgeVoz.
+
+---
+
+## 📊 Arquitetura Proposta
+
+### **Estrutura de Camadas**
+
+```
+┌─────────────────────────────────────────┐
+│         UI (Sync Settings Screen)       │
+└──────────────────┬──────────────────────┘
+                   │
+┌──────────────────▼──────────────────────┐
+│     MultiCloudBackupService             │
+│  (Orquestrador Central)                 │
+└──────────────────┬──────────────────────┘
+                   │
+    ┌──────────────┼──────────────┐
+    │              │              │
+┌───▼────┐  ┌─────▼─────┐  ┌────▼────┐
+│ Google │  │ OneDrive  │  │ Dropbox │
+│ Drive  │  │  Service  │  │ Service │
+└────────┘  └───────────┘  └─────────┘
+```
+
+---
+
+## 🌐 Serviços Suportados
+
+### ✅ **Implementado**
+1. **Google Drive** (via `google_drive_service.dart`)
+2. **Firebase/Firestore** (via `cloud_sync_service.dart`)
+
+### 🚧 **A Implementar**
+
+#### **Prioridade ALTA** (Multiplataforma)
+3. **Microsoft OneDrive**
+   - SDK: `onedrive_api` (Flutter package)
+   - Autenticação: OAuth 2.0 (Microsoft Identity Platform)
+   - Compatibilidade: Android, iOS, Web
+
+4. **Dropbox**
+   - SDK: `dropbox_client` (Flutter package)
+   - Autenticação: OAuth 2.0 (Dropbox App Console)
+   - Compatibilidade: Android, iOS, Web
+
+#### **Prioridade MÉDIA** (Limitações de Plataforma)
+5. **pCloud**
+   - SDK: API REST própria (HTTP client)
+   - Autenticação: OAuth 2.0
+   - Compatibilidade: Android, iOS, Web
+
+6. **Mega**
+   - SDK: `mega` (Dart package não oficial)
+   - Autenticação: Email/Password ou Session Token
+   - Compatibilidade: Android, iOS, Web
+   - ⚠️ **Limitação:** API não oficial, pode quebrar
+
+7. **Box**
+   - SDK: API REST (HTTP client)
+   - Autenticação: OAuth 2.0 (Box Developer Console)
+   - Compatibilidade: Android, iOS, Web
+
+#### **Prioridade BAIXA** (Apenas iOS/macOS)
+8. **iCloud Drive**
+   - SDK: Nativo iOS/macOS apenas
+   - Autenticação: Apple ID automático
+   - Compatibilidade: **APENAS iOS/macOS**
+   - ⚠️ **Limitação:** Requer código nativo Swift/Objective-C
+
+---
+
+## 🏗️ Implementação Técnica
+
+### **Fase 1: Abstração de Interface**
+
+Criar uma interface comum para todos os serviços:
+
+```dart
+abstract class CloudStorageProvider {
+  String get providerName;
+  bool get isSignedIn;
+  String? get userEmail;
+  
+  Future<bool> signIn();
+  Future<void> signOut();
+  Future<String?> uploadBackup(Uint8List data, BackupMetadata metadata);
+  Future<List<BackupMetadata>> listBackups();
+  Future<Uint8List> downloadBackup(String fileId);
+  Future<void> deleteBackup(String fileId);
+  Future<bool> verifyChecksum(String fileId, String expectedHash);
+}
+```
+
+### **Fase 2: Implementação dos Serviços**
+
+#### **OneDrive Service**
+```dart
+class OneDriveService implements CloudStorageProvider {
+  // Usar package: onedrive_api
+  // OAuth 2.0 via Microsoft Identity Platform
+  // Endpoint: https://graph.microsoft.com/v1.0/me/drive
+}
+```
+
+#### **Dropbox Service**
+```dart
+class DropboxService implements CloudStorageProvider {
+  // Usar package: dropbox_client
+  // OAuth 2.0 via Dropbox App Console
+  // Endpoint: https://api.dropboxapi.com/2/files/upload
+}
+```
+
+#### **pCloud Service**
+```dart
+class PCloudService implements CloudStorageProvider {
+  // HTTP Client direto
+  // OAuth 2.0
+  // Endpoint: https://api.pcloud.com/
+}
+```
+
+### **Fase 3: Orquestrador Multi-Nuvem**
+
+```dart
+class MultiCloudBackupService {
+  final List<CloudStorageProvider> _providers = [];
+  
+  // Registrar provedores ativos
+  void registerProvider(CloudStorageProvider provider) {
+    _providers.add(provider);
+  }
+  
+  // Backup paralelo para todos os provedores
+  Future<Map<String, BackupResult>> backupToAll(Uint8List data) async {
+    final results = <String, BackupResult>{};
+    
+    await Future.wait(_providers.map((provider) async {
+      try {
+        final fileId = await provider.uploadBackup(data, metadata);
+        final verified = await provider.verifyChecksum(fileId, hash);
+        results[provider.providerName] = BackupResult(
+          success: verified,
+          fileId: fileId,
+          timestamp: DateTime.now(),
+        );
+      } catch (e) {
+        results[provider.providerName] = BackupResult(
+          success: false,
+          error: e.toString(),
+        );
+      }
+    }));
+    
+    return results;
+  }
+  
+  // Restaurar do provedor mais recente
+  Future<Uint8List?> restoreFromBest() async {
+    // Lógica para escolher o backup mais recente/confiável
+  }
+}
+```
+
+---
+
+## 🔐 Segurança e Verificação
+
+### **Checksum (SHA-256)**
+```dart
+import 'package:crypto/crypto.dart';
+
+String calculateChecksum(Uint8List data) {
+  return sha256.convert(data).toString();
+}
+
+Future<bool> verifyBackup(String fileId, String expectedHash) async {
+  final data = await downloadBackup(fileId);
+  final actualHash = calculateChecksum(data);
+  return actualHash == expectedHash;
+}
+```
+
+### **Criptografia (Opcional)**
+```dart
+import 'package:encrypt/encrypt.dart';
+
+Uint8List encryptData(Uint8List data, String userPassword) {
+  final key = Key.fromUtf8(userPassword.padRight(32));
+  final iv = IV.fromLength(16);
+  final encrypter = Encrypter(AES(key));
+  return encrypter.encryptBytes(data, iv: iv).bytes;
+}
+```
+
+---
+
+## 📝 Sistema de Logs
+
+```dart
+class BackupLogger {
+  final List<BackupLogEntry> _logs = [];
+  
+  void log(String provider, bool success, {String? error}) {
+    _logs.add(BackupLogEntry(
+      provider: provider,
+      timestamp: DateTime.now(),
+      success: success,
+      error: error,
+    ));
+  }
+  
+  List<BackupLogEntry> getRecentLogs({int limit = 50}) {
+    return _logs.reversed.take(limit).toList();
+  }
+}
+```
+
+---
+
+## 🎨 UI/UX
+
+### **Tela de Configuração**
+```
+┌─────────────────────────────────────┐
+│  Backup Multi-Nuvem                 │
+├─────────────────────────────────────┤
+│                                     │
+│  ☁️ Google Drive        [✓ Ativo]  │
+│     usuario@gmail.com               │
+│     Último backup: 19/12 05:30      │
+│                                     │
+│  ☁️ OneDrive           [Conectar]   │
+│                                     │
+│  ☁️ Dropbox            [Conectar]   │
+│                                     │
+│  ☁️ pCloud             [Conectar]   │
+│                                     │
+├─────────────────────────────────────┤
+│  [Fazer Backup Agora]               │
+│  [Ver Histórico de Logs]            │
+└─────────────────────────────────────┘
+```
+
+---
+
+## 📦 Dependências Necessárias
+
+### **pubspec.yaml**
+```yaml
+dependencies:
+  # Já existentes
+  google_sign_in: ^6.2.1
+  googleapis: ^13.2.0
+  firebase_auth: ^5.3.3
+  
+  # Novos
+  onedrive_api: ^1.0.0  # OneDrive
+  dropbox_client: ^0.7.1  # Dropbox
+  http: ^1.2.0  # Para pCloud, Box, Mega
+  crypto: ^3.0.3  # Para checksums
+  encrypt: ^5.0.3  # Para criptografia (opcional)
+```
+
+---
+
+## 🚀 Roadmap de Implementação
+
+### **Sprint 1: Fundação** (1 semana)
+- [ ] Criar interface `CloudStorageProvider`
+- [ ] Refatorar `GoogleDriveService` para implementar a interface
+- [ ] Criar `MultiCloudBackupService` (orquestrador)
+- [ ] Implementar sistema de logs
+
+### **Sprint 2: OneDrive** (1 semana)
+- [ ] Configurar OAuth no Microsoft Azure
+- [ ] Implementar `OneDriveService`
+- [ ] Testes de upload/download
+- [ ] Implementar verificação de checksum
+
+### **Sprint 3: Dropbox** (1 semana)
+- [ ] Configurar OAuth no Dropbox App Console
+- [ ] Implementar `DropboxService`
+- [ ] Testes de upload/download
+- [ ] Integração com orquestrador
+
+### **Sprint 4: pCloud e Box** (1 semana)
+- [ ] Implementar `PCloudService` (HTTP direto)
+- [ ] Implementar `BoxService` (HTTP direto)
+- [ ] Testes de integração
+
+### **Sprint 5: UI e Polimento** (1 semana)
+- [ ] Criar tela de configuração multi-nuvem
+- [ ] Implementar histórico de logs
+- [ ] Testes de usuário
+- [ ] Documentação
+
+---
+
+## ⚠️ Limitações e Considerações
+
+### **iCloud Drive**
+- ❌ **Não é viável** para Android
+- ✅ Possível apenas para iOS/macOS com código nativo
+- 💡 **Alternativa:** Usar CloudKit (requer conta Apple Developer)
+
+### **Mega**
+- ⚠️ API não oficial, pode quebrar sem aviso
+- 💡 **Alternativa:** Usar API REST oficial (se disponível)
+
+### **Quotas e Limites**
+| Serviço    | Espaço Grátis | Limite de Upload |
+|------------|---------------|------------------|
+| Google Drive | 15 GB       | 750 GB/dia       |
+| OneDrive   | 5 GB          | Sem limite       |
+| Dropbox    | 2 GB          | Sem limite       |
+| pCloud     | 10 GB         | Sem limite       |
+| Mega       | 20 GB         | 5 GB/6h (free)   |
+| Box        | 10 GB         | 250 MB/arquivo   |
+
+---
+
+## 🎯 Próximos Passos
+
+1. **Decisão:** Quais serviços implementar primeiro?
+   - Recomendo: **OneDrive** e **Dropbox** (mais estáveis e populares)
+
+2. **Configuração OAuth:**
+   - Criar apps nas consoles de desenvolvedor
+   - Obter Client IDs e Secrets
+
+3. **Implementação:**
+   - Começar pela interface abstrata
+   - Implementar um serviço por vez
+   - Testar exaustivamente
+
+---
+
+## 📞 Suporte e Documentação
+
+- **OneDrive:** https://learn.microsoft.com/en-us/onedrive/developer/
+- **Dropbox:** https://www.dropbox.com/developers/documentation
+- **pCloud:** https://docs.pcloud.com/
+- **Box:** https://developer.box.com/
+- **Mega:** https://mega.nz/developers
+
+---
+
+**Criado em:** 19/12/2024  
+**Autor:** Antigravity AI  
+**Projeto:** FinAgeVoz Multi-Cloud Backup

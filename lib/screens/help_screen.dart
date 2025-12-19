@@ -123,6 +123,40 @@ class _HelpScreenState extends State<HelpScreen> {
             t('help_nav_actions_title'), 
             t('help_nav_actions_desc'),
           ),
+          
+          _buildSectionHeader("Novos Comandos"),
+          _buildHelpItem(
+            "Saudações Personalizadas", 
+            "Fale 'Bom dia', 'Boa tarde' ou 'Boa noite' e a IA vai te cumprimentar pelo nome. Com 'Bom dia', você recebe o briefing matinal completo.",
+          ),
+          _buildHelpItem(
+            "Briefing Matinal", 
+            "Comando: 'Bom dia' → Receba almanaque cultural (história, santo do dia, datas comemorativas), notícias gerais, notícias do seu time, mercado financeiro, horóscopo e números da sorte.",
+          ),
+          _buildHelpItem(
+            "Notícias a Qualquer Hora", 
+            "Comandos: 'Quais as notícias?', 'Me conte as manchetes', 'O que está acontecendo?' → Receba notícias gerais, do seu time (classificação + último jogo) e do mercado (Bovespa + ações).",
+          ),
+          _buildHelpItem(
+            "Horóscopo", 
+            "Após configurar sua data de nascimento, pergunte 'Qual meu horóscopo?' para receber previsão astral + números da sorte.",
+          ),
+          
+          _buildSectionHeader("Inteligência Emocional"),
+          _buildHelpItem(
+            "Expressões de Sentimentos", 
+            "A IA reconhece quando você expressa emoções e responde com empatia:\n• 'Estou cansado' → Apoio e sugestão de descanso\n• 'Estou estressado' → Palavras de conforto\n• 'Estou feliz' → Compartilha sua alegria\n• 'Estou triste' → Oferece apoio emocional\n• 'Estou com fome' → Sugere fazer uma pausa",
+          ),
+          _buildHelpItem(
+            "Cortesia e Despedidas", 
+            "Comandos sociais:\n• 'Obrigado' → Resposta cordial\n• 'Tchau' / 'Até logo' → Despedida amigável\n• 'Oi' / 'Olá' → Saudação calorosa",
+          ),
+          
+          _buildSectionHeader("Humor e Entretenimento"),
+          _buildHelpItem(
+            "Piadas e Diversão", 
+            "Peça para a IA te fazer rir:\n• 'Conte uma piada' → Piada sobre tecnologia\n• 'Me faz rir' → Piada sobre finanças/trabalho\n• 'Quero uma piada' → Piada de números\n• 'Conta uma piada de finanças' → Piada sobre dinheiro\n• 'Me diverte' → Piada sobre programação\n\nTodas as piadas são limpas e apropriadas para todas as idades!",
+          ),
        ],
      );
   }
@@ -153,6 +187,20 @@ class _HelpScreenState extends State<HelpScreen> {
         _buildHelpItem(
           t('help_graphic_reports_title'), 
           t('help_graphic_reports_desc'),
+        ),
+        
+        _buildSectionHeader("Importação e Exportação"),
+        _buildHelpItem(
+          "Exportar Dados", 
+          "Você pode exportar todas as suas transações para um arquivo CSV:\n• Vá em Menu → Finanças → Ícone de 3 pontos (⋮) → Exportar CSV\n• O arquivo será salvo na pasta Downloads do seu dispositivo\n• Use para backup, análise em Excel ou migração de dados\n• Formato: data, descrição, valor, tipo, categoria, subcategoria, status de pagamento",
+        ),
+        _buildHelpItem(
+          "Importar Dados", 
+          "Importe transações de arquivos CSV:\n• Vá em Menu → Finanças → Ícone de 3 pontos (⋮) → Importar CSV\n• Selecione o arquivo CSV do seu dispositivo\n• O arquivo deve seguir o formato: data, descrição, valor, tipo, categoria\n• Útil para migrar dados de outros apps ou restaurar backups\n• As transações importadas serão mescladas com as existentes",
+        ),
+        _buildHelpItem(
+          "Backup e Sincronização", 
+          "Para backup automático na nuvem:\n• Configure o Google Drive em Menu → Sincronização\n• Seus dados serão salvos automaticamente\n• Restaure em qualquer dispositivo fazendo login com a mesma conta",
         ),
       ],
     );
@@ -200,6 +248,21 @@ class _HelpScreenState extends State<HelpScreen> {
         ),
         
         const Divider(height: 40),
+        _buildSectionHeader("Importação e Exportação"),
+        _buildHelpItem(
+          "Exportar Agenda", 
+          "Você pode exportar todos os seus eventos de agenda para um arquivo CSV:\n• Vá em Menu → Agenda → Ícone de 3 pontos (⋮) → Exportar CSV\n• O arquivo será salvo na pasta Downloads do seu dispositivo\n• Inclui: compromissos, tarefas, aniversários, pagamentos, remédios\n• Use para backup ou compartilhar sua agenda",
+        ),
+        _buildHelpItem(
+          "Importar Agenda", 
+          "Importe eventos de arquivos CSV:\n• Vá em Menu → Agenda → Ícone de 3 pontos (⋮) → Importar CSV\n• Selecione o arquivo CSV do seu dispositivo\n• O arquivo deve seguir o formato: tipo, título, data, hora, descrição\n• Útil para migrar dados de outros apps ou restaurar backups\n• Os eventos importados serão mesclados com os existentes",
+        ),
+        _buildHelpItem(
+          "Sincronização com Google Calendar", 
+          "Integre com sua agenda do Google:\n• Configure em Menu → Agenda → Sincronizar com Google\n• Seus eventos do Google Calendar aparecerão no app\n• Eventos criados no app podem ser salvos no Google Calendar\n• Mantenha tudo sincronizado entre dispositivos",
+        ),
+        
+        const Divider(height: 40),
         _buildSectionHeader(t('help_section_health')),
 
         _buildHelpItem(
@@ -244,9 +307,24 @@ class _HelpScreenState extends State<HelpScreen> {
       children: [
         _buildInfoCard(
             "Cérebro da IA", 
-            "Agora você pode controlar a personalidade e as habilidades do seu assistente FinAgeVoz.",
+            "Controle total sobre a personalidade, conhecimento e habilidades do seu assistente FinAgeVoz.",
             icon: Icons.psychology
         ),
+        
+        _buildSectionHeader("Perfil Pessoal"),
+        _buildHelpItem(
+          "Seu Nome", 
+          "Configure seu primeiro nome em Configurações > Geral. A IA vai te chamar pelo nome em todas as interações (ex: 'Bom dia, João!').",
+        ),
+        _buildHelpItem(
+          "Data de Nascimento", 
+          "Necessária para o Horóscopo. Digite manualmente no formato DD/MM/AAAA. A IA calcula seu signo automaticamente.",
+        ),
+        _buildHelpItem(
+          "Time do Coração", 
+          "Configure seu time favorito. A IA vai incluir notícias sobre ele no briefing matinal e comentar sobre jogos quando relevante.",
+        ),
+        
         _buildSectionHeader("Personalidade"),
         _buildHelpItem(
           "Modo Terapêutico", 
@@ -257,24 +335,46 @@ class _HelpScreenState extends State<HelpScreen> {
           "Permite que a IA conte piadas e inicie conversas proativamente ao abrir o app.",
         ),
         
-        _buildSectionHeader("Rotina e Acessibilidade"),
+        _buildSectionHeader("Briefing Matinal (Bom Dia)"),
         _buildHelpItem(
-          "Briefing Matinal", 
-          "Receba 'Bom dia' com notícias, previsão do tempo e curiosidades históricas. Configurável em Menu > Comportamento da IA.",
+          "Almanaque Cultural", 
+          "Escolha o que quer ouvir: Curiosidades Históricas, Santo do Dia, Datas Comemorativas. A IA gera conteúdo real sobre a data atual.",
         ),
         _buildHelpItem(
-          "Relógio Falante", 
-          "O app fala a hora a cada 15 minutos. Útil para deficientes visuais ou para focar no tempo. Respeita horário de silêncio (ex: 22h às 07h).",
+          "Notícias do Dia", 
+          "Receba manchetes gerais, notícias do seu time (classificação + último jogo), e resumo do mercado (Bovespa + ações).",
+        ),
+        _buildHelpItem(
+          "Previsão do Tempo", 
+          "Informação simulada sobre o clima do dia (sol, nuvens, etc.).",
+        ),
+        _buildHelpItem(
+          "Horóscopo & Sorte", 
+          "Previsão astral baseada no seu signo + 6 números da sorte para Mega-Sena (1-60).",
         ),
         
-        _buildSectionHeader("Astral & Sorte"),
+        _buildSectionHeader("Relógio Falante"),
         _buildHelpItem(
-          "Horóscopo Diário", 
-          "Configure sua data de nascimento para receber previsões astrais personalizadas focadas em finanças.",
+          "Anúncio Automático", 
+          "O app fala a hora a cada 15 minutos. Útil para deficientes visuais ou para focar no tempo.",
         ),
         _buildHelpItem(
-          "Números da Sorte", 
-          "Junto com o horóscopo, receba 6 números da sorte gerados matematicamente (1-60).",
+          "Horário de Silêncio", 
+          "Configure quando NÃO quer ser incomodado (ex: 22h às 07h). O relógio respeita seu descanso.",
+        ),
+        _buildHelpItem(
+          "Formato da Fala", 
+          "Escolha entre 'Apenas Hora' ou 'Data Completa + Hora' (ex: 'Quinta, 18 de Dezembro. São 14 horas.').",
+        ),
+        
+        _buildSectionHeader("Como Usar"),
+        _buildHelpItem(
+          "Comando: Bom Dia", 
+          "Fale 'Bom dia' para receber o briefing completo personalizado com seu nome, almanaque, notícias, horóscopo e números da sorte.",
+        ),
+        _buildHelpItem(
+          "Comando: Notícias", 
+          "Fale 'Quais as notícias?' a qualquer hora para ouvir manchetes gerais, notícias do seu time e resumo do mercado.",
         ),
       ],
     );

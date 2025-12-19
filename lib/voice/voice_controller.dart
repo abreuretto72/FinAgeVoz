@@ -1,5 +1,6 @@
 import 'package:fin_age_voz/services/ai_service.dart';
 import 'package:fin_age_voz/services/voice_service.dart';
+import 'package:fin_age_voz/services/bi_service.dart'; // Add Import
 import '../services/agenda_repository.dart';
 import '../models/agenda_models.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ class VoiceController {
   final VoiceService _voiceService;
   final AIService _aiService;
   final AgendaRepository _agendaRepo;
+  final BIService _biService; // Add Field
   final DatabaseService _dbService = DatabaseService(); // Initialize DB Service
   final VoidCallback? onProcessingStart;
   final VoidCallback? onProcessingEnd;
@@ -29,12 +31,14 @@ class VoiceController {
     VoiceService? voiceService,
     AIService? aiService,
     AgendaRepository? agendaRepo,
+    BIService? biService,
     this.onProcessingStart,
     this.onProcessingEnd,
     this.onNavigateToForm,
   })  : _voiceService = voiceService ?? VoiceService(),
         _aiService = aiService ?? AIService(),
-        _agendaRepo = agendaRepo ?? AgendaRepository();
+        _agendaRepo = agendaRepo ?? AgendaRepository(),
+        _biService = biService ?? BIService(); // Initialize
 
   String t(String key) {
     return AppLocalizations.t(key, _dbService.getLanguage()); // Use instance
@@ -45,6 +49,17 @@ class VoiceController {
     onProcessingStart?.call();
 
     try {
+      // PRE-PROCESSING: Local greeting detection (fallback before AI)
+      final textLower = text.toLowerCase().trim();
+      final greetings = ['bom dia', 'boa tarde', 'boa noite', 'olá', 'oi', 'hey'];
+      
+      if (greetings.any((g) => textLower == g || textLower.startsWith('$g '))) {
+        // Direct greeting detected - generate briefing
+        await _handleGreeting(textLower);
+        onProcessingEnd?.call();
+        return;
+      }
+
       // 1. Intent & Entity Extraction (via AI)
       final result = await _aiService.processCommand(text);
       print('AI Process Result: $result');
@@ -57,8 +72,16 @@ class VoiceController {
         await handleAgendaItem(result['agenda_item']);
       } else if (intent == 'QUERY') {
         await handleQuery(result['query']);
+      } else if (intent == 'CHAT' || intent == 'GREETING') { // Handle Conversational intents
+         final message = result['message'] ?? result['response'] ?? t('voice_cmd_received');
+         await _voiceService.speak(message);
       } else if (intent == 'UNKNOWN') {
-         await _voiceService.speak(t('voice_not_understood'));
+         // Fallback: If AI returned a 'message' even with UNKNOWN intent (common in weak models), speak it.
+         if (result['message'] != null) {
+            await _voiceService.speak(result['message']);
+         } else {
+            await _voiceService.speak(t('voice_not_understood'));
+         }
       } else {
          await _voiceService.speak("${t('voice_cmd_received')}$intent");
       }
@@ -185,6 +208,18 @@ class VoiceController {
     final dateStr = queryData['date'] as String?;
     final granularity = (queryData['granularity'] as String?)?.toUpperCase();
     final typeStr = (queryData['type'] as String?)?.toUpperCase();
+    
+    // FINANCE BI QUERY
+    if (domain == 'FINANCE') {
+       try {
+         final response = await _biService.processQuery(queryData);
+         await _voiceService.speak(response);
+       } catch (e) {
+         print("BI Error: $e");
+         await _voiceService.speak("Desculpe, tive um erro ao calcular isso.");
+       }
+       return;
+    }
     
     // AGENDA SEARCH
     if (domain == 'AGENDA') {
@@ -411,6 +446,11 @@ class VoiceController {
            intervalo: recurrence?.intervalo ?? 8,
            inicioTratamento: date ?? DateTime.now(),
          );
+         
+         // Trigger Navigation to Form for complete posology
+         await _voiceService.speak("Remédio ${title} registrado. Vou abrir o formulário para você completar a posologia.");
+         onNavigateToForm?.call(item);
+         return; // Stop here, don't save yet
       } else if (type == AgendaItemType.ANIVERSARIO) {
          // Create Draft for Form
          String name = data['person_name'] ?? title;
@@ -457,5 +497,89 @@ class VoiceController {
       print("Item creation error: $e");
       await _voiceService.speak(t('voice_create_error'));
     }
+  }
+
+  Future<void> _handleGreeting(String greeting) async {
+    await _dbService.init();
+    
+    // Base greeting response
+    String response = "";
+    
+    if (greeting.contains('bom dia')) {
+      response = "Bom dia! ";
+    } else if (greeting.contains('boa tarde')) {
+      response = "Boa tarde! ";
+    } else if (greeting.contains('boa noite')) {
+      response = "Boa noite! ";
+    } else {
+      response = "Olá! ";
+    }
+    
+    // Check if Morning Briefing is enabled
+    final briefingEnabled = _dbService.getAiMorningBriefingEnabled();
+    
+    if (briefingEnabled && greeting.contains('bom dia')) {
+      response += "Espero que tenha descansado bem. ";
+      
+      // Add weather simulation if enabled
+      if (_dbService.getAiIncludeWeather()) {
+        response += "A previsão para hoje é de sol com algumas nuvens, perfeito para resolver suas pendências. ";
+      }
+      
+      // Add horoscope if enabled and birth date is set
+      if (_dbService.getAiIncludeHoroscope()) {
+        final birthDate = _dbService.getUserBirthDate();
+        if (birthDate != null) {
+          // Import zodiac utils at top of file if not already
+          final sign = _getZodiacSign(birthDate);
+          final luckyNumbers = _generateLuckyNumbers();
+          response += "Para $sign, o dia promete oportunidades em finanças. ";
+          response += "Seus números da sorte são: $luckyNumbers. ";
+        } else {
+          response += "Configure sua data de nascimento nas configurações para receber seu horóscopo personalizado. ";
+        }
+      }
+      
+      // Add historical fact if enabled
+      if (_dbService.getAiIncludeHistory()) {
+        response += "Curiosidade: Hoje na história, muitas coisas importantes aconteceram. ";
+      }
+    } else {
+      response += "Como posso ajudar você hoje?";
+    }
+    
+    await _voiceService.speak(response);
+  }
+
+  String _getZodiacSign(DateTime birthDate) {
+    int day = birthDate.day;
+    int month = birthDate.month;
+    if ((month == 3 && day >= 21) || (month == 4 && day <= 19)) return "Áries";
+    if ((month == 4 && day >= 20) || (month == 5 && day <= 20)) return "Touro";
+    if ((month == 5 && day >= 21) || (month == 6 && day <= 20)) return "Gêmeos";
+    if ((month == 6 && day >= 21) || (month == 7 && day <= 22)) return "Câncer";
+    if ((month == 7 && day >= 23) || (month == 8 && day <= 22)) return "Leão";
+    if ((month == 8 && day >= 23) || (month == 9 && day <= 22)) return "Virgem";
+    if ((month == 9 && day >= 23) || (month == 10 && day <= 22)) return "Libra";
+    if ((month == 10 && day >= 23) || (month == 11 && day <= 21)) return "Escorpião";
+    if ((month == 11 && day >= 22) || (month == 12 && day <= 21)) return "Sagitário";
+    if ((month == 12 && day >= 22) || (month == 1 && day <= 19)) return "Capricórnio";
+    if ((month == 1 && day >= 20) || (month == 2 && day <= 18)) return "Aquário";
+    if ((month == 2 && day >= 19) || (month == 3 && day <= 20)) return "Peixes";
+    return "Desconhecido";
+  }
+
+  String _generateLuckyNumbers() {
+    final numbers = <int>{};
+    final rng = DateTime.now().millisecondsSinceEpoch; // Simple seed
+    var seed = rng;
+    
+    while (numbers.length < 6) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      numbers.add((seed % 60) + 1);
+    }
+    
+    final sortedList = numbers.toList()..sort();
+    return sortedList.map((n) => n.toString().padLeft(2, '0')).join(', ');
   }
 }

@@ -4,12 +4,32 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import '../utils/constants.dart';
 import '../utils/zodiac_utils.dart';
+import '../utils/value_extractor.dart';
 import 'database_service.dart';
 
 class AIService {
   AIService();
 
   Future<Map<String, dynamic>> processCommand(String input) async {
+    // Detect if input is a question (QUERY) or a command (TRANSACTION)
+    final isQuestion = _isQuery(input);
+    
+    // PRE-PROCESSING: Universal Value Extraction (Language-Agnostic)
+    // Only apply to transaction commands, NOT to questions/queries
+    Map<String, dynamic> extracted = {
+      'amount': null,
+      'description': input,
+      'hasValue': false,
+      'originalPhrase': input,
+    };
+    
+    if (!isQuestion) {
+      extracted = ValueExtractor.extractValueFromPhrase(input);
+      print('ValueExtractor: ${extracted['hasValue'] ? 'Found value ${extracted['amount']}' : 'No value found'}');
+    } else {
+      print('ValueExtractor: Skipped (detected as question/query)');
+    }
+    
     final dbService = DatabaseService();
     final userGroqKey = dbService.getGroqApiKey();
 
@@ -21,14 +41,14 @@ class AIService {
     // 1. Verificar chave configurada pelo usuário
     if (userGroqKey != null && userGroqKey.isNotEmpty) {
       print('AIService: Using user-configured Groq API');
-      return _processWithGroq(input, userGroqKey);
+      return _processWithGroq(input, userGroqKey, extracted);
     }
     
     // 2. Verificar chave Groq do .env
     final envGroqKey = dotenv.env['GROQ_API_KEY'];
     if (envGroqKey != null && envGroqKey.isNotEmpty) {
       print('AIService: Using Groq API from .env');
-      return _processWithGroq(input, envGroqKey);
+      return _processWithGroq(input, envGroqKey, extracted);
     }
 
     // Sem chave API disponível
@@ -126,7 +146,7 @@ class AIService {
     }
   }
 
-  Future<Map<String, dynamic>> _processWithGroq(String input, String apiKey) async {
+  Future<Map<String, dynamic>> _processWithGroq(String input, String apiKey, Map<String, dynamic> extracted) async {
     final dbService = DatabaseService();
     await dbService.init();
     String modelName = dbService.getGroqModel();
@@ -140,10 +160,64 @@ class AIService {
     final expenseSubcategories = jsonEncode(AppConstants.expenseSubcategories);
     final incomeSubcategories = jsonEncode(AppConstants.incomeSubcategories);
 
-    final prompt = _buildPrompt(input, currentYear, currentDate, expenseCategories, incomeCategories, expenseSubcategories, incomeSubcategories, language);
+    // Build base prompt
+    String prompt = _buildPrompt(input, currentYear, currentDate, expenseCategories, incomeCategories, expenseSubcategories, incomeSubcategories, language);
+    
+    // ENHANCEMENT: Add pre-extracted value information to help AI
+    if (extracted['hasValue'] == true) {
+      prompt += """
+
+PRE-EXTRACTED INFORMATION (Use this to help parse the command):
+- Amount detected: ${extracted['amount']}
+- Description: ${extracted['description']}
+- Original phrase: ${extracted['originalPhrase']}
+
+CRITICAL: Use the pre-extracted amount (${extracted['amount']}) as the transaction value.
+Do NOT ask for the value again. It was already found.
+""";
+    }
 
     try {
       final result = await _makeGroqRequest(apiKey, modelName, prompt);
+      
+      // POST-PROCESSING: Value Extraction & Cleanup
+      if (result['intent'] == 'ADD_TRANSACTION' && extracted['hasValue'] == true) {
+        if (result['transaction'] != null) {
+          final transaction = result['transaction'] as Map<String, dynamic>;
+          
+          // 1. INJECTION: If AI set amount to 0 or null, use our extracted value
+          if (transaction['amount'] == null || transaction['amount'] == 0 || transaction['amount'] == 0.0) {
+            print('ValueExtractor: Injecting extracted value ${extracted['amount']} into transaction');
+            transaction['amount'] = extracted['amount'];
+            transaction['description'] = extracted['description'];
+          }
+          
+          // 2. CLEANUP: FORCE use of ValueExtractor's clean description
+          // The AI often fails to remove the number from description (e.g. "Printer 1500" -> Title "Printer 1500")
+          // Since ValueExtractor ALREADY cleaned the description, we should trust it over the AI's version.
+          if (extracted['description'] != null && (extracted['description'] as String).isNotEmpty) {
+             final cleanDesc = extracted['description'] as String;
+             final currentDesc = (transaction['description'] as String?) ?? "";
+             
+             // Rule: If ValueExtractor has a meaningful description (not generic "Transação"), USE IT directly.
+             // This bypasses any "smart" logic that fails. Simple is better here.
+             if (cleanDesc != 'Transação' && cleanDesc.length > 2) {
+                 print('ValueExtractor: FORCE replacing description "$currentDesc" -> "$cleanDesc"');
+                 transaction['description'] = cleanDesc;
+             } 
+             // Fallback: If ValueExtractor is generic, but AI returned a description with numbers at the end, chop them off.
+             else if (currentDesc.isNotEmpty) {
+                 // Aggressive Regex to remove trailing numbers/prices
+                 final trailingPriceRegex = RegExp(r'\s+(?:R\$|r\$|\$|€|£|USD|BRL)?\s*\d+(?:[.,]\d{1,2})*\s*$', caseSensitive: false);
+                 if (trailingPriceRegex.hasMatch(currentDesc)) {
+                      print('ValueExtractor: Aggressive cleanup of trailing numbers');
+                      transaction['description'] = currentDesc.replaceAll(trailingPriceRegex, '').trim();
+                 }
+             }
+          }
+        }
+      }
+      
       return result;
     } catch (e) {
       // Check for rate limit error
@@ -292,6 +366,10 @@ class AIService {
     if (birthDate != null) {
         userZodiacSign = ZodiacUtils.getZodiacSign(birthDate);
     }
+    
+    // User Favorite Team
+    final favoriteTeam = db.getUserFavoriteTeam() ?? "Not configured";
+    
     String langName = "Portuguese";
     switch (language) {
       case 'pt_BR': langName = "Portuguese (Brazil)"; break;
@@ -308,6 +386,17 @@ class AIService {
     You describe yourself not as a robot, but as a supportive friend who helps organize the user\'s life.
     The user is speaking in $langName.
     Analyze the following user command: "$input"
+
+    USER PROFILE:
+    - Name: ${db.getUserName() ?? "User"}
+    - Zodiac Sign: $userZodiacSign
+    - Favorite Team: $favoriteTeam
+    
+    Use this information to personalize responses when relevant. For example:
+    - ALWAYS address the user by their name when greeting them (e.g., "Bom dia, João!")
+    - If user asks about sports/games and has a favorite team, mention it naturally
+    - If discussing weekend plans and there's a game, you can reference it
+    - Keep it subtle and contextual, don't force it into every response
 
     SYSTEM PERSONALITY & EMOTIONAL INTELLIGENCE:
     1. Empathy First: You care about the user. Use a warm, calm, and motivating tone.
@@ -408,8 +497,8 @@ class AIService {
     
     // TYPE A: Realized Expenses (isPaid: true) - DO NOT SEND TO PAYMENTS TAB
     "Gastei 150 no mercado" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Mercado", "amount": 150.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
-    "Comprei um tênis hoje" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Tênis", "amount": 0.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
-    "Paguei a conta de luz" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Conta de Luz", "amount": 0.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
+    "Comprei um tênis hoje" -> {"intent": "SLOT_FILLING", "entity": "TRANSACTION", "missing_field": "amount", "partial_data": {"description": "Tênis", "isExpense": true, "isPaid": true, "date": "$currentDate"}, "question": "Qual foi o valor do tênis?"}
+    "Paguei a conta de luz" -> {"intent": "SLOT_FILLING", "entity": "TRANSACTION", "missing_field": "amount", "partial_data": {"description": "Conta de Luz", "isExpense": true, "isPaid": true, "date": "$currentDate"}, "question": "Qual foi o valor da conta de luz?"}
     "Tive uma despesa de 80 com táxi" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Táxi", "amount": 80.0, "isExpense": true, "isPaid": true, "date": "$currentDate"}}
     
     // TYPE B: Future Expenses (isPaid: false) - YES, SEND TO PAYMENTS TAB
@@ -424,6 +513,28 @@ class AIService {
     // TYPE D: Income
     "Recebi 500 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": null, "amount": 500.0, "isExpense": false, "isPaid": true, "date": "$currentDate"}}
     "Aluguel para receber dia 10" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Aluguel", "amount": 0.0, "isExpense": false, "isPaid": false, "date": "$currentYear-MM-10T00:00:00"}}
+    
+    SHORT COMMANDS (QUICK ENTRY - CRITICAL):
+    If user says ONLY [Description] + [Value] WITHOUT verb, assume EXPENSE (paid today).
+    Pattern: "[Entity] [Value]" = EXPENSE | PAID | TODAY
+    Examples:
+    "Uber 10 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Uber", "amount": 10.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Transporte"}}
+    "Almoço 35" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Almoço", "amount": 35.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Alimentação"}}
+    "Mercado 150" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Mercado", "amount": 150.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Alimentação"}}
+    "Gasolina 200" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Gasolina", "amount": 200.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Transporte"}}
+    "IPVA do corolla 200 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "IPVA do corolla", "amount": 200.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Impostos"}}
+    "Conta de luz 150" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Conta de luz", "amount": 150.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Contas Fixas"}}
+    "Impressora laser 1500 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Impressora laser", "amount": 1500.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Outras Despesas"}}
+    "Notebook Dell 3000" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Notebook Dell", "amount": 3000.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Outras Despesas"}}
+    "Celular Samsung 2500 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Celular Samsung", "amount": 2500.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Outras Despesas"}}
+    CRITICAL: Extract amount from ANYWHERE in phrase, especially at the END. "impressora laser 1500 reais" = amount: 1500.0, description: "Impressora laser". NEVER ignore numbers!
+    EXCEPTIONS (with verb = can be income):
+    "Vendi bolo 50" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Bolo", "amount": 50.0, "isExpense": false, "isPaid": true, "date": "$currentDate", "category": "Vendas"}}
+    PENDING KEYWORDS (isPaid: false): "agendar", "para pagar", "vence dia", "boleto", "fatura"
+    "Agendar luz 150 dia 25" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Luz", "amount": 150.0, "isExpense": true, "isPaid": false, "date": "$currentYear-MM-25T00:00:00", "category": "Contas Fixas"}}
+    CATEGORY AUTO-MAPPING: uber/taxi/ônibus/gasolina=Transporte | almoço/jantar/mercado/restaurante=Alimentação | farmácia/remédio/médico=Saúde | luz/água/internet/aluguel=Contas Fixas | ipva/iptu/icms/ipi/iss/inss=Impostos
+    CRITICAL ACRONYMS: IPVA, IPTU, ICMS, IPI, ISS, INSS are TAX expenses. Always recognize as EXPENSE (isExpense: true) in category "Impostos".
+    CONFIRMATION: "Registrado: [valor] para [descrição] em [categoria]. Pago hoje."
     
     Agenda Rules:
     1. Title Format for meetings/appointments (COMPROMISSO):
@@ -620,6 +731,79 @@ class AIService {
     "Quantos aniversários tem em janeiro de 2026?" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "date": "2026-01-01", "granularity": "MONTH", "type": "ANIVERSARIO"}}
     "O que tenho na agenda de remédios?" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "type": "REMEDIO"}}
     "Quais remédios preciso tomar hoje?" -> {"intent": "QUERY", "query": {"domain": "AGENDA", "type": "REMEDIO", "date": "$currentDate", "granularity": "DAY"}}
+    
+    8. BUSINESS INTELLIGENCE (ADVANCED FINANCIAL QUERIES):
+       Detects analytical questions about finances. Returns intent "QUERY" with specific fields.
+
+       A. AGGREGATION (Sum/Average/Count):
+       - "Quanto gastei com combustível mês passado?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "SUM", "category": "Transporte", "subcategory": "Combustível", "period": "LAST_MONTH", "type": "EXPENSE"}}
+       - "Qual minha média de gastos com alimentação este ano?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "AVERAGE", "category": "Alimentação", "period": "THIS_YEAR", "type": "EXPENSE", "groupBy": "MONTH"}}
+       - "Quantas vezes comi fora este mês?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "COUNT", "category": "Alimentação", "subcategory": "Restaurantes", "period": "THIS_MONTH"}}
+
+       B. BUDGET CHECK (Can I Afford?):
+       - "Posso comprar uma pizza hoje?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "CHECK_BUDGET", "category": "Alimentação", "estimatedAmount": 50, "period": "THIS_MONTH"}}
+       - "Dá para viajar no final do mês?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "CHECK_BUDGET", "category": "Lazer", "period": "END_OF_MONTH"}}
+
+       C. COMPARISON (This vs That):
+       - "Gastei mais este mês ou no mês passado?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "COMPARE", "type": "EXPENSE", "periods": ["THIS_MONTH", "LAST_MONTH"]}}
+       - "Onde gastei mais: mercado ou restaurantes?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "COMPARE", "categories": ["Alimentação/Mercado", "Alimentação/Restaurantes"], "period": "THIS_MONTH"}}
+
+       D. TREND ANALYSIS (Patterns):
+       - "Estou gastando mais ou menos com saúde?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "TREND", "category": "Saúde", "period": "LAST_6_MONTHS"}}
+       - "Meus gastos estão aumentando?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "TREND", "type": "EXPENSE", "period": "LAST_3_MONTHS"}}
+
+       E. TOP/BOTTOM (Rankings):
+       - "Qual minha maior despesa este mês?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "TOP", "type": "EXPENSE", "period": "THIS_MONTH", "limit": 1}}
+       - "Quais minhas 3 maiores categorias de gasto?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "TOP", "type": "EXPENSE", "groupBy": "CATEGORY", "period": "THIS_MONTH", "limit": 3}}
+
+       F. ALERTS (Financial Health):
+       - "Tenho alguma conta atrasada?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "ALERT", "status": "OVERDUE"}}
+       - "Como estão minhas contas?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "ALERT", "status": "PENDING", "period": "NEXT_3_DAYS"}}
+
+       G. SPECIFIC FIND (Details):
+       - "Quando vence o IPVA?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "FIND", "keywords": "IPVA", "extractField": "dueDate"}}
+       - "Já paguei o condomínio?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "FIND", "keywords": "condomínio", "extractField": "status"}}
+
+       H. BALANCE & PROJECTION:
+       - "Qual meu saldo?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "BALANCE", "type": "CURRENT"}}
+       - "Quanto vou ter no final do mês?" -> {"intent": "QUERY", "query": {"domain": "FINANCE", "operation": "BALANCE", "type": "PROJECTED", "period": "END_OF_MONTH"}}
+
+       RESPONSE STYLE GUIDELINE:
+       1. Start with Empathy/Context ("Boa pergunta!", "Entendo sua preocupação").
+       2. Present Numbers rounded for voice clarity.
+       3. Suggest Action ("Quer ver os detalhes?", "Posso listar?").
+    
+    5. GREETING / CHAT (CRITICAL):
+       - "Bom dia" -> {"intent": "GREETING", "response": "Bom dia! Tudo bem com você?"}
+       - "Olá" -> {"intent": "GREETING", "response": "Olá! Como posso ajudar?"}
+       - "Boa tarde" -> {"intent": "GREETING", "response": "Boa tarde!"}
+    
+    6. EMOTIONAL SUPPORT / CONVERSATIONAL (CRITICAL):
+       When the user expresses emotions, feelings, or makes conversational statements WITHOUT a specific task:
+       - "Estou cansado" -> {"intent": "CHAT", "message": "Entendo que você está cansado. Que tal descansar um pouco? Se precisar de algo, estou aqui para ajudar."}
+       - "Estou estressado" -> {"intent": "CHAT", "message": "Sinto muito que esteja estressado. Respire fundo. Posso ajudar com algo para aliviar sua carga?"}
+       - "Estou com fome" -> {"intent": "CHAT", "message": "Que tal fazer uma pausa para comer? Cuidar de si mesmo é importante!"}
+       - "Estou feliz" -> {"intent": "CHAT", "message": "Que ótimo! Fico feliz em saber que você está bem!"}
+       - "Estou triste" -> {"intent": "CHAT", "message": "Sinto muito que esteja se sentindo assim. Se quiser conversar ou se precisar de ajuda com algo, estou aqui."}
+       - "Estou ocupado" -> {"intent": "CHAT", "message": "Entendo. Vou tentar ser breve. No que posso ajudar?"}
+       - "Obrigado" -> {"intent": "CHAT", "message": "De nada! Sempre que precisar, estou aqui."}
+       - "Tchau" -> {"intent": "CHAT", "message": "Até logo! Tenha um ótimo dia!"}
+       
+       RULE: For emotional/conversational inputs, ALWAYS return intent "CHAT" with an empathetic "message" field.
+       The message should acknowledge the emotion and offer support or encouragement.
+    
+    7. HUMOR / JOKES (ENTERTAINMENT):
+       When the user asks for a joke or wants to laugh:
+       - "Conte uma piada" -> {"intent": "CHAT", "message": "Por que o computador foi ao médico? Porque estava com vírus! 😄"}
+       - "Me faz rir" -> {"intent": "CHAT", "message": "Você sabe por que o Excel foi demitido? Porque ele só vivia fazendo planilhas! 😂"}
+       - "Quero uma piada" -> {"intent": "CHAT", "message": "O que o zero disse para o oito? Que cinto maneiro! 😄"}
+       - "Conta uma piada de finanças" -> {"intent": "CHAT", "message": "Por que o dinheiro não cresce em árvores? Porque os bancos já têm todas as filiais! 💰😄"}
+       - "Me diverte" -> {"intent": "CHAT", "message": "Por que o desenvolvedor foi ao psicólogo? Porque tinha muitos problemas de relacionamento... com o banco de dados! 😅"}
+       
+       RULE: For joke requests, return intent "CHAT" with a clean, family-friendly joke related to technology, finance, or general humor.
+       Keep jokes light, positive, and appropriate for all ages.
+       
+    IMPORTANT: RETURN ONLY THE JSON OBJECT. NO MARKDOWN. NO CODE BLOCKS.
     ''';
   }
 
@@ -639,5 +823,62 @@ class AIService {
     if ((month == 1 && day >= 20) || (month == 2 && day <= 18)) return "Aquário";
     if ((month == 2 && day >= 19) || (month == 3 && day <= 20)) return "Peixes";
     return "Desconhecido";
+  }
+
+  /// Detects if the input is a question/query or a transaction command
+  /// Returns true if it's a question, false if it's a command
+  bool _isQuery(String input) {
+    final inputLower = input.toLowerCase().trim();
+    
+    // Question words in multiple languages
+    final questionWords = [
+      // Portuguese
+      'qual', 'quanto', 'quantos', 'quantas', 'quando', 'onde', 'como',
+      'por que', 'porque', 'quem', 'o que', 'que', 'há', 'existe', 'tenho',
+      // English
+      'what', 'how', 'when', 'where', 'why', 'who', 'which', 'do', 'does',
+      'is', 'are', 'was', 'were', 'have', 'has', 'can', 'could', 'should',
+      // Spanish
+      'qué', 'cuál', 'cuánto', 'cuántos', 'cuándo', 'dónde', 'cómo', 'por qué',
+      // French
+      'quel', 'quelle', 'combien', 'quand', 'où', 'comment', 'pourquoi',
+    ];
+    
+    // Check if starts with question word
+    for (final word in questionWords) {
+      if (inputLower.startsWith(word)) {
+        return true;
+      }
+    }
+    
+    // Check if ends with question mark
+    if (inputLower.endsWith('?')) {
+      return true;
+    }
+    
+    // Check for query-specific patterns
+    final queryPatterns = [
+      'total de',
+      'soma de',
+      'saldo',
+      'quanto gastei',
+      'quanto recebi',
+      'quanto tenho',
+      'posso comprar',
+      'dá para',
+      'consigo',
+      'how much',
+      'what is',
+      'show me',
+      'tell me',
+    ];
+    
+    for (final pattern in queryPatterns) {
+      if (inputLower.contains(pattern)) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 }

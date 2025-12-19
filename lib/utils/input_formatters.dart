@@ -136,3 +136,45 @@ class PercentageInputFormatter extends TextInputFormatter {
     );
   }
 }
+
+/// Formatter para Datas (DD/MM/AAAA)
+class DateInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.length > 10) {
+      return oldValue; // Maximum length (DD/MM/YYYY)
+    }
+    
+    // Remove tudo que não for dígito
+    String digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    String formatted = "";
+    
+    // DD
+    if (digits.length >= 2) {
+      formatted += "${digits.substring(0, 2)}/";
+      
+      // MM
+      if (digits.length >= 4) {
+        formatted += "${digits.substring(2, 4)}/";
+        // AAAA
+        if (digits.length >= 8) {
+             formatted += digits.substring(4, 8);
+        } else {
+             formatted += digits.substring(4);
+        }
+      } else {
+        formatted += digits.substring(2);
+      }
+    } else {
+      formatted = digits;
+    }
+    
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}

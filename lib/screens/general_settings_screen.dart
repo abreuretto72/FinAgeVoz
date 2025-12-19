@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../utils/localization.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/talking_clock_service.dart';
+import '../utils/input_formatters.dart';
 
 class GeneralSettingsScreen extends StatefulWidget {
   const GeneralSettingsScreen({super.key});
@@ -174,6 +176,35 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
 
                     const Divider(color: Colors.grey, height: 1),
 
+                    // User Name
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.person, color: Colors.blue),
+                      ),
+                      title: const Text(
+                        "Seu Nome",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        _dbService.getUserName() ?? "Toque para definir",
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      trailing: const Icon(Icons.edit, color: Colors.white, size: 20),
+                      onTap: () {
+                         _showUserNameInput(context);
+                      },
+                    ),
+                    
+                    const Divider(color: Colors.grey, height: 1),
+
                     // Birth Date (Perfil / Horóscopo)
                     ListTile(
                       leading: Container(
@@ -198,17 +229,37 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                         style: const TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                       trailing: const Icon(Icons.edit, color: Colors.white, size: 20),
-                      onTap: () async {
-                         final picked = await showDatePicker(
-                             context: context,
-                             initialDate: _dbService.getUserBirthDate() ?? DateTime(1980),
-                             firstDate: DateTime(1900),
-                             lastDate: DateTime.now(),
-                         );
-                         if (picked != null) {
-                             await _dbService.setUserBirthDate(picked);
-                             setState((){});
-                         }
+                      onTap: () {
+                         _showBirthDateInput(context);
+                      },
+                    ),
+                    
+                    const Divider(color: Colors.grey, height: 1),
+
+                    // Favorite Team
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.sports_soccer, color: Colors.green),
+                      ),
+                      title: const Text(
+                        "Time do Coração",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        _dbService.getUserFavoriteTeam() ?? "Toque para definir",
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      trailing: const Icon(Icons.edit, color: Colors.white, size: 20),
+                      onTap: () {
+                         _showFavoriteTeamInput(context);
                       },
                     ),
                     
@@ -708,5 +759,204 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
         ],
       ),
     );
+  }
+  Future<void> _showBirthDateInput(BuildContext context) async {
+      final TextEditingController controller = TextEditingController();
+      final currentDate = _dbService.getUserBirthDate();
+      if (currentDate != null) {
+          // Fill current value
+          String day = currentDate.day.toString().padLeft(2, '0');
+          String month = currentDate.month.toString().padLeft(2, '0');
+          String year = currentDate.year.toString();
+          controller.text = "$day/$month/$year";
+      }
+
+      await showDialog(
+        context: context, 
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF2C2C2C),
+          title: const Text("Data de Nascimento", style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+               const Text("Digite sua data de nascimento:", style: TextStyle(color: Colors.grey)),
+               const SizedBox(height: 10),
+               TextField(
+                 controller: controller,
+                 keyboardType: TextInputType.number,
+                 style: const TextStyle(color: Colors.white, fontSize: 18),
+                 decoration: InputDecoration(
+                   hintText: "DD/MM/AAAA",
+                   hintStyle: const TextStyle(color: Colors.white24),
+                   filled: true,
+                   fillColor: Colors.black26,
+                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                   prefixIcon: const Icon(Icons.calendar_today, color: Colors.teal),
+                 ),
+                 inputFormatters: [
+                   FilteringTextInputFormatter.digitsOnly,
+                   DateInputFormatter(),
+                 ],
+               ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx), 
+              child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+              onPressed: () async {
+                 String text = controller.text;
+                 if (text.length != 10) {
+                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Data incompleta! Use o formato DD/MM/AAAA")));
+                     return;
+                 }
+                 
+                 try {
+                     int day = int.parse(text.substring(0, 2));
+                     int month = int.parse(text.substring(3, 5));
+                     int year = int.parse(text.substring(6, 10));
+                     
+                     // Basic validation
+                     if (month < 1 || month > 12) throw Exception("Mês inválido");
+                     if (day < 1 || day > 31) throw Exception("Dia inválido");
+                     if (year < 1900 || year > DateTime.now().year) throw Exception("Ano inválido");
+                     
+                     final date = DateTime(year, month, day);
+                     await _dbService.setUserBirthDate(date);
+                     
+                     if (mounted) setState((){});
+                     Navigator.pop(ctx);
+                     
+                 } catch (e) {
+                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Data inválida! Verifique os valores.")));
+                 }
+              }, 
+              child: const Text("Salvar", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        )
+      );
+  }
+
+  Future<void> _showFavoriteTeamInput(BuildContext context) async {
+      final TextEditingController controller = TextEditingController();
+      final currentTeam = _dbService.getUserFavoriteTeam();
+      if (currentTeam != null) {
+          controller.text = currentTeam;
+      }
+
+      await showDialog(
+        context: context, 
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF2C2C2C),
+          title: const Text("Time do Coração", style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+               const Text("Digite o nome do seu time:", style: TextStyle(color: Colors.grey)),
+               const SizedBox(height: 10),
+               TextField(
+                 controller: controller,
+                 style: const TextStyle(color: Colors.white, fontSize: 18),
+                 decoration: InputDecoration(
+                   hintText: "Ex: Flamengo, Palmeiras, Corinthians...",
+                   hintStyle: const TextStyle(color: Colors.white24),
+                   filled: true,
+                   fillColor: Colors.black26,
+                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                   prefixIcon: const Icon(Icons.sports_soccer, color: Colors.green),
+                 ),
+               ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx), 
+              child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              onPressed: () async {
+                 String team = controller.text.trim();
+                 if (team.isEmpty) {
+                     ScaffoldMessenger.of(context).showSnackBar(
+                       const SnackBar(content: Text("Digite o nome do time!"))
+                     );
+                     return;
+                 }
+                 
+                 await _dbService.setUserFavoriteTeam(team);
+                 if (mounted) setState((){});
+                 Navigator.pop(ctx);
+              }, 
+              child: const Text("Salvar", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        )
+      );
+  }
+
+  Future<void> _showUserNameInput(BuildContext context) async {
+      final TextEditingController controller = TextEditingController();
+      final currentName = _dbService.getUserName();
+      if (currentName != null) {
+          controller.text = currentName;
+      }
+
+      await showDialog(
+        context: context, 
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF2C2C2C),
+          title: const Text("Seu Nome", style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+               const Text("Digite seu primeiro nome:", style: TextStyle(color: Colors.grey)),
+               const SizedBox(height: 10),
+               TextField(
+                 controller: controller,
+                 style: const TextStyle(color: Colors.white, fontSize: 18),
+                 decoration: InputDecoration(
+                   hintText: "Ex: João, Maria, Pedro...",
+                   hintStyle: const TextStyle(color: Colors.white24),
+                   filled: true,
+                   fillColor: Colors.black26,
+                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                   prefixIcon: const Icon(Icons.person, color: Colors.blue),
+                 ),
+               ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx), 
+              child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+              onPressed: () async {
+                 String name = controller.text.trim();
+                 if (name.isEmpty) {
+                     ScaffoldMessenger.of(context).showSnackBar(
+                       const SnackBar(content: Text("Digite seu nome!"))
+                     );
+                     return;
+                 }
+                 
+                 await _dbService.setUserName(name);
+                 if (mounted) setState((){});
+                 Navigator.pop(ctx);
+              }, 
+              child: const Text("Salvar", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        )
+      );
   }
 }

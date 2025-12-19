@@ -1,0 +1,344 @@
+# 🎤 Comandos Curtos - Assunção de Dados Omissos
+
+## 🎯 Objetivo
+Permitir que o usuário registre transações de forma ultra-rápida, dizendo apenas o essencial (ex: "Uber 10 reais"), sem precisar especificar verbo, status ou data.
+
+---
+
+## 📋 REGRAS DE ASSUNÇÃO
+
+### **1. Regra de Omissão de Verbo (Ação Padrão)**
+
+**Princípio:** Se o usuário NÃO usar verbo, assumir DESPESA (saída).
+
+**Padrão:** `[Entidade/Local] + [Valor]` = DESPESA PAGA
+
+**Exemplos:**
+```
+"Uber 10 reais"          → Despesa | Uber | 10.00 | Pago | Transporte
+"Almoço 35"              → Despesa | Almoço | 35.00 | Pago | Alimentação
+"Mercado 150"            → Despesa | Mercado | 150.00 | Pago | Alimentação
+"Gasolina 200"           → Despesa | Gasolina | 200.00 | Pago | Transporte
+"Farmácia 45,50"         → Despesa | Farmácia | 45.50 | Pago | Saúde
+```
+
+**Exceções (com verbo = pode ser receita):**
+```
+"Vendi bolo 50"          → Receita | Bolo | 50.00 | Pago | Vendas
+"Recebi salário 3000"    → Receita | Salário | 3000.00 | Pago | Salário
+"Ganhei 100"             → Receita | Ganho | 100.00 | Pago | Outras Receitas
+```
+
+---
+
+### **2. Regra de Status Financeiro (Status Padrão)**
+
+**Princípio:** Comandos curtos = transação JÁ REALIZADA (paga).
+
+**Padrão:** `isPaid = true` | `paymentDate = hoje`
+
+**Exceções (palavras-chave que indicam PENDENTE):**
+- "agendar"
+- "para pagar"
+- "vence dia"
+- "boleto"
+- "fatura"
+- "conta para pagar"
+
+**Exemplos:**
+```
+"Uber 10"                      → isPaid: true, paymentDate: hoje
+"Almoço 35"                    → isPaid: true, paymentDate: hoje
+"Agendar conta de luz 150"     → isPaid: false, paymentDate: null
+"Boleto 200 vence dia 25"      → isPaid: false, dueDate: dia 25
+```
+
+---
+
+### **3. Regra de Data e Hora**
+
+**Princípio:** Se não mencionar data, assumir HOJE.
+
+**Padrão:** `date = hoje` | `time = agora`
+
+**Exemplos:**
+```
+"Uber 10"                → date: 2025-12-19, time: 07:03
+"Almoço 35 ontem"        → date: 2025-12-18, time: null
+"Mercado 150 dia 15"     → date: 2025-12-15, time: null
+```
+
+---
+
+### **4. Fluxo de Confirmação Inteligente**
+
+**Princípio:** Confirmar de forma breve e clara.
+
+**Formato:** "Registrado: [valor] para [descrição] em [categoria]. Pago hoje."
+
+**Exemplos:**
+```
+Usuário: "Uber 10 reais"
+IA: "Registrado: 10 reais para Uber em Transporte. Pago hoje."
+
+Usuário: "Almoço 35"
+IA: "Registrado: 35 reais para Almoço em Alimentação. Pago hoje."
+
+Usuário: "Vendi bolo 50"
+IA: "Registrado: 50 reais de venda de Bolo. Recebido hoje."
+```
+
+---
+
+### **5. Tratamento de Ambiguidade**
+
+**Valores Negativos:**
+```
+"Uber menos 10"          → Estorno/Ajuste | -10.00
+"Estorno Uber 10"        → Estorno | -10.00 (reversal)
+```
+
+**Valores Positivos Isolados:**
+```
+"10 reais"               → Despesa genérica | 10.00
+"50"                     → Despesa genérica | 50.00
+```
+
+---
+
+## 🔄 PROCESSAMENTO INTERNO
+
+### **Tabela de Mapeamento:**
+
+| Comando de Voz | Interpretação | Ação no Banco |
+|----------------|---------------|---------------|
+| "Uber 10,00" | Despesa confirmada (sem verbo) | `INSERT INTO transactions (description, amount, isExpense, isPaid, date, category) VALUES ('Uber', -10.00, true, true, '2025-12-19', 'Transporte')` |
+| "Almoço 35" | Despesa confirmada (sem verbo) | `INSERT INTO transactions (description, amount, isExpense, isPaid, date, category) VALUES ('Almoço', -35.00, true, true, '2025-12-19', 'Alimentação')` |
+| "Vendi bolo 50" | Receita (verbo 'vendi') | `INSERT INTO transactions (description, amount, isExpense, isPaid, date, category) VALUES ('Bolo', 50.00, false, true, '2025-12-19', 'Vendas')` |
+| "Gasolina 200" | Despesa confirmada | `INSERT INTO transactions (description, amount, isExpense, isPaid, date, category) VALUES ('Gasolina', -200.00, true, true, '2025-12-19', 'Transporte')` |
+| "Agendar luz 150" | Despesa pendente (palavra-chave) | `INSERT INTO transactions (description, amount, isExpense, isPaid, date, category) VALUES ('Luz', -150.00, true, false, '2025-12-19', 'Contas Fixas')` |
+
+---
+
+## 🧠 LÓGICA DE DETECÇÃO
+
+### **Padrão de Comando Curto:**
+```
+REGEX: ^([A-Za-zÀ-ÿ\s]+)\s+(\d+(?:[.,]\d{1,2})?)(?:\s+reais)?$
+
+Grupos:
+- Grupo 1: Descrição (ex: "Uber", "Almoço", "Gasolina")
+- Grupo 2: Valor (ex: "10", "35", "200", "45,50")
+```
+
+### **Algoritmo de Decisão:**
+
+```python
+def processar_comando_curto(input):
+    # 1. Detectar padrão curto
+    if match_pattern(input, COMANDO_CURTO_REGEX):
+        descricao = grupo1
+        valor = grupo2
+        
+        # 2. Verificar verbo de receita
+        if contains_verbo_receita(input):  # "vendi", "recebi", "ganhei"
+            tipo = "RECEITA"
+            isExpense = false
+        else:
+            tipo = "DESPESA"
+            isExpense = true
+        
+        # 3. Verificar status
+        if contains_palavra_pendente(input):  # "agendar", "boleto", "vence"
+            isPaid = false
+        else:
+            isPaid = true
+        
+        # 4. Definir data
+        if contains_data(input):
+            date = extrair_data(input)
+        else:
+            date = hoje()
+        
+        # 5. Mapear categoria
+        categoria = mapear_categoria(descricao)
+        
+        # 6. Criar transação
+        return {
+            "intent": "ADD_TRANSACTION",
+            "transaction": {
+                "description": descricao,
+                "amount": valor,
+                "isExpense": isExpense,
+                "isPaid": isPaid,
+                "date": date,
+                "category": categoria
+            }
+        }
+```
+
+---
+
+## 📚 DICIONÁRIO DE SINÔNIMOS PARA CATEGORIAS
+
+### **Transporte:**
+- uber, 99, taxi, táxi, ônibus, onibus, metrô, metro, gasolina, combustível, estacionamento
+
+### **Alimentação:**
+- almoço, almoco, jantar, café, cafe, lanche, mercado, supermercado, padaria, restaurante, ifood, delivery
+
+### **Saúde:**
+- farmácia, farmacia, remédio, remedio, médico, medico, consulta, exame, hospital, dentista
+
+### **Contas Fixas:**
+- luz, água, agua, internet, telefone, celular, aluguel, condomínio, condominio, iptu, ipva
+
+### **Lazer:**
+- cinema, show, festa, viagem, passeio, parque, diversão, diversao
+
+### **Educação:**
+- curso, livro, escola, faculdade, mensalidade, material escolar
+
+### **Vestuário:**
+- roupa, sapato, tênis, tenis, camisa, calça, calca
+
+### **Outras Receitas:**
+- venda, vendas, bico, extra, freelance, freela
+
+---
+
+## 🎨 EXEMPLOS DE USO COMPLETO
+
+### **Cenário 1: Registro Rápido de Despesa**
+```
+Usuário: "Uber 10 reais"
+
+IA processa:
+- Padrão detectado: COMANDO_CURTO
+- Descrição: "Uber"
+- Valor: 10.00
+- Tipo: DESPESA (sem verbo)
+- Status: PAGO (sem palavra pendente)
+- Data: 2025-12-19
+- Categoria: Transporte (mapeamento automático)
+
+IA responde: "Registrado: 10 reais para Uber em Transporte. Pago hoje."
+
+Banco de dados:
+{
+  "description": "Uber",
+  "amount": -10.00,
+  "isExpense": true,
+  "isPaid": true,
+  "paymentDate": "2025-12-19",
+  "date": "2025-12-19",
+  "category": "Transporte"
+}
+```
+
+### **Cenário 2: Registro de Receita**
+```
+Usuário: "Vendi bolo 50"
+
+IA processa:
+- Padrão detectado: COMANDO_CURTO
+- Verbo detectado: "vendi" (receita)
+- Descrição: "Bolo"
+- Valor: 50.00
+- Tipo: RECEITA
+- Status: PAGO
+- Data: 2025-12-19
+- Categoria: Vendas
+
+IA responde: "Registrado: 50 reais de venda de Bolo. Recebido hoje."
+
+Banco de dados:
+{
+  "description": "Bolo",
+  "amount": 50.00,
+  "isExpense": false,
+  "isPaid": true,
+  "paymentDate": "2025-12-19",
+  "date": "2025-12-19",
+  "category": "Vendas"
+}
+```
+
+### **Cenário 3: Agendamento de Conta**
+```
+Usuário: "Agendar luz 150 dia 25"
+
+IA processa:
+- Padrão detectado: COMANDO_CURTO
+- Palavra-chave: "agendar" (pendente)
+- Descrição: "Luz"
+- Valor: 150.00
+- Tipo: DESPESA
+- Status: PENDENTE
+- Data vencimento: 2025-12-25
+- Categoria: Contas Fixas
+
+IA responde: "Agendado: 150 reais para Luz em Contas Fixas. Vence dia 25."
+
+Banco de dados:
+{
+  "description": "Luz",
+  "amount": -150.00,
+  "isExpense": true,
+  "isPaid": false,
+  "paymentDate": null,
+  "date": "2025-12-25",
+  "category": "Contas Fixas"
+}
+```
+
+---
+
+## 🚀 IMPLEMENTAÇÃO NO PROMPT DA IA
+
+### **Adicionar ao ai_service.dart (após seção de TRANSACTIONS):**
+
+```dart
+SECTION: SHORT COMMANDS (QUICK ENTRY)
+────────────────────────────────────
+
+CRITICAL RULE: If user says ONLY [Description] + [Value] WITHOUT a verb, assume EXPENSE (paid).
+
+Pattern: "[Entity/Place] [Value]" = EXPENSE | PAID | TODAY
+
+Examples:
+- "Uber 10 reais" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Uber", "amount": 10.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Transporte"}}
+- "Almoço 35" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Almoço", "amount": 35.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Alimentação"}}
+- "Mercado 150" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Mercado", "amount": 150.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Alimentação"}}
+- "Gasolina 200" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Gasolina", "amount": 200.0, "isExpense": true, "isPaid": true, "date": "$currentDate", "category": "Transporte"}}
+
+EXCEPTIONS (with verb = can be income):
+- "Vendi bolo 50" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Bolo", "amount": 50.0, "isExpense": false, "isPaid": true, "date": "$currentDate", "category": "Vendas"}}
+- "Recebi salário 3000" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Salário", "amount": 3000.0, "isExpense": false, "isPaid": true, "date": "$currentDate", "category": "Salário"}}
+
+PENDING KEYWORDS (isPaid: false):
+- "agendar", "para pagar", "vence dia", "boleto", "fatura", "conta para pagar"
+
+Example: "Agendar luz 150 dia 25" -> {"intent": "ADD_TRANSACTION", "transaction": {"description": "Luz", "amount": 150.0, "isExpense": true, "isPaid": false, "date": "2025-12-25", "category": "Contas Fixas"}}
+
+CATEGORY MAPPING (auto-detect from description):
+- Transporte: uber, 99, taxi, ônibus, metrô, gasolina, estacionamento
+- Alimentação: almoço, jantar, café, lanche, mercado, supermercado, padaria, restaurante, ifood
+- Saúde: farmácia, remédio, médico, consulta, exame, hospital, dentista
+- Contas Fixas: luz, água, internet, telefone, celular, aluguel, condomínio, iptu, ipva
+- Lazer: cinema, show, festa, viagem, passeio, parque
+- Educação: curso, livro, escola, faculdade, mensalidade
+- Vestuário: roupa, sapato, tênis, camisa, calça
+- Vendas: venda, bico, extra, freelance
+
+CONFIRMATION RESPONSE:
+- Expense: "Registrado: [valor] para [descrição] em [categoria]. Pago hoje."
+- Income: "Registrado: [valor] de [descrição]. Recebido hoje."
+- Pending: "Agendado: [valor] para [descrição]. Vence dia [data]."
+```
+
+---
+
+**Criado em:** 19/12/2024  
+**Autor:** Antigravity AI  
+**Projeto:** FinAgeVoz Short Commands Enhancement

@@ -1,0 +1,539 @@
+# 📊 Business Intelligence - Consultas Financeiras Avançadas por Voz
+
+## 🎯 Objetivo
+Aprimorar o sistema de processamento de consultas financeiras por voz do FinAgeVoz com capacidades avançadas de Business Intelligence.
+
+---
+
+## 🔑 REGRAS CRÍTICAS PARA RESPOSTAS OTIMIZADAS PARA VOZ
+
+### 1. **Audio-First (Áudio em Primeiro Lugar)**
+- Respostas serão FALADAS, não mostradas
+- Evite tabelas, bullet points ou formatação complexa
+- Use linguagem natural e fluida
+
+### 2. **Arredondar Números**
+- ✅ "cerca de 150 reais"
+- ❌ "cento e cinquenta reais e quarenta e dois centavos"
+
+### 3. **Priorizar Urgência**
+- SEMPRE mencione itens atrasados ou de hoje PRIMEIRO
+- Exemplo: "Atenção! Você tem uma conta vencida..."
+
+### 4. **Tom Empático**
+- Use linguagem de apoio
+- "Você está indo bem!" ou "Vamos organizar isso juntos."
+
+### 5. **Perguntas Vagas**
+- Se usuário for vago (ex: "Como estão minhas contas?")
+- Mostrar o que vence nos próximos 3 dias
+
+---
+
+## 📋 TIPOS DE CONSULTAS & EXEMPLOS
+
+### A. CONSULTAS DE AGREGAÇÃO (Soma, Média, Contagem)
+
+#### **Intenção:** Calcular totais, médias ou contagens baseadas em filtros
+
+#### **Exemplos:**
+
+**1. Soma por Categoria**
+```
+Pergunta: "Quanto eu gastei com combustível mês passado?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "SUM",
+    "category": "Transporte",
+    "subcategory": "Combustível",
+    "period": "LAST_MONTH",
+    "type": "EXPENSE"
+  }
+}
+
+Resposta: "Você gastou cerca de [valor] com combustível no mês passado."
+```
+
+**2. Média de Gastos**
+```
+Pergunta: "Qual foi minha média de gastos com alimentação este ano?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "AVERAGE",
+    "category": "Alimentação",
+    "period": "THIS_YEAR",
+    "type": "EXPENSE",
+    "groupBy": "MONTH"
+  }
+}
+
+Resposta: "Sua média mensal com alimentação este ano foi de [valor]."
+```
+
+**3. Contagem de Transações**
+```
+Pergunta: "Quantas vezes comi fora este mês?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "COUNT",
+    "category": "Alimentação",
+    "subcategory": "Restaurantes",
+    "period": "THIS_MONTH",
+    "type": "EXPENSE"
+  }
+}
+
+Resposta: "Você comeu fora [número] vezes este mês."
+```
+
+---
+
+### B. CONSULTAS DE ORÇAMENTO (Posso Pagar?)
+
+#### **Intenção:** Verificar se o usuário pode pagar algo baseado no saldo e despesas pendentes
+
+#### **Exemplos:**
+
+**1. Verificação de Compra**
+```
+Pergunta: "Posso comprar uma pizza hoje?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "CHECK_BUDGET",
+    "category": "Alimentação",
+    "estimatedAmount": 50,
+    "period": "THIS_MONTH"
+  }
+}
+
+Lógica de Resposta:
+1. Calcular: Disponível = Saldo - Despesas Pendentes
+2. Verificar se Disponível >= Valor Estimado
+3. Resposta: "Seu saldo disponível para lazer é [valor]. [Sim/Não], isso cabe no seu planejamento."
+```
+
+**2. Planejamento de Viagem**
+```
+Pergunta: "Dá para viajar no final do mês?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "CHECK_BUDGET",
+    "category": "Lazer",
+    "period": "END_OF_MONTH"
+  }
+}
+
+Resposta: "Considerando suas contas pendentes, você terá cerca de [valor] disponível. [Recomendação]."
+```
+
+---
+
+### C. CONSULTAS DE COMPARAÇÃO (Isso vs Aquilo)
+
+#### **Intenção:** Comparar gastos/receitas entre períodos ou categorias
+
+#### **Exemplos:**
+
+**1. Comparação de Períodos**
+```
+Pergunta: "Gastei mais este mês ou no mês passado?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "COMPARE",
+    "type": "EXPENSE",
+    "periods": ["THIS_MONTH", "LAST_MONTH"]
+  }
+}
+
+Resposta: "Este mês você gastou [valor], enquanto no mês passado foi [valor]. Você gastou [mais/menos]."
+```
+
+**2. Comparação de Categorias**
+```
+Pergunta: "Onde gastei mais: mercado ou restaurantes?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "COMPARE",
+    "categories": ["Alimentação/Mercado", "Alimentação/Restaurantes"],
+    "period": "THIS_MONTH"
+  }
+}
+
+Resposta: "Você gastou [valor] no mercado e [valor] em restaurantes. [Categoria maior] foi o maior gasto."
+```
+
+---
+
+### D. ANÁLISE DE TENDÊNCIAS (Padrões ao Longo do Tempo)
+
+#### **Intenção:** Identificar padrões de gastos/receitas
+
+#### **Exemplos:**
+
+**1. Tendência de Categoria**
+```
+Pergunta: "Estou gastando mais ou menos com saúde?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "TREND",
+    "category": "Saúde",
+    "period": "LAST_6_MONTHS"
+  }
+}
+
+Resposta: "Nos últimos 6 meses, seus gastos com saúde [aumentaram/diminuíram/estabilizaram]. Média: [valor]."
+```
+
+**2. Tendência Geral**
+```
+Pergunta: "Meus gastos estão aumentando?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "TREND",
+    "type": "EXPENSE",
+    "period": "LAST_3_MONTHS"
+  }
+}
+
+Resposta: "Comparando os últimos 3 meses, seus gastos [tendência]. [Recomendação]."
+```
+
+---
+
+### E. CONSULTAS DE RANKING (Top/Bottom)
+
+#### **Intenção:** Encontrar maiores/menores gastos ou categorias
+
+#### **Exemplos:**
+
+**1. Maior Despesa**
+```
+Pergunta: "Qual minha maior despesa este mês?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "TOP",
+    "type": "EXPENSE",
+    "period": "THIS_MONTH",
+    "limit": 1
+  }
+}
+
+Resposta: "Sua maior despesa este mês foi [descrição] no valor de [valor]."
+```
+
+**2. Top 3 Categorias**
+```
+Pergunta: "Quais minhas 3 maiores categorias de gasto?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "TOP",
+    "type": "EXPENSE",
+    "groupBy": "CATEGORY",
+    "period": "THIS_MONTH",
+    "limit": 3
+  }
+}
+
+Resposta: "Suas maiores categorias são: [cat1] com [valor], [cat2] com [valor], e [cat3] com [valor]."
+```
+
+---
+
+### F. CONSULTAS DE ALERTA (Saúde Financeira)
+
+#### **Intenção:** Identificar problemas ou riscos financeiros
+
+#### **Exemplos:**
+
+**1. Contas Atrasadas**
+```
+Pergunta: "Tenho alguma conta atrasada?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "ALERT",
+    "status": "OVERDUE"
+  }
+}
+
+Resposta: "Atenção! Você tem [número] conta(s) atrasada(s): [lista]. Total: [valor]."
+```
+
+**2. Alerta de Gasto Excessivo**
+```
+Pergunta: "Estou gastando demais?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "ALERT",
+    "type": "OVERSPENDING",
+    "period": "THIS_MONTH"
+  }
+}
+
+Lógica:
+1. Comparar gastos do mês atual vs média dos últimos 3 meses
+2. Se > 20% maior: "Atenção! Você está gastando [percentual] a mais que sua média."
+3. Se normal: "Seus gastos estão dentro do normal."
+```
+
+**3. Pergunta Vaga (IMPORTANTE)**
+```
+Pergunta: "Como estão minhas contas?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "ALERT",
+    "status": "PENDING",
+    "period": "NEXT_3_DAYS"
+  }
+}
+
+Resposta: "Nos próximos 3 dias você tem [número] conta(s) para pagar, totalizando [valor]. [Lista]."
+```
+
+---
+
+### G. CONSULTAS ESPECÍFICAS (Encontrar Detalhes)
+
+#### **Intenção:** Obter detalhes sobre uma transação ou categoria específica
+
+#### **Exemplos:**
+
+**1. Data de Vencimento**
+```
+Pergunta: "Quando vence o IPVA?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "FIND",
+    "keywords": "IPVA",
+    "extractField": "dueDate"
+  }
+}
+
+Resposta: "O IPVA vence em [data]."
+```
+
+**2. Valor de Conta**
+```
+Pergunta: "Quanto é a conta da internet?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "FIND",
+    "keywords": "internet",
+    "extractField": "amount"
+  }
+}
+
+Resposta: "A conta da internet é de [valor]."
+```
+
+**3. Status de Pagamento**
+```
+Pergunta: "Já paguei o condomínio?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "FIND",
+    "keywords": "condomínio",
+    "extractField": "status"
+  }
+}
+
+Resposta: "[Sim/Não], você [já pagou/ainda não pagou] o condomínio."
+```
+
+---
+
+### H. CONSULTAS DE SALDO & PROJEÇÃO
+
+#### **Intenção:** Verificar saldo atual ou projetar saldo futuro
+
+#### **Exemplos:**
+
+**1. Saldo Atual**
+```
+Pergunta: "Qual meu saldo?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "BALANCE",
+    "type": "CURRENT"
+  }
+}
+
+Resposta: "Seu saldo atual é de [valor]."
+```
+
+**2. Projeção de Saldo**
+```
+Pergunta: "Quanto vou ter no final do mês?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "BALANCE",
+    "type": "PROJECTED",
+    "period": "END_OF_MONTH"
+  }
+}
+
+Lógica: Saldo Atual + Receitas Pendentes - Despesas Pendentes
+
+Resposta: "Considerando suas receitas e despesas pendentes, você terá cerca de [valor] no final do mês."
+```
+
+**3. Verificação de Saldo Negativo**
+```
+Pergunta: "Vou ficar no vermelho?"
+
+JSON:
+{
+  "intent": "QUERY",
+  "query": {
+    "domain": "FINANCE",
+    "operation": "BALANCE",
+    "type": "PROJECTED",
+    "period": "END_OF_MONTH",
+    "checkNegative": true
+  }
+}
+
+Resposta: "[Sim/Não]. [Se sim: Recomendação de ação]."
+```
+
+---
+
+## 🎨 DIRETRIZES DE ESTILO DE RESPOSTA
+
+### **Estrutura de Resposta em 4 Partes:**
+
+1. **Empatia Primeiro**: Comece com validação
+   - "Entendo sua preocupação..."
+   - "Boa pergunta!"
+   - "Vamos ver isso juntos..."
+
+2. **Números em Segundo**: Declare a resposta claramente
+   - "Você gastou cerca de 500 reais."
+   - "Seu saldo é de 1.200 reais."
+
+3. **Contexto em Terceiro**: Adicione contexto útil
+   - "Isso é 20% a mais que o mês passado."
+   - "Está dentro da sua média."
+
+4. **Ação por Último**: Sugira próximos passos se relevante
+   - "Quer que eu liste os detalhes?"
+   - "Posso ajudar a organizar isso?"
+
+### **Exemplo de Resposta Completa:**
+
+```
+Usuário: "Quanto gastei com mercado este mês?"
+
+IA: "Boa pergunta! Você gastou cerca de 450 reais com mercado este mês. 
+     Isso está um pouco acima da sua média de 400 reais. 
+     Quer saber onde você pode economizar?"
+```
+
+---
+
+## 📅 MAPEAMENTO DE PERÍODOS
+
+| Período | Descrição |
+|---------|-----------|
+| TODAY | Dia atual |
+| YESTERDAY | Dia anterior |
+| THIS_WEEK | Segunda a domingo da semana atual |
+| LAST_WEEK | Semana anterior |
+| THIS_MONTH | Dia 1 ao último dia do mês atual |
+| LAST_MONTH | Mês anterior |
+| THIS_YEAR | 1º de janeiro a 31 de dezembro do ano atual |
+| LAST_YEAR | Ano anterior |
+| NEXT_3_DAYS | Hoje + 3 dias |
+| NEXT_WEEK | Próxima segunda a domingo |
+| NEXT_MONTH | Próximo mês |
+| END_OF_MONTH | Último dia do mês atual |
+| THIS_WEEKEND | Próximo sábado e domingo |
+
+---
+
+## 🚀 IMPLEMENTAÇÃO
+
+Para implementar essas melhorias no `ai_service.dart`, adicione a seção acima após a linha 638 (antes da seção "5. GREETING / CHAT").
+
+Isso expandirá significativamente as capacidades de Business Intelligence do FinAgeVoz!
+
+---
+
+**Criado em:** 19/12/2024  
+**Autor:** Antigravity AI  
+**Projeto:** FinAgeVoz Business Intelligence Enhancement

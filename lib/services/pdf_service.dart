@@ -566,6 +566,129 @@ class PdfService {
     return pdf;
   }
 
+  static Future<Uint8List> generateCashFlowPdfBytes(
+    List<Transaction> transactions,
+    NumberFormat currencyFormat,
+    DateFormat dateFormat,
+    double balance,
+    String languageCode,
+    String title,
+  ) async {
+    final pdf = _buildCashFlowPdf(transactions, currencyFormat, dateFormat, balance, languageCode, title);
+    return pdf.save();
+  }
+
+  static pw.Document _buildCashFlowPdf(
+    List<Transaction> transactions,
+    NumberFormat currencyFormat,
+    DateFormat dateFormat,
+    double balance,
+    String languageCode,
+    String title,
+  ) {
+    final pdf = pw.Document();
+
+    // Calculate totals
+    double totalIncome = 0;
+    double totalExpense = 0;
+    for (var t in transactions) {
+      if (t.isExpense) {
+        totalExpense += t.amount;
+      } else {
+        totalIncome += t.amount;
+      }
+    }
+    totalExpense = totalExpense.abs();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        footer: (context) => _buildFooter(context, languageCode),
+        build: (pw.Context context) {
+          final data = <List<String>>[];
+
+          // Add rows
+          for (var t in transactions) {
+            data.add([
+              dateFormat.format(t.date),
+              t.description,
+              !t.isExpense ? currencyFormat.format(t.amount) : '', // Income Column
+              t.isExpense ? currencyFormat.format(t.amount) : '',  // Expense Column
+            ]);
+          }
+
+          // Add Totals Row
+          data.add([
+            '', // Date
+            'TOTAIS', // Title
+            currencyFormat.format(totalIncome), // Total Income
+            currencyFormat.format(totalExpense), // Total Expense
+          ]);
+
+           // Add Balance Row
+          data.add([
+            '',
+            'SALDO DO FLUXO',
+            '',
+            currencyFormat.format(balance),
+          ]);
+          
+          return [
+            pw.Header(
+              level: 0,
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(title, style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                  pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+                      pw.Text(AppLocalizations.t('app_title', languageCode), style: pw.TextStyle(fontSize: 18, color: PdfColors.grey)),
+                      pw.Text('${AppLocalizations.t('generated_on', languageCode)}${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+                  ]),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 20),
+             pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('${AppLocalizations.t('period_label', languageCode)} - ${AppLocalizations.t('total_transactions', languageCode)}${transactions.length}'),
+                 pw.Text(
+                      'Saldo Final: ${currencyFormat.format(balance)}',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                        color: balance >= 0 ? PdfColors.green : PdfColors.red,
+                      ),
+                    ),
+              ],
+            ),
+            pw.SizedBox(height: 10),
+            pw.Table.fromTextArray(
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.blue),
+              cellAlignment: pw.Alignment.centerLeft,
+              headers: [
+                AppLocalizations.t('table_date', languageCode),
+                AppLocalizations.t('table_description', languageCode), // Title header
+                AppLocalizations.t('income', languageCode),           // Income header
+                AppLocalizations.t('expenses', languageCode)          // Expense header
+              ],
+              data: data,
+              cellAlignments: {
+                  0: pw.Alignment.centerLeft,
+                  1: pw.Alignment.centerLeft,
+                  2: pw.Alignment.centerRight,
+                  3: pw.Alignment.centerRight,
+              },
+              rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.5))),
+            ),
+          ];
+        },
+      ),
+    );
+    return pdf;
+  }
+
   static Future<void> generateEventsPdf(
     List<Event> events,
     DateFormat dateFormat,

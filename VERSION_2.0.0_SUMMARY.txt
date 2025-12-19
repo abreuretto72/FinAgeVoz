@@ -1,0 +1,18 @@
+# FinAgeVoz v2.0.0 - Release Notes
+
+## 12 Novas Funcionalidades Implementadas (19/12/2024)
+
+1. Inteligência Emocional - IA reconhece expressões emocionais
+2. Senso de Humor - Piadas limpas e apropriadas
+3. Business Intelligence - 8 tipos de consultas financeiras
+4. Comandos Curtos - Registro ultra-rápido de transações
+5. Reconhecimento de Impostos - IPVA, IPTU, ICMS, IPI, ISS, INSS
+6. Valores Complexos - Extração de valores em frases complexas
+7. Formulário Automático de Remédio - Abre tela de posologia automaticamente
+8. Busca na Agenda - Ícone de lupa com busca "contains"
+9. Ícones de Edição - Todas as abas têm ícones de editar
+10. Correções de Bugs - Total de eventos, reconhecimento de valores
+11. Documentação Completa - 13 arquivos criados
+12. Fundação Multi-Nuvem - Preparação para backup em múltiplas nuvens
+
+Veja RELEASE_NOTES.md para detalhes completos.

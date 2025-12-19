@@ -604,6 +604,19 @@ class _AgendaListPageState extends State<AgendaListPage> {
                ),
                actions: [
                  IconButton(
+                   icon: const Icon(Icons.search),
+                   tooltip: "Buscar na aba atual",
+                   onPressed: () {
+                     showSearch(
+                       context: context,
+                       delegate: AgendaSearchDelegate(
+                         allItems: _getAllItems(),
+                         currentLanguage: _currentLanguage,
+                       ),
+                     );
+                   },
+                 ),
+                 IconButton(
                    icon: const Icon(Icons.import_export),
                    tooltip: "Importar/Exportar CSV",
                    onPressed: _showImportExportOptions,
@@ -744,27 +757,49 @@ class _AgendaListPageState extends State<AgendaListPage> {
                     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     elevation: 2,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    child: ListTile(
-                      leading: _buildLeadingIcon(item),
-                      title: Text(item.titulo, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text(_buildSubtitle(item)),
-                      trailing: (item.remedio == null && (item.tipo != AgendaItemType.PAGAMENTO || item.pagamento?.transactionId == null)) ? IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.grey),
-                        onPressed: () => showDialog(
-                          context: context, 
-                          builder: (ctx) => AlertDialog(
-                             title: const Text("Excluir item?"),
-                             content: Text("Tem certeza que deseja excluir '${item.titulo}'?"),
-                             actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
-                                TextButton(onPressed: () { 
-                                   repo.deleteItem(item); 
-                                   Navigator.pop(ctx); 
-                                }, child: const Text("Excluir", style: TextStyle(color: Colors.red))),
-                             ],
-                          )
-                        ),
-                      ) : (item.tipo == AgendaItemType.PAGAMENTO ? const Icon(Icons.lock, size: 16, color: Colors.grey) : const Icon(Icons.auto_awesome, size: 16, color: Colors.purpleAccent)),
+                     child: ListTile(
+                       leading: _buildLeadingIcon(item),
+                       title: Text(item.titulo, style: const TextStyle(fontWeight: FontWeight.w600)),
+                       subtitle: Text(_buildSubtitle(item)),
+                       trailing: item.tipo == AgendaItemType.REMEDIO 
+                         ? IconButton(
+                             icon: const Icon(Icons.edit, color: Colors.blue),
+                             onPressed: () {
+                               if (item.remedio != null && item.remedio!.id != null) {
+                                 _handleMedicineAction(item);
+                               }
+                             },
+                           )
+                         : item.tipo == AgendaItemType.PAGAMENTO && item.pagamento?.transactionId != null
+                           ? const Icon(Icons.lock, size: 16, color: Colors.grey)
+                           : Row(
+                               mainAxisSize: MainAxisSize.min,
+                               children: [
+                                 IconButton(
+                                   icon: const Icon(Icons.edit, color: Colors.blue),
+                                   onPressed: () {
+                                     Navigator.push(context, MaterialPageRoute(builder: (_) => AgendaFormScreen(item: item)));
+                                   },
+                                 ),
+                                 IconButton(
+                                   icon: const Icon(Icons.delete, color: Colors.grey),
+                                   onPressed: () => showDialog(
+                                     context: context, 
+                                     builder: (ctx) => AlertDialog(
+                                        title: const Text("Excluir item?"),
+                                        content: Text("Tem certeza que deseja excluir '${item.titulo}'?"),
+                                        actions: [
+                                           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
+                                           TextButton(onPressed: () { 
+                                              repo.deleteItem(item); 
+                                              Navigator.pop(ctx); 
+                                           }, child: const Text("Excluir", style: TextStyle(color: Colors.red))),
+                                        ],
+                                     )
+                                   ),
+                                 ),
+                               ],
+                             ),
                        onTap: () {
                           if (item.remedio != null && item.remedio!.id != null) {
                               _handleMedicineAction(item);
@@ -858,5 +893,136 @@ class _AgendaListPageState extends State<AgendaListPage> {
       next = DateTime(now.year + 1, birthDate.month, birthDate.day);
     }
     return next;
+  }
+}
+
+// Search Delegate for Agenda
+class AgendaSearchDelegate extends SearchDelegate<AgendaItem?> {
+  final List<AgendaItem> allItems;
+  final String currentLanguage;
+
+  AgendaSearchDelegate({
+    required this.allItems,
+    required this.currentLanguage,
+  });
+
+  @override
+  String get searchFieldLabel => 'Buscar na agenda...';
+
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return [
+      IconButton(
+        icon: const Icon(Icons.clear),
+        onPressed: () {
+          query = '';
+        },
+      ),
+    ];
+  }
+
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () {
+        close(context, null);
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    return _buildSearchResults();
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    return _buildSearchResults();
+  }
+
+  Widget _buildSearchResults() {
+    if (query.isEmpty) {
+      return const Center(
+        child: Text('Digite algo para buscar...'),
+      );
+    }
+
+    // Filter using 'contains' (case insensitive)
+    final results = allItems.where((item) {
+      final queryLower = query.toLowerCase();
+      final titleLower = item.titulo.toLowerCase();
+      final descLower = (item.descricao ?? '').toLowerCase();
+      
+      return titleLower.contains(queryLower) || descLower.contains(queryLower);
+    }).toList();
+
+    if (results.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.search_off, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text('Nenhum resultado para "$query"'),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: results.length,
+      itemBuilder: (context, index) {
+        final item = results[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: ListTile(
+            leading: _getIcon(item),
+            title: Text(item.titulo),
+            subtitle: Text(_getSubtitle(item)),
+            onTap: () {
+              close(context, item);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Icon _getIcon(AgendaItem item) {
+    switch (item.tipo) {
+      case AgendaItemType.COMPROMISSO:
+        return const Icon(Icons.event, color: Colors.blue);
+      case AgendaItemType.TAREFA:
+        return const Icon(Icons.check_circle_outline, color: Colors.green);
+      case AgendaItemType.PAGAMENTO:
+        return const Icon(Icons.attach_money, color: Colors.orange);
+      case AgendaItemType.REMEDIO:
+        return const Icon(Icons.medication, color: Colors.purple);
+      case AgendaItemType.ANIVERSARIO:
+        return const Icon(Icons.cake, color: Colors.pink);
+      default:
+        return const Icon(Icons.more_horiz);
+    }
+  }
+
+  String _getSubtitle(AgendaItem item) {
+    final buffer = StringBuffer();
+    
+    if (item.dataInicio != null) {
+      buffer.write(DateFormat.yMd(currentLanguage).format(item.dataInicio!));
+    }
+    
+    if (item.horarioInicio != null) {
+      if (buffer.isNotEmpty) buffer.write(' ');
+      buffer.write(item.horarioInicio);
+    }
+    
+    if (item.descricao != null && item.descricao!.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write(' • ');
+      buffer.write(item.descricao);
+    }
+    
+    return buffer.toString();
   }
 }

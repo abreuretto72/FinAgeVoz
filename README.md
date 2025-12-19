@@ -29,6 +29,7 @@
 ### 💰 Gestão Financeira
 - ✅ **Pagamentos e Recebimentos**: Controle total de fluxo de caixa. O sistema diferencia automaticamente lançamentos **Realizados (Pagos)** de **Futuros (Pendentes)**.
 - ✅ **Parcelamento Inteligente**: Ao lançar uma compra parcelada, o app gera todas as parcelas futuras como "Pendentes", permitindo baixa manual mês a mês.
+- ✅ **Relatórios Auditáveis**: Relatórios PDF interativos de **Fluxo de Caixa** e **Saldo Total** (com projeção de parcelas), permitindo auditoria completa clique-a-clique.
 - ✅ **Relatórios Completos**: Gráficos de categorias, evolução de gastos e exportação para PDF.
 
 ### 🎂 Aniversários e Mensagens IA
